@@ -7,7 +7,7 @@ import cats.data.{Validated, ValidatedNel}
 import cats.effect.IO
 import cats.implicits._
 import com.monovore.decline.{Argument, CommandApp, Opts}
-import org.broadinstitute.gdr.encode.steps.{BuildUrlManifest, GetFiles, GetExperiments}
+import org.broadinstitute.gdr.encode.steps._
 
 import scala.concurrent.ExecutionContext
 
@@ -55,6 +55,41 @@ object Encode
           (inOpt, outOpt).mapN { case (in, out) => new GetFiles(in, out) }
         }
 
+        val queryReplicatesCommand = Opts.subcommand(
+          name = "pull-replicate-metadata",
+          help = "Query ENCODE for metadata of replicates which should be ingested"
+        ) {
+          val inOpt = Opts.option[File](
+            "experiment-metadata",
+            help = "Path to downloaded experiment JSON"
+          )
+
+          val outOpt = Opts.option[File](
+            "output-path",
+            help =
+              "Path to which the downloaded replicate metadata JSON should be written"
+          )
+
+          (inOpt, outOpt).mapN { case (in, out) => new GetReplicates(in, out) }
+        }
+
+        val queryLabsCommand = Opts.subcommand(
+          name = "pull-lab-metadata",
+          help = "Query ENCODE for metadata of labs which should be ingested"
+        ) {
+          val inOpt = Opts.option[File](
+            "experiment-metadata",
+            help = "Path to downloaded experiment JSON"
+          )
+
+          val outOpt = Opts.option[File](
+            "output-path",
+            help = "Path to which the downloaded lab metadata JSON should be written"
+          )
+
+          (inOpt, outOpt).mapN { case (in, out) => new GetLabs(in, out) }
+        }
+
         val buildFileManifestCommand = Opts.subcommand(
           name = "build-transfer-manifest",
           help =
@@ -72,11 +107,15 @@ object Encode
           (inOpt, outOpt).mapN { case (in, out) => new BuildUrlManifest(in, out) }
         }
 
-        List(queryExperimentsCommand, queryFilesCommand, buildFileManifestCommand)
-          .reduce(_ orElse _)
-          .map { cmd =>
-            cmd.run[IO].unsafeRunSync()
-            val _ = ex.shutdownNow()
-          }
+        List(
+          queryExperimentsCommand,
+          queryFilesCommand,
+          queryReplicatesCommand,
+          queryLabsCommand,
+          buildFileManifestCommand
+        ).reduce(_ orElse _).map { cmd =>
+          cmd.run[IO].unsafeRunSync()
+          val _ = ex.shutdownNow()
+        }
       }
     )

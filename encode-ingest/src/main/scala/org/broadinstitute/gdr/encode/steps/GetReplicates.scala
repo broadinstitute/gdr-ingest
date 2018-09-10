@@ -8,14 +8,17 @@ import org.broadinstitute.gdr.encode.client.EncodeClient
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class GetFiles(in: File, out: File)(implicit ec: ExecutionContext) extends IngestStep {
+class GetReplicates(in: File, out: File)(implicit ec: ExecutionContext)
+    extends IngestStep {
   override def run[F[_]: Effect]: F[Unit] = {
     val metadataStream = EncodeClient.stream[F].flatMap { client =>
       refs
+        .fold(Set.empty[String])(_ + _)
+        .flatMap(s => Stream.emits(s.toSeq))
         .segmentN(100)
         .map { refs =>
           val (_, params) = refs
-            .fold(List("type" -> "File")) { (acc, ref) =>
+            .fold(List("type" -> "Replicate")) { (acc, ref) =>
               ("@id" -> ref) :: acc
             }
             .force
@@ -45,7 +48,7 @@ class GetFiles(in: File, out: File)(implicit ec: ExecutionContext) extends Inges
       .through(io.circe.fs2.byteArrayParser)
       .flatMap { json =>
         json.hcursor
-          .get[Seq[String]]("files")
+          .get[Seq[String]]("replicates")
           .fold(
             Stream.raiseError,
             Stream.emits
