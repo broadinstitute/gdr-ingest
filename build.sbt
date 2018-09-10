@@ -40,6 +40,7 @@ val commonsCodecVersion = "1.11"
 val declineVersion = "0.5.0"
 val fs2Version = "0.10.5"
 val http4sVersion = "0.18.17"
+val logbackVersion = "1.2.3"
 
 lazy val `gdr-ingest` = project
   .in(file("."))
@@ -48,6 +49,7 @@ lazy val `gdr-ingest` = project
 lazy val `encode-ingest` = project
   .settings(
     libraryDependencies ++= Seq(
+      "ch.qos.logback" % "logback-classic" % logbackVersion,
       "co.fs2" %% "fs2-io" % fs2Version,
       "com.github.pathikrit" %% "better-files" % betterFilesVersion,
       "com.monovore" %% "decline" % declineVersion,

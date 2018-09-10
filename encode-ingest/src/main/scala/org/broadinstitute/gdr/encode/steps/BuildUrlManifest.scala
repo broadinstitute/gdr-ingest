@@ -9,18 +9,18 @@ import org.apache.commons.codec.binary.{Base64, Hex}
 import org.broadinstitute.gdr.encode.client.EncodeClient
 import org.http4s.Uri
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class BuildUrlManifest(fileMetadata: File, tsvOut: File, parallelism: Int)
+class BuildUrlManifest(fileMetadata: File, tsvOut: File)(implicit ec: ExecutionContext)
     extends IngestStep {
-  import scala.concurrent.ExecutionContext.Implicits.global
 
   override def run[F[_]: Effect]: F[Unit] = {
     val clientStream = EncodeClient.stream[F]
 
     val manifestRows = clientStream.flatMap { client =>
       readFileMetadata
-        .mapAsyncUnordered(parallelism)(buildFileRow(client))
+        .mapAsyncUnordered(EncodeClient.Parallelism)(buildFileRow(client))
         .flatMap { row =>
           Stream
             .fromIterator(s"${row.uri}\t${row.size}\t${row.md5}\n".getBytes.iterator)

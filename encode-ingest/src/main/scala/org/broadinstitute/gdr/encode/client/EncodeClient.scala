@@ -5,20 +5,33 @@ import fs2.Stream
 import io.circe.Json
 import org.http4s.{Method, Query, Request, Uri}
 import org.http4s.client.Client
-import org.http4s.client.blaze.Http1Client
+import org.http4s.client.blaze.{BlazeClientConfig, Http1Client}
+import org.http4s.client.middleware.Logger
 import org.http4s.headers.Location
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 class EncodeClient[F[_]: Effect] private (client: Client[F]) {
 
   private val E = Effect[F]
 
+  def get(ref: String): F[Json] =
+    client.expect[Json](
+      EncodeClient.EncodeUri
+        .withPath(ref)
+        .copy(query = Query.fromPairs("frame" -> "object", "format" -> "json"))
+    )(org.http4s.circe.jsonDecoder)
+
   def search(searchParams: (String, String)*): Stream[F, Json] = {
 
     val searchUri = EncodeClient.EncodeUri
       .withPath("/search/")
-      .copy(query = Query.fromPairs(searchParams: _*))
+      .copy(
+        query = Query.fromPairs(
+          Seq("limit" -> "all", "frame" -> "object", "format" -> "json") ++ searchParams: _*
+        )
+      )
 
     Stream
       .eval(
@@ -28,7 +41,7 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
         res.hcursor
           .downField("@graph")
           .as[Seq[Json]]
-          .fold(Stream.raiseError[Json], jss => Stream.fromIterator(jss.iterator))
+          .fold(Stream.raiseError[Json], jss => Stream.emits(jss))
       }
   }
 
@@ -58,8 +71,14 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
 }
 
 object EncodeClient {
+  val Parallelism: Int = 4
+
   private val EncodeUri = Uri.unsafeFromString("https://www.encodeproject.org")
 
-  def stream[F[_]: Effect]: Stream[F, EncodeClient[F]] =
-    Http1Client.stream().map(new EncodeClient[F](_))
+  def stream[F[_]: Effect](implicit ec: ExecutionContext): Stream[F, EncodeClient[F]] =
+    Http1Client
+      .stream(BlazeClientConfig.defaultConfig.copy(executionContext = ec))
+      .map { blaze =>
+        new EncodeClient[F](Logger.apply(logHeaders = true, logBody = false)(blaze))
+      }
 }
