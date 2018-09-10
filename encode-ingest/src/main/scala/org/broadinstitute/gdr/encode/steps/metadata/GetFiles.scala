@@ -7,7 +7,7 @@ import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 class GetFiles(in: File, out: File)(implicit ec: ExecutionContext)
-    extends DownloadFromPreviousMetadataStep[Seq[String]](in, out) {
+    extends GetFromPreviousMetadataStep[Seq[String]](in, out) {
 
   final override val entityType = "File"
   final override val refField = "files"

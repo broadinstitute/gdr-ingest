@@ -8,9 +8,9 @@ import io.circe.Decoder
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-abstract class DownloadFromPreviousMetadataStep[R: Decoder](in: File, out: File)(
+abstract class GetFromPreviousMetadataStep[R: Decoder](in: File, out: File)(
   implicit ec: ExecutionContext
-) extends DownloadMetadataStep(out) {
+) extends GetMetadataStep(out) {
 
   final override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =
     fs2.io.file

@@ -8,7 +8,7 @@ import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 class GetExperiments(out: File)(implicit ec: ExecutionContext)
-    extends DownloadMetadataStep(out) {
+    extends GetMetadataStep(out) {
 
   override val entityType = "Experiment"
   override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =

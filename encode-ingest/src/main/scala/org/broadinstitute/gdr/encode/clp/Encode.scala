@@ -8,12 +8,7 @@ import cats.effect.IO
 import cats.implicits._
 import com.monovore.decline.{Argument, CommandApp, Opts}
 import org.broadinstitute.gdr.encode.steps._
-import org.broadinstitute.gdr.encode.steps.metadata.{
-  GetExperiments,
-  GetFiles,
-  GetLabs,
-  GetReplicates
-}
+import org.broadinstitute.gdr.encode.steps.metadata._
 
 import scala.concurrent.ExecutionContext
 
@@ -96,6 +91,75 @@ object Encode
           (inOpt, outOpt).mapN { case (in, out) => new GetLabs(in, out) }
         }
 
+        val queryTargetsCommand = Opts.subcommand(
+          name = "pull-target-metadata",
+          help = "Query ENCODE for metadata of targets which should be ingested"
+        ) {
+          val inOpt = Opts.option[File](
+            "experiment-metadata",
+            help = "Path to downloaded experiment JSON"
+          )
+
+          val outOpt = Opts.option[File](
+            "output-path",
+            help = "Path to which the downloaded target metadata JSON should be written"
+          )
+
+          (inOpt, outOpt).mapN { case (in, out) => new GetTargets(in, out) }
+        }
+
+        val queryLibrariesCommand = Opts.subcommand(
+          name = "pull-library-metadata",
+          help = "Query ENCODE for metadata of libraries which should be ingested"
+        ) {
+          val inOpt = Opts.option[File](
+            "replicate-metadata",
+            help = "Path to downloaded replicate JSON"
+          )
+
+          val outOpt = Opts.option[File](
+            "output-path",
+            help = "Path to which the downloaded library metadata JSON should be written"
+          )
+
+          (inOpt, outOpt).mapN { case (in, out) => new GetLibraries(in, out) }
+        }
+
+        val queryBiosamplesCommand = Opts.subcommand(
+          name = "pull-biosample-metadata",
+          help = "Query ENCODE for metadata of biosamples which should be ingested"
+        ) {
+          val inOpt = Opts.option[File](
+            "library-metadata",
+            help = "Path to downloaded library JSON"
+          )
+
+          val outOpt = Opts.option[File](
+            "output-path",
+            help =
+              "Path to which the downloaded biosample metadata JSON should be written"
+          )
+
+          (inOpt, outOpt).mapN { case (in, out) => new GetBiosamples(in, out) }
+        }
+
+        val queryDonorsCommand = Opts.subcommand(
+          name = "pull-donor-metadata",
+          help = "Query ENCODE for metadata of donors which should be ingested"
+        ) {
+          val inOpt = Opts.option[File](
+            "biosample-metadata",
+            help = "Path to downloaded biosample JSON"
+          )
+
+          val outOpt = Opts.option[File](
+            "output-path",
+            help = "Path to which the downloaded donor metadata JSON should be written"
+          )
+
+          (inOpt, outOpt).mapN { case (in, out) => new GetDonors(in, out) }
+        }
+
         val buildFileManifestCommand = Opts.subcommand(
           name = "build-transfer-manifest",
           help =
@@ -118,6 +182,10 @@ object Encode
           queryFilesCommand,
           queryReplicatesCommand,
           queryLabsCommand,
+          queryTargetsCommand,
+          queryLibrariesCommand,
+          queryBiosamplesCommand,
+          queryDonorsCommand,
           buildFileManifestCommand
         ).reduce(_ orElse _).map { cmd =>
           cmd.run[IO].unsafeRunSync()

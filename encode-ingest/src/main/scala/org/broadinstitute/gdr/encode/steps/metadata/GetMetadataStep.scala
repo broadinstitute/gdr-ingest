@@ -9,7 +9,7 @@ import org.broadinstitute.gdr.encode.steps.IngestStep
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-abstract class DownloadMetadataStep(out: File)(implicit ec: ExecutionContext)
+abstract class GetMetadataStep(out: File)(implicit ec: ExecutionContext)
     extends IngestStep {
 
   final override def run[F[_]: Effect]: F[Unit] = {
@@ -37,7 +37,7 @@ abstract class DownloadMetadataStep(out: File)(implicit ec: ExecutionContext)
   def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]]
 }
 
-object DownloadMetadataStep {
+object GetMetadataStep {
 
   def uniquePipe[F[_]]: Pipe[F, String, String] =
     _.fold(Set.empty[String])(_ + _).flatMap(s => Stream.emits(s.toSeq))
