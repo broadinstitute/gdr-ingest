@@ -8,6 +8,12 @@ import cats.effect.IO
 import cats.implicits._
 import com.monovore.decline.{Argument, CommandApp, Opts}
 import org.broadinstitute.gdr.encode.steps._
+import org.broadinstitute.gdr.encode.steps.metadata.{
+  GetExperiments,
+  GetFiles,
+  GetLabs,
+  GetReplicates
+}
 
 import scala.concurrent.ExecutionContext
 

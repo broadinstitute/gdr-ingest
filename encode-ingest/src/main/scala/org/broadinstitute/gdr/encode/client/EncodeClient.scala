@@ -23,7 +23,7 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
         .copy(query = Query.fromPairs("frame" -> "object", "format" -> "json"))
     )(org.http4s.circe.jsonDecoder)
 
-  def search(searchParams: (String, String)*): Stream[F, Json] = {
+  def search(searchParams: Seq[(String, String)]): Stream[F, Json] = {
 
     val searchUri = EncodeClient.EncodeUri
       .withPath("/search/")
