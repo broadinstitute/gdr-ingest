@@ -11,7 +11,19 @@ import scala.language.higherKinds
 class GetFiles(in: File, out: File)(implicit ec: ExecutionContext) extends IngestStep {
   override def run[F[_]: Effect]: F[Unit] = {
     val metadataStream = EncodeClient.stream[F].flatMap { client =>
-      fileRefs.mapAsyncUnordered(EncodeClient.Parallelism)(client.get)
+      fileRefs
+        .segmentN(100)
+        .map { refs =>
+          val (_, params) = refs
+            .fold(List("type" -> "File")) { (acc, ref) =>
+              ("@id" -> ref) :: acc
+            }
+            .force
+            .run
+
+          client.search(params: _*)
+        }
+        .join(EncodeClient.Parallelism)
     }
 
     val byteStream = metadataStream.map(_.noSpaces).intersperse(",").flatMap { str =>

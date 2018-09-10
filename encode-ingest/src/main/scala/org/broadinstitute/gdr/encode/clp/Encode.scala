@@ -7,7 +7,7 @@ import cats.data.{Validated, ValidatedNel}
 import cats.effect.IO
 import cats.implicits._
 import com.monovore.decline.{Argument, CommandApp, Opts}
-import org.broadinstitute.gdr.encode.steps.{BuildUrlManifest, GetFiles, SearchExperiments}
+import org.broadinstitute.gdr.encode.steps.{BuildUrlManifest, GetFiles, GetExperiments}
 
 import scala.concurrent.ExecutionContext
 
@@ -35,7 +35,7 @@ object Encode
               "Path to which the downloaded experiment metadata JSON should be written"
           )
 
-          outOpt.map(out => new SearchExperiments(out))
+          outOpt.map(out => new GetExperiments(out))
         }
 
         val queryFilesCommand = Opts.subcommand(

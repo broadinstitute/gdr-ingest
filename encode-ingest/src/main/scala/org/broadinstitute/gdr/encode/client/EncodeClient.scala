@@ -71,7 +71,7 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
 }
 
 object EncodeClient {
-  val Parallelism: Int = 4
+  val Parallelism: Int = Runtime.getRuntime.availableProcessors()
 
   private val EncodeUri = Uri.unsafeFromString("https://www.encodeproject.org")
 

@@ -8,7 +8,7 @@ import org.broadinstitute.gdr.encode.client.EncodeClient
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class SearchExperiments(out: File)(implicit ec: ExecutionContext) extends IngestStep {
+class GetExperiments(out: File)(implicit ec: ExecutionContext) extends IngestStep {
   override def run[F[_]: Effect]: F[Unit] = {
     val metadataStream = EncodeClient
       .stream[F]
