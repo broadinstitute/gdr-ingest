@@ -12,25 +12,17 @@ import scala.language.higherKinds
 abstract class GetMetadataStep(out: File)(implicit ec: ExecutionContext)
     extends IngestStep {
 
-  final override def run[F[_]: Effect]: F[Unit] = {
-    val metadataStream = EncodeClient.stream[F].flatMap { client =>
-      searchParams.map { params =>
-        client.search(("type" -> entityType) :: params)
-      }.join(EncodeClient.Parallelism)
-    }
-
-    val byteStream = metadataStream.map(_.noSpaces).intersperse(",").flatMap { str =>
-      Stream.emits(str.getBytes)
-    }
-
-    Stream
-      .emit('['.toByte)
-      .append(byteStream)
-      .append(Stream.emit(']'.toByte))
-      .to(fs2.io.file.writeAll(out.path))
+  final override def run[F[_]: Effect]: F[Unit] =
+    EncodeClient
+      .stream[F]
+      .flatMap { client =>
+        searchParams.map { params =>
+          client.search(("type" -> entityType) :: params)
+        }.join(EncodeClient.Parallelism)
+      }
+      .to(IngestStep.writeJsonArray(out))
       .compile
       .drain
-  }
 
   def entityType: String
 

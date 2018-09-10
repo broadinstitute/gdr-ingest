@@ -7,8 +7,11 @@ import cats.data.{Validated, ValidatedNel}
 import cats.effect.IO
 import cats.implicits._
 import com.monovore.decline.{Argument, CommandApp, Opts}
-import org.broadinstitute.gdr.encode.steps._
 import org.broadinstitute.gdr.encode.steps.metadata._
+import org.broadinstitute.gdr.encode.steps.transfer.{
+  BuildUrlManifest,
+  CollapseFileMetadata
+}
 
 import scala.concurrent.ExecutionContext
 
@@ -160,6 +163,23 @@ object Encode
           (inOpt, outOpt).mapN { case (in, out) => new GetDonors(in, out) }
         }
 
+        val collapseFileGraphCommand = Opts.subcommand(
+          name = "collapse-file-metadata",
+          help =
+            "Collapse downloaded file metadata to include only records which should be ingested"
+        ) {
+          val inOpt = Opts.option[File](
+            "file-metadata",
+            help = "Path to downloaded file JSON which should be collapsed"
+          )
+          val outOpt = Opts.option[File](
+            "output-path",
+            help = "Path to which collapsed metadata should be written"
+          )
+
+          (inOpt, outOpt).mapN { case (in, out) => new CollapseFileMetadata(in, out) }
+        }
+
         val buildFileManifestCommand = Opts.subcommand(
           name = "build-transfer-manifest",
           help =
@@ -186,6 +206,7 @@ object Encode
           queryLibrariesCommand,
           queryBiosamplesCommand,
           queryDonorsCommand,
+          collapseFileGraphCommand,
           buildFileManifestCommand
         ).reduce(_ orElse _).map { cmd =>
           cmd.run[IO].unsafeRunSync()

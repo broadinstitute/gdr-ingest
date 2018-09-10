@@ -12,7 +12,7 @@ abstract class GetFromPreviousMetadataStep[R: Decoder](in: File, out: File)(
   implicit ec: ExecutionContext
 ) extends GetMetadataStep(out) {
 
-  final override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =
+  override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =
     fs2.io.file
       .readAll(in.path, 8192)
       .through(io.circe.fs2.byteArrayParser)

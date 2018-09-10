@@ -1,4 +1,4 @@
-package org.broadinstitute.gdr.encode.steps
+package org.broadinstitute.gdr.encode.steps.transfer
 
 import better.files.File
 import cats.effect.{Effect, Sync}
@@ -7,6 +7,7 @@ import fs2.Stream
 import io.circe.Json
 import org.apache.commons.codec.binary.{Base64, Hex}
 import org.broadinstitute.gdr.encode.client.EncodeClient
+import org.broadinstitute.gdr.encode.steps.IngestStep
 import org.http4s.Uri
 
 import scala.concurrent.ExecutionContext
