@@ -2,7 +2,7 @@ package org.broadinstitute.gdr.encode.steps
 
 import better.files.File
 import cats.effect.{Effect, Sync}
-import fs2.Stream
+import fs2.{Sink, Stream}
 import io.circe.Json
 
 import scala.language.higherKinds
@@ -18,7 +18,7 @@ object IngestStep {
       .readAll(in.path, 8192)
       .through(io.circe.fs2.byteArrayParser)
 
-  def writeJsonArray[F[_]: Sync](out: File): fs2.Sink[F, Json] = jsons => {
+  def writeJsonArray[F[_]: Sync](out: File): Sink[F, Json] = jsons => {
     val byteStream =
       jsons.map(_.noSpaces).intersperse(",").flatMap(str => Stream.emits(str.getBytes))
 
@@ -28,4 +28,9 @@ object IngestStep {
       .append(Stream.emit(']'.toByte))
       .to(fs2.io.file.writeAll(out.path))
   }
+
+  def writeLines[F[_]: Sync](out: File): Sink[F, String] =
+    _.intersperse("\n")
+      .flatMap(str => Stream.emits(str.getBytes))
+      .to(fs2.io.file.writeAll(out.path))
 }
