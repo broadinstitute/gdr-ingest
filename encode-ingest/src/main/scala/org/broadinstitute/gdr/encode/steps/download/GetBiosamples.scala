@@ -11,7 +11,7 @@ class GetBiosamples(in: File, out: File)(implicit ec: ExecutionContext)
 
   final override val entityType = "Biosample"
   final override val refField = "biosample"
-  final override def refValueStream[F[_]](refValue: String): fs2.Stream[F, String] =
+  final override def refValueStream[F[_]](refValue: String): Stream[F, String] =
     Stream.emit(refValue)
   final override def filterRefs[F[_]]: Pipe[F, String, String] =
     GetMetadataStep.uniquePipe[F]

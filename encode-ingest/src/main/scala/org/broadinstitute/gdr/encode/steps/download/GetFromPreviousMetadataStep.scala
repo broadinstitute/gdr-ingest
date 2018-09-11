@@ -30,7 +30,6 @@ abstract class GetFromPreviousMetadataStep[R: Decoder](in: File, out: File)(
       }
 
   def filterRefs[F[_]]: Pipe[F, String, String]
-
   def refField: String
   def refValueStream[F[_]](refValue: R): Stream[F, String]
 }

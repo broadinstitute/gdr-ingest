@@ -79,19 +79,16 @@ class CollapseFileMetadata(in: File, out: File) extends IngestStep {
 
   private def traceFiles[F[_]: Sync](file: Json, graph: FileGraph): F[Option[Json]] = {
     @scala.annotation.tailrec
-    def dfs(
+    def exploreGraph(
       id: String,
       nextIds: List[String],
-      derivedAcc: Set[String],
       replicateAcc: Set[String],
       readCount: Long
-    ): (Set[String], Set[String], Long) = {
+    ): (Set[String], Long) = {
 
       val newNext = graph.fileToSources
         .get(id)
         .fold(nextIds)(nextIds ++ _)
-
-      val newDerived = derivedAcc ++ newNext
 
       val newReplicates = graph.fileToReplicate
         .get(id)
@@ -100,15 +97,15 @@ class CollapseFileMetadata(in: File, out: File) extends IngestStep {
       val newReads = readCount + graph.fastqReadCounts.getOrElse(id, 0L)
 
       newNext match {
-        case Nil          => (newDerived, newReplicates, newReads)
-        case next :: more => dfs(next, more, newDerived, newReplicates, newReads)
+        case Nil          => (newReplicates, newReads)
+        case next :: more => exploreGraph(next, more, newReplicates, newReads)
       }
     }
 
     val cursor = file.hcursor
 
     Sync[F].fromEither(cursor.get[String]("@id")).flatMap { id =>
-      val (sourceIds, replicateIds, totalReads) = dfs(id, Nil, Set.empty, Set.empty, 0L)
+      val (replicateIds, totalReads) = exploreGraph(id, Nil, Set.empty, 0L)
       if (replicateIds.isEmpty) {
         Sync[F].delay {
           logger.warn(s"Dropping file $id, no replicates found")
@@ -117,14 +114,13 @@ class CollapseFileMetadata(in: File, out: File) extends IngestStep {
       } else {
         val withDerived = Sync[F].fromEither {
           cursor.get[String]("file_type").map { fileType =>
-            val baseFields =
-              json"""{ $DerivedName: $sourceIds, $ReplicateName: $replicateIds }"""
+            val base = json"""{ $ReplicateName: $replicateIds }"""
 
             file.deepMerge {
               if (fileType == "bam") {
-                baseFields.deepMerge(json"""{ $ReadCountName: $totalReads }""")
+                base.deepMerge(json"""{ $ReadCountName: $totalReads }""")
               } else {
-                baseFields
+                base
               }
             }
           }
@@ -138,7 +134,6 @@ class CollapseFileMetadata(in: File, out: File) extends IngestStep {
 
 object CollapseFileMetadata {
 
-  val DerivedName = "full_derived_from"
   val ReplicateName = "replicate_uuids"
   val ReadCountName = "total_read_count"
 

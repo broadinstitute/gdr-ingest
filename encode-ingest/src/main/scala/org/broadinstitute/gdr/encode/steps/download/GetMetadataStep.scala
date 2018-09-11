@@ -17,7 +17,7 @@ abstract class GetMetadataStep(out: File)(implicit ec: ExecutionContext)
       .stream[F]
       .flatMap { client =>
         searchParams.map { params =>
-          client.search(("type" -> entityType) :: params)
+          client.search(("type" -> entityType) :: ("frame" -> searchFrame) :: params)
         }.join(EncodeClient.Parallelism)
       }
       .to(IngestStep.writeJsonArray(out))
@@ -25,7 +25,7 @@ abstract class GetMetadataStep(out: File)(implicit ec: ExecutionContext)
       .drain
 
   def entityType: String
-
+  def searchFrame: String = "object"
   def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]]
 }
 

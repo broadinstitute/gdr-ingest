@@ -43,6 +43,24 @@ object Encode
           outOpt.map(out => new GetExperiments(out))
         }
 
+        val queryAuditsCommand = Opts.subcommand(
+          name = "pull-experiment-audits",
+          help =
+            "Query ENCODE for audit information about experiments which should be ingested"
+        ) {
+          val inOpt = Opts.option[File](
+            "experiment-metadata",
+            help = "Path to downloaded experiment JSON"
+          )
+
+          val outOpt = Opts.option[File](
+            "output-path",
+            help = "Path to which the downloaded audit metadata JSON should be written"
+          )
+
+          (inOpt, outOpt).mapN { case (in, out) => new GetAudits(in, out) }
+        }
+
         val queryFilesCommand = Opts.subcommand(
           name = "pull-file-metadata",
           help = "Query ENCODE for metadata of files which should be ingested"
@@ -218,6 +236,7 @@ object Encode
 
         List(
           queryExperimentsCommand,
+          queryAuditsCommand,
           queryFilesCommand,
           queryReplicatesCommand,
           queryLabsCommand,

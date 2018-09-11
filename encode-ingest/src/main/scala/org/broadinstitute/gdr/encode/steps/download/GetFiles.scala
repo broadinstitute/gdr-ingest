@@ -11,7 +11,7 @@ class GetFiles(in: File, out: File)(implicit ec: ExecutionContext)
 
   final override val entityType = "File"
   final override val refField = "files"
-  final override def refValueStream[F[_]](refValue: Seq[String]): fs2.Stream[F, String] =
+  final override def refValueStream[F[_]](refValue: Seq[String]): Stream[F, String] =
     Stream.emits(refValue)
   final override def filterRefs[F[_]]: Pipe[F, String, String] = identity
 }
