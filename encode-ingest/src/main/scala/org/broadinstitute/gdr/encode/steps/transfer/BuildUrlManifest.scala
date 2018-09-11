@@ -40,7 +40,7 @@ class BuildUrlManifest(fileMetadata: File, tsvOut: File) extends IngestStep {
       (downloadEndpoint, size, Base64.encodeBase64String(md5Bytes))
     }
 
-    Sync[F].fromEither(fileInfo).map {
+    fileInfo.liftTo[F].map {
       case (uri, size, md5) => s"$uri\t$size\t$md5"
     }
   }

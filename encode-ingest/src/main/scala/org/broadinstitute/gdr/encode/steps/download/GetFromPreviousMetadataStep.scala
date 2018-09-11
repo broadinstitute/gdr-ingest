@@ -13,7 +13,7 @@ abstract class GetFromPreviousMetadataStep[R: Decoder](in: File, out: File)(
   implicit ec: ExecutionContext
 ) extends GetMetadataStep(out) {
 
-  override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =
+  final override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =
     IngestStep
       .readJsonArray(in)
       .flatMap(

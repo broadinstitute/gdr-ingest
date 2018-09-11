@@ -2,6 +2,7 @@ package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
 import cats.effect.{Effect, Sync}
+import cats.implicits._
 import fs2.Stream
 import io.circe.Json
 import io.circe.literal._
@@ -31,42 +32,46 @@ class CollapseFileMetadata(in: File, out: File) extends IngestStep {
       .through(io.circe.fs2.byteArrayParser)
 
   private def fileGraph[F[_]: Sync]: F[FileGraph] = {
-    val S = Sync[F]
 
-    S.flatten {
-      fileStream.compile
-        .fold(S.pure(FileGraph(Map.empty, Map.empty, Map.empty))) { (graph, file) =>
-          S.flatMap(graph) {
-            case FileGraph(fToR, fToS, rcs) =>
-              val cursor = file.hcursor
-              val newInfo = for {
-                id <- cursor.get[String]("@id")
-                replicateRef <- cursor.get[Option[String]]("replicate")
-                sourceFiles <- cursor.get[Option[Seq[String]]]("derived_from")
-                fileType <- cursor.get[String]("file_format")
-                readCounts <- cursor.get[Option[Long]]("read_count")
-              } yield {
-                val updatedReplicates = replicateRef.fold(fToR)(r => fToR + (id -> r))
-                val updatedSources = sourceFiles.fold(fToS)(s => fToS + (id -> s))
-                val updatedCounts = readCounts
-                  .filter(_ => fileType.equals("fastq"))
-                  .fold(rcs)(c => rcs + (id -> c))
-                FileGraph(updatedReplicates, updatedSources, updatedCounts)
-              }
-
-              S.fromEither(newInfo)
-          }
-        }
+    val zero = Sync[F].delay {
+      logger.info("Building file derivation graph...")
+      FileGraph(Map.empty, Map.empty, Map.empty)
     }
+
+    fileStream.compile
+      .fold(zero) { (graph, file) =>
+        graph.flatMap {
+          case FileGraph(fToR, fToS, rcs) =>
+            val cursor = file.hcursor
+            val newInfo = for {
+              id <- cursor.get[String]("@id")
+              replicateRef <- cursor.get[Option[String]]("replicate")
+              sourceFiles <- cursor.get[Option[Seq[String]]]("derived_from")
+              fileType <- cursor.get[String]("file_format")
+              readCounts <- cursor.get[Option[Long]]("read_count")
+            } yield {
+              val updatedReplicates = replicateRef.fold(fToR)(r => fToR + (id -> r))
+              val updatedSources = sourceFiles.fold(fToS)(s => fToS + (id -> s))
+              val updatedCounts = readCounts
+                .filter(_ => fileType.equals("fastq"))
+                .fold(rcs)(c => rcs + (id -> c))
+              FileGraph(updatedReplicates, updatedSources, updatedCounts)
+            }
+
+            Sync[F].fromEither(newInfo)
+        }
+      }
+      .flatten
   }
 
   private def isLeaf(file: Json): Boolean = {
     val cursor = file.hcursor
     val keepFile = for {
+      status <- cursor.get[String]("status")
       format <- cursor.get[String]("file_format")
       typ <- cursor.get[String]("output_type")
     } yield {
-      FormatTypeWhitelist.contains(format -> typ)
+      status.equals("released") && FormatTypeWhitelist.contains(format -> typ)
     }
 
     keepFile.getOrElse(false)
@@ -100,18 +105,17 @@ class CollapseFileMetadata(in: File, out: File) extends IngestStep {
       }
     }
 
-    val S = Sync[F]
     val cursor = file.hcursor
 
-    S.flatMap(S.fromEither(cursor.get[String]("@id"))) { id =>
+    Sync[F].fromEither(cursor.get[String]("@id")).flatMap { id =>
       val (sourceIds, replicateIds, totalReads) = dfs(id, Nil, Set.empty, Set.empty, 0L)
       if (replicateIds.isEmpty) {
-        S.delay {
+        Sync[F].delay {
           logger.warn(s"Dropping file $id, no replicates found")
           None
         }
       } else {
-        val withDerived = S.fromEither {
+        val withDerived = Sync[F].fromEither {
           cursor.get[String]("file_type").map { fileType =>
             val baseFields =
               json"""{ $DerivedName: $sourceIds, $ReplicateName: $replicateIds }"""
@@ -126,7 +130,7 @@ class CollapseFileMetadata(in: File, out: File) extends IngestStep {
           }
         }
 
-        S.map(withDerived)(Some(_))
+        withDerived.map(Some(_))
       }
     }
   }
