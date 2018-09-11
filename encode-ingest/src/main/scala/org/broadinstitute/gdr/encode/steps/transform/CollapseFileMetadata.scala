@@ -1,4 +1,4 @@
-package org.broadinstitute.gdr.encode.steps.transfer
+package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
 import cats.effect.{Effect, Sync}

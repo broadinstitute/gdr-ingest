@@ -45,7 +45,7 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
       }
   }
 
-  def deriveDownloadUrl(downloadEndpoint: String): F[Uri] = {
+  def deriveDownloadUri(downloadEndpoint: String): F[Uri] = {
 
     val request = Request[F](
       method = Method.HEAD,

@@ -13,6 +13,11 @@ trait IngestStep {
 
 object IngestStep {
 
+  def readJsonArray[F[_]: Sync](in: File): Stream[F, Json] =
+    fs2.io.file
+      .readAll(in.path, 8192)
+      .through(io.circe.fs2.byteArrayParser)
+
   def writeJsonArray[F[_]: Sync](out: File): fs2.Sink[F, Json] = jsons => {
     val byteStream =
       jsons.map(_.noSpaces).intersperse(",").flatMap(str => Stream.emits(str.getBytes))

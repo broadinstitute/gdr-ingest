@@ -2,53 +2,37 @@ package org.broadinstitute.gdr.encode.steps.transfer
 
 import better.files.File
 import cats.effect.{Effect, Sync}
-import cats.syntax.either._
+import cats.implicits._
 import fs2.Stream
 import io.circe.Json
 import org.apache.commons.codec.binary.{Base64, Hex}
-import org.broadinstitute.gdr.encode.client.EncodeClient
 import org.broadinstitute.gdr.encode.steps.IngestStep
-import org.http4s.Uri
+import org.broadinstitute.gdr.encode.steps.transform.DeriveActualUris
 
-import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class BuildUrlManifest(fileMetadata: File, tsvOut: File)(implicit ec: ExecutionContext)
-    extends IngestStep {
+class BuildUrlManifest(fileMetadata: File, tsvOut: File) extends IngestStep {
 
   override def run[F[_]: Effect]: F[Unit] = {
-    val clientStream = EncodeClient.stream[F]
 
-    val manifestRows = clientStream.flatMap { client =>
-      readFileMetadata
-        .mapAsyncUnordered(EncodeClient.Parallelism)(buildFileRow(client))
-        .flatMap { row =>
-          Stream
-            .fromIterator(s"${row.uri}\t${row.size}\t${row.md5}\n".getBytes.iterator)
-        }
-    }
+    val manifestRows = IngestStep
+      .readJsonArray(fileMetadata)
+      .evalMap(buildFileRow[F])
 
     Stream
-      .fromIterator(s"${BuildUrlManifest.ManifestHeader}\n".getBytes.iterator)
+      .emit("TsvHttpData-1.0")
       .append(manifestRows)
+      .intersperse("\n")
+      .flatMap(str => Stream.emits(str.getBytes))
       .to(fs2.io.file.writeAll(tsvOut.path))
       .compile
       .drain
   }
 
-  private def readFileMetadata[F[_]: Sync]: Stream[F, Json] =
-    fs2.io.file
-      .readAll(fileMetadata.path, 8192)
-      .through(io.circe.fs2.byteArrayParser)
-
-  private def buildFileRow[F[_]: Effect](
-    client: EncodeClient[F]
-  )(metadata: Json): F[BuildUrlManifest.ManifestRow] = {
-    val E = Effect[F]
+  private def buildFileRow[F[_]: Sync](metadata: Json): F[String] = {
     val cursor = metadata.hcursor
-
     val fileInfo = for {
-      downloadEndpoint <- cursor.get[String]("href")
+      downloadEndpoint <- cursor.get[String](DeriveActualUris.ActualUriName)
       size <- cursor.get[Long]("file_size")
       hexMd5 <- cursor.get[String]("md5sum")
       md5Bytes <- Either.catchNonFatal(Hex.decodeHex(hexMd5))
@@ -56,17 +40,8 @@ class BuildUrlManifest(fileMetadata: File, tsvOut: File)(implicit ec: ExecutionC
       (downloadEndpoint, size, Base64.encodeBase64String(md5Bytes))
     }
 
-    E.flatMap(E.fromEither(fileInfo)) {
-      case (downloadEndpoint, size, md5) =>
-        E.map(client.deriveDownloadUrl(downloadEndpoint)) { realUrl =>
-          BuildUrlManifest.ManifestRow(realUrl, size, md5)
-        }
+    Sync[F].fromEither(fileInfo).map {
+      case (uri, size, md5) => s"$uri\t$size\t$md5"
     }
   }
-}
-
-object BuildUrlManifest {
-  val ManifestHeader = "TsvHttpData-1.0"
-
-  case class ManifestRow(uri: Uri, size: Long, md5: String)
 }

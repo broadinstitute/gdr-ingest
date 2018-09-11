@@ -34,6 +34,7 @@ inThisBuild(
 )
 
 val betterFilesVersion = "3.6.0"
+val betterMonadicForVersion = "0.2.4"
 val circeVersion = "0.9.3"
 val circeFs2Version = "0.9.0"
 val commonsCodecVersion = "1.11"
@@ -48,6 +49,7 @@ lazy val `gdr-ingest` = project
 
 lazy val `encode-ingest` = project
   .settings(
+    addCompilerPlugin("com.olegpy" %% "better-monadic-for" % betterMonadicForVersion),
     libraryDependencies ++= Seq(
       "ch.qos.logback" % "logback-classic" % logbackVersion,
       "co.fs2" %% "fs2-io" % fs2Version,

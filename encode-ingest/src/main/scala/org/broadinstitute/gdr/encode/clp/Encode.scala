@@ -7,10 +7,11 @@ import cats.data.{Validated, ValidatedNel}
 import cats.effect.IO
 import cats.implicits._
 import com.monovore.decline.{Argument, CommandApp, Opts}
-import org.broadinstitute.gdr.encode.steps.metadata._
-import org.broadinstitute.gdr.encode.steps.transfer.{
-  BuildUrlManifest,
-  CollapseFileMetadata
+import org.broadinstitute.gdr.encode.steps.download._
+import org.broadinstitute.gdr.encode.steps.transfer.BuildUrlManifest
+import org.broadinstitute.gdr.encode.steps.transform.{
+  CollapseFileMetadata,
+  DeriveActualUris
 }
 
 import scala.concurrent.ExecutionContext
@@ -180,6 +181,24 @@ object Encode
           (inOpt, outOpt).mapN { case (in, out) => new CollapseFileMetadata(in, out) }
         }
 
+        val deriveActualUrisCommand = Opts.subcommand(
+          name = "derive-download-uris",
+          help =
+            "Derive and append actual download URIs to the metadata for a set of ENCODE files"
+        ) {
+          val inOpt = Opts.option[File](
+            "file-metadata",
+            help =
+              "Path to downloaded file JSON for which download URIs should be derived"
+          )
+          val outOpt = Opts.option[File](
+            "output-path",
+            help = "Path to which augmented file metadata should be written"
+          )
+
+          (inOpt, outOpt).mapN { case (in, out) => new DeriveActualUris(in, out) }
+        }
+
         val buildFileManifestCommand = Opts.subcommand(
           name = "build-transfer-manifest",
           help =
@@ -187,7 +206,7 @@ object Encode
         ) {
           val inOpt = Opts.option[File](
             "file-metadata",
-            help = "Path to downloaded file JSON"
+            help = "Path to file JSON containing derived download URIs"
           )
           val outOpt = Opts.option[File](
             "output-tsv",
@@ -207,10 +226,12 @@ object Encode
           queryBiosamplesCommand,
           queryDonorsCommand,
           collapseFileGraphCommand,
+          deriveActualUrisCommand,
           buildFileManifestCommand
         ).reduce(_ orElse _).map { cmd =>
-          cmd.run[IO].unsafeRunSync()
+          val res = cmd.run[IO].attempt.unsafeRunSync()
           val _ = ex.shutdownNow()
+          res.valueOr(throw _)
         }
       }
     )

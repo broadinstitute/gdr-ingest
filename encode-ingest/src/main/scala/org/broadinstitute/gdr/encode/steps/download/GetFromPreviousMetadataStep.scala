@@ -1,9 +1,10 @@
-package org.broadinstitute.gdr.encode.steps.metadata
+package org.broadinstitute.gdr.encode.steps.download
 
 import better.files.File
 import cats.effect.Sync
 import fs2.{Pipe, Stream}
 import io.circe.Decoder
+import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -13,12 +14,11 @@ abstract class GetFromPreviousMetadataStep[R: Decoder](in: File, out: File)(
 ) extends GetMetadataStep(out) {
 
   override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =
-    fs2.io.file
-      .readAll(in.path, 8192)
-      .through(io.circe.fs2.byteArrayParser)
-      .flatMap { json =>
-        json.hcursor.get[R](refField).fold(Stream.raiseError, refValueStream).covary[F]
-      }
+    IngestStep
+      .readJsonArray(in)
+      .flatMap(
+        _.hcursor.get[R](refField).fold(Stream.raiseError, refValueStream).covary[F]
+      )
       .through(filterRefs)
       .segmentN(100)
       .map { refs =>
