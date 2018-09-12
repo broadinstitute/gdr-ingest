@@ -16,53 +16,42 @@ class CollapseFileMetadata(in: File, out: File) extends IngestStep {
   private val logger = org.log4s.getLogger
 
   override def run[F[_]: Effect]: F[Unit] =
-    Effect[F].flatMap(fileGraph) { graph =>
+    fileGraph.flatMap { graph =>
       fileStream
         .filter(isLeaf)
         .evalMap(traceFiles(_, graph))
-        .unNone
-        .to(IngestStep.writeJsonArray(out))
-        .compile
-        .drain
-    }
+    }.unNone
+      .to(IngestStep.writeJsonArray(out))
+      .compile
+      .drain
 
   private def fileStream[F[_]: Sync]: Stream[F, Json] =
     fs2.io.file
       .readAll(in.path, 8192)
       .through(io.circe.fs2.byteArrayParser)
 
-  private def fileGraph[F[_]: Sync]: F[FileGraph] = {
+  private def fileGraph[F[_]: Sync]: Stream[F, FileGraph] =
+    fileStream.evalMap { file =>
+      val cursor = file.hcursor
+      val newInfo = for {
+        id <- cursor.get[String]("@id")
+        replicateRef <- cursor.get[Option[String]]("replicate")
+        sourceFiles <- cursor.get[Option[List[String]]]("derived_from")
+        fileType <- cursor.get[String]("file_format")
+        readCounts <- cursor.get[Option[Long]]("read_count")
+      } yield {
+        val updatedReplicates =
+          replicateRef.fold(Map.empty[String, String])(r => Map(id -> r))
+        val updatedSources =
+          sourceFiles.fold(Map.empty[String, List[String]])(s => Map(id -> s))
+        val updatedCounts = readCounts
+          .filter(_ => fileType.equals("fastq"))
+          .fold(Map.empty[String, Long])(c => Map(id -> c))
 
-    val zero = Sync[F].delay {
-      logger.info("Building file derivation graph...")
-      FileGraph(Map.empty, Map.empty, Map.empty)
-    }
-
-    fileStream.compile
-      .fold(zero) { (graph, file) =>
-        graph.flatMap {
-          case FileGraph(fToR, fToS, rcs) =>
-            val cursor = file.hcursor
-            val newInfo = for {
-              id <- cursor.get[String]("@id")
-              replicateRef <- cursor.get[Option[String]]("replicate")
-              sourceFiles <- cursor.get[Option[Seq[String]]]("derived_from")
-              fileType <- cursor.get[String]("file_format")
-              readCounts <- cursor.get[Option[Long]]("read_count")
-            } yield {
-              val updatedReplicates = replicateRef.fold(fToR)(r => fToR + (id -> r))
-              val updatedSources = sourceFiles.fold(fToS)(s => fToS + (id -> s))
-              val updatedCounts = readCounts
-                .filter(_ => fileType.equals("fastq"))
-                .fold(rcs)(c => rcs + (id -> c))
-              FileGraph(updatedReplicates, updatedSources, updatedCounts)
-            }
-
-            Sync[F].fromEither(newInfo)
-        }
+        (updatedReplicates, updatedSources, updatedCounts)
       }
-      .flatten
-  }
+      Sync[F].fromEither(newInfo)
+    }.foldMonoid.map(FileGraph.tupled)
 
   private def isLeaf(file: Json): Boolean = {
     val cursor = file.hcursor
