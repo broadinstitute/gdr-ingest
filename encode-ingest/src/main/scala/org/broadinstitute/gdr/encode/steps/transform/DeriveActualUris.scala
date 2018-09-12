@@ -31,10 +31,12 @@ class DeriveActualUris(in: File, out: File)(implicit ec: ExecutionContext)
       .fromEither(file.hcursor.get[String]("href"))
       .flatMap(client.deriveDownloadUri)
       .map { uri =>
-        file.deepMerge(json"""{ ${DeriveActualUris.ActualUriName}: ${uri.toString()} }""")
+        file.deepMerge(
+          json"""{ ${DeriveActualUris.DownloadUriField}: ${uri.toString()} }"""
+        )
       }
 }
 
 object DeriveActualUris {
-  val ActualUriName = "download_uri"
+  val DownloadUriField = "download_uri"
 }

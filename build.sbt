@@ -36,6 +36,7 @@ inThisBuild(
 val betterFilesVersion = "3.6.0"
 val betterMonadicForVersion = "0.2.4"
 val circeVersion = "0.9.3"
+val circeDerivationVersion = "0.9.0-M5"
 val circeFs2Version = "0.9.0"
 val commonsCodecVersion = "1.11"
 val declineVersion = "0.5.0"
@@ -56,6 +57,7 @@ lazy val `encode-ingest` = project
       "com.github.pathikrit" %% "better-files" % betterFilesVersion,
       "com.monovore" %% "decline" % declineVersion,
       "commons-codec" % "commons-codec" % commonsCodecVersion,
+      "io.circe" %% "circe-derivation" % circeDerivationVersion % Provided,
       "io.circe" %% "circe-fs2" % circeFs2Version,
       "io.circe" %% "circe-literal" % circeVersion,
       "org.http4s" %% "http4s-blaze-client" % http4sVersion,

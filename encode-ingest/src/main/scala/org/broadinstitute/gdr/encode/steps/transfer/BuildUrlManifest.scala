@@ -30,7 +30,7 @@ class BuildUrlManifest(fileMetadata: File, tsvOut: File) extends IngestStep {
   private def buildFileRow[F[_]: Sync](metadata: Json): F[String] = {
     val cursor = metadata.hcursor
     val fileRow = for {
-      downloadEndpoint <- cursor.get[String](DeriveActualUris.ActualUriName)
+      downloadEndpoint <- cursor.get[String](DeriveActualUris.DownloadUriField)
       size <- cursor.get[Long]("file_size")
       hexMd5 <- cursor.get[String]("md5sum")
       md5Bytes <- Either.catchNonFatal(Hex.decodeHex(hexMd5))

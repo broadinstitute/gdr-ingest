@@ -96,23 +96,6 @@ object Encode
           (inOpt, outOpt).mapN { case (in, out) => new GetReplicates(in, out) }
         }
 
-        val queryLabsCommand = Opts.subcommand(
-          name = "pull-lab-metadata",
-          help = "Query ENCODE for metadata of labs which should be ingested"
-        ) {
-          val inOpt = Opts.option[File](
-            "experiment-metadata",
-            help = "Path to downloaded experiment JSON"
-          )
-
-          val outOpt = Opts.option[File](
-            "output-path",
-            help = "Path to which the downloaded lab metadata JSON should be written"
-          )
-
-          (inOpt, outOpt).mapN { case (in, out) => new GetLabs(in, out) }
-        }
-
         val queryTargetsCommand = Opts.subcommand(
           name = "pull-target-metadata",
           help = "Query ENCODE for metadata of targets which should be ingested"
@@ -145,6 +128,23 @@ object Encode
           )
 
           (inOpt, outOpt).mapN { case (in, out) => new GetLibraries(in, out) }
+        }
+
+        val queryLabsCommand = Opts.subcommand(
+          name = "pull-lab-metadata",
+          help = "Query ENCODE for metadata of labs which should be ingested"
+        ) {
+          val inOpt = Opts.option[File](
+            "library-metadata",
+            help = "Path to downloaded library JSON"
+          )
+
+          val outOpt = Opts.option[File](
+            "output-path",
+            help = "Path to which the downloaded lab metadata JSON should be written"
+          )
+
+          (inOpt, outOpt).mapN { case (in, out) => new GetLabs(in, out) }
         }
 
         val queryBiosamplesCommand = Opts.subcommand(

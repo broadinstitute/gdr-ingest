@@ -114,11 +114,11 @@ class CollapseFileMetadata(in: File, out: File) extends IngestStep {
       } else {
         val withDerived = Sync[F].fromEither {
           cursor.get[String]("file_type").map { fileType =>
-            val base = json"""{ $ReplicateName: $replicateIds }"""
+            val base = json"""{ $ReplicateRefsField: $replicateIds }"""
 
             file.deepMerge {
               if (fileType == "bam") {
-                base.deepMerge(json"""{ $ReadCountName: $totalReads }""")
+                base.deepMerge(json"""{ $ReadCountField: $totalReads }""")
               } else {
                 base
               }
@@ -133,9 +133,8 @@ class CollapseFileMetadata(in: File, out: File) extends IngestStep {
 }
 
 object CollapseFileMetadata {
-
-  val ReplicateName = "replicate_uuids"
-  val ReadCountName = "total_read_count"
+  val ReadCountField = "read_count"
+  val ReplicateRefsField = "replicate_refs"
 
   val FormatTypeWhitelist = Set(
     "bam" -> "unfiltered alignments",
