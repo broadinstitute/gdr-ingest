@@ -248,7 +248,7 @@ object Encode
           deriveActualUrisCommand,
           buildFileManifestCommand
         ).reduce(_ orElse _).map { cmd =>
-          val res = cmd.run[IO].attempt.unsafeRunSync()
+          val res = cmd.build[IO].attempt.unsafeRunSync()
           val _ = ex.shutdownNow()
           res.valueOr(throw _)
         }

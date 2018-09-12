@@ -3,6 +3,7 @@ package org.broadinstitute.gdr.encode.steps.transform
 import better.files.File
 import cats.effect.Effect
 import cats.implicits._
+import fs2.Stream
 import io.circe.Json
 import io.circe.literal._
 import org.broadinstitute.gdr.encode.client.EncodeClient
@@ -14,7 +15,7 @@ import scala.language.higherKinds
 class DeriveActualUris(in: File, out: File)(implicit ec: ExecutionContext)
     extends IngestStep {
 
-  override def run[F[_]: Effect]: F[Unit] =
+  override def process[F[_]: Effect]: Stream[F, Unit] =
     EncodeClient
       .stream[F]
       .flatMap { client =>
@@ -23,8 +24,6 @@ class DeriveActualUris(in: File, out: File)(implicit ec: ExecutionContext)
           .mapAsyncUnordered(EncodeClient.Parallelism)(deriveUri(client))
       }
       .to(IngestStep.writeJsonArray(out))
-      .compile
-      .drain
 
   private def deriveUri[F[_]: Effect](client: EncodeClient[F])(file: Json): F[Json] =
     Effect[F]

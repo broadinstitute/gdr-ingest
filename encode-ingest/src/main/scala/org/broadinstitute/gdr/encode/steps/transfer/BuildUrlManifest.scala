@@ -13,7 +13,7 @@ import scala.language.higherKinds
 
 class BuildUrlManifest(fileMetadata: File, tsvOut: File) extends IngestStep {
 
-  override def run[F[_]: Effect]: F[Unit] = {
+  override def process[F[_]: Effect]: Stream[F, Unit] = {
 
     val manifestRows = IngestStep
       .readJsonArray(fileMetadata)
@@ -23,8 +23,6 @@ class BuildUrlManifest(fileMetadata: File, tsvOut: File) extends IngestStep {
       .emit("TsvHttpData-1.0")
       .append(manifestRows)
       .to(IngestStep.writeLines(tsvOut))
-      .compile
-      .drain
   }
 
   private def buildFileRow[F[_]: Sync](metadata: Json): F[String] = {

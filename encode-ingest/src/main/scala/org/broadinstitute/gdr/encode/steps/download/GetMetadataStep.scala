@@ -12,7 +12,7 @@ import scala.language.higherKinds
 abstract class GetMetadataStep(out: File)(implicit ec: ExecutionContext)
     extends IngestStep {
 
-  final override def run[F[_]: Effect]: F[Unit] =
+  final override def process[F[_]: Effect]: Stream[F, Unit] =
     EncodeClient
       .stream[F]
       .flatMap { client =>
@@ -21,8 +21,6 @@ abstract class GetMetadataStep(out: File)(implicit ec: ExecutionContext)
         }.join(EncodeClient.Parallelism)
       }
       .to(IngestStep.writeJsonArray(out))
-      .compile
-      .drain
 
   def entityType: String
   def searchFrame: String = "object"

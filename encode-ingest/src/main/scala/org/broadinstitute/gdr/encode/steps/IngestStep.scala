@@ -8,7 +8,8 @@ import io.circe.Json
 import scala.language.higherKinds
 
 trait IngestStep {
-  def run[F[_]: Effect]: F[Unit]
+  def process[F[_]: Effect]: Stream[F, Unit]
+  final def build[F[_]: Effect]: F[Unit] = process.compile.drain
 }
 
 object IngestStep {

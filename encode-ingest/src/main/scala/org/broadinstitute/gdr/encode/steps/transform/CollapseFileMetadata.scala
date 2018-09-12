@@ -15,15 +15,10 @@ class CollapseFileMetadata(in: File, out: File) extends IngestStep {
 
   private val logger = org.log4s.getLogger
 
-  override def run[F[_]: Effect]: F[Unit] =
+  override def process[F[_]: Effect]: Stream[F, Unit] =
     fileGraph.flatMap { graph =>
-      fileStream
-        .filter(isLeaf)
-        .evalMap(traceFiles(_, graph))
-    }.unNone
-      .to(IngestStep.writeJsonArray(out))
-      .compile
-      .drain
+      fileStream.filter(isLeaf).evalMap(traceFiles(_, graph))
+    }.unNone.to(IngestStep.writeJsonArray(out))
 
   private def fileStream[F[_]: Sync]: Stream[F, Json] =
     fs2.io.file
