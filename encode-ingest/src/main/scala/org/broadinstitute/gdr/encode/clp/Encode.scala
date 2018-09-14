@@ -11,7 +11,8 @@ import org.broadinstitute.gdr.encode.steps.download._
 import org.broadinstitute.gdr.encode.steps.transfer.BuildUrlManifest
 import org.broadinstitute.gdr.encode.steps.transform.{
   CollapseFileMetadata,
-  DeriveActualUris
+  DeriveActualUris,
+  MergeFilesMetadata
 }
 
 import scala.concurrent.ExecutionContext
@@ -217,6 +218,78 @@ object Encode
           (inOpt, outOpt).mapN { case (in, out) => new DeriveActualUris(in, out) }
         }
 
+        val mergeFilesMetadataCommand = Opts.subcommand(
+          name = "merge-files-metadata",
+          help =
+            "Merge downloaded metadata to build file-level JSON to upload to a repository"
+        ) {
+          val filesOpt = Opts.option[File](
+            "file-metadata",
+            help =
+              "Path to downloaded file JSON, pre-processed to include replicate information and download URIs"
+          )
+          val replicatesOpt = Opts.option[File](
+            "replicate-metadata",
+            help = "Path to downloaded replicate JSON"
+          )
+          val experimentsOpt = Opts.option[File](
+            "experiment-metadata",
+            help = "Path to downloaded experiment JSON"
+          )
+          val targetsOpt = Opts.option[File](
+            "target-metadata",
+            help = "Path to downloaded target JSON"
+          )
+          val librariesOpt = Opts.option[File](
+            "library-metadata",
+            help = "Path to downloaded library JSON"
+          )
+          val labsOpt = Opts.option[File](
+            "lab-metadata",
+            help = "Path to downloaded lab JSON"
+          )
+          val samplesOpt = Opts.option[File](
+            "samples-metadata",
+            help = "Path to downloaded biosamples JSON"
+          )
+          val outOpt = Opts.option[File](
+            "output-path",
+            help = "Path to which combined metadata should be written"
+          )
+
+          (
+            filesOpt,
+            replicatesOpt,
+            experimentsOpt,
+            targetsOpt,
+            librariesOpt,
+            labsOpt,
+            samplesOpt,
+            outOpt
+          ).mapN {
+            case (
+                files,
+                replicates,
+                experiments,
+                targets,
+                libraries,
+                labs,
+                samples,
+                out
+                ) =>
+              new MergeFilesMetadata(
+                files,
+                replicates,
+                experiments,
+                targets,
+                libraries,
+                labs,
+                samples,
+                out
+              )
+          }
+        }
+
         val buildFileManifestCommand = Opts.subcommand(
           name = "build-transfer-manifest",
           help =
@@ -246,6 +319,7 @@ object Encode
           queryDonorsCommand,
           collapseFileGraphCommand,
           deriveActualUrisCommand,
+          mergeFilesMetadataCommand,
           buildFileManifestCommand
         ).reduce(_ orElse _).map { cmd =>
           val res = cmd.build[IO].attempt.unsafeRunSync()
