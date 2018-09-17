@@ -11,7 +11,8 @@ import org.broadinstitute.gdr.encode.steps.transform.DeriveActualUris
 
 import scala.language.higherKinds
 
-class BuildUrlManifest(fileMetadata: File, tsvOut: File) extends IngestStep {
+class BuildUrlManifest(fileMetadata: File, override protected val out: File)
+    extends IngestStep {
 
   override def process[F[_]: Effect]: Stream[F, Unit] = {
 
@@ -22,7 +23,7 @@ class BuildUrlManifest(fileMetadata: File, tsvOut: File) extends IngestStep {
     Stream
       .emit("TsvHttpData-1.0")
       .append(manifestRows)
-      .to(IngestStep.writeLines(tsvOut))
+      .to(IngestStep.writeLines(out))
   }
 
   private def buildFileRow[F[_]: Sync](metadata: Json): F[String] = {

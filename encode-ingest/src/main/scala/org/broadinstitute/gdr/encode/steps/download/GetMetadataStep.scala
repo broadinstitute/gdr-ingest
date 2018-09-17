@@ -9,8 +9,9 @@ import org.broadinstitute.gdr.encode.steps.IngestStep
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-abstract class GetMetadataStep(out: File)(implicit ec: ExecutionContext)
-    extends IngestStep {
+abstract class GetMetadataStep(override protected val out: File)(
+  implicit ec: ExecutionContext
+) extends IngestStep {
 
   final override def process[F[_]: Effect]: Stream[F, Unit] =
     EncodeClient

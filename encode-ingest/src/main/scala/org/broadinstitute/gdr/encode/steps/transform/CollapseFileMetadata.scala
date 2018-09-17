@@ -10,10 +10,9 @@ import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
 
-class CollapseFileMetadata(in: File, out: File) extends IngestStep {
+class CollapseFileMetadata(in: File, override protected val out: File)
+    extends IngestStep {
   import CollapseFileMetadata._
-
-  private val logger = org.log4s.getLogger
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
     fileGraph.flatMap { graph =>

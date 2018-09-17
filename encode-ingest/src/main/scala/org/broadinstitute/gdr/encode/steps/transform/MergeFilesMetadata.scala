@@ -18,7 +18,7 @@ class MergeFilesMetadata(
   libraries: File,
   labs: File,
   samples: File,
-  out: File
+  override protected val out: File
 ) extends IngestStep {
   import MergeFilesMetadata._
 

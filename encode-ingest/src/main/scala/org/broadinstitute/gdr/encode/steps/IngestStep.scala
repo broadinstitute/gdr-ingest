@@ -2,14 +2,29 @@ package org.broadinstitute.gdr.encode.steps
 
 import better.files.File
 import cats.effect.{Effect, Sync}
+import cats.implicits._
 import fs2.{Sink, Stream}
 import io.circe.Json
 
 import scala.language.higherKinds
 
 trait IngestStep {
-  def process[F[_]: Effect]: Stream[F, Unit]
-  final def build[F[_]: Effect]: F[Unit] = process.compile.drain
+  protected val logger = org.log4s.getLogger
+
+  protected def process[F[_]: Effect]: Stream[F, Unit]
+
+  final def build[F[_]: Effect]: F[Unit] =
+    Effect[F].delay(out.isRegularFile).flatMap { outputExists =>
+      if (outputExists) {
+        Effect[F].delay(
+          logger.warn(s"Skipping step ${getClass.getName}, output $out already exists")
+        )
+      } else {
+        process.compile.drain
+      }
+    }
+
+  protected def out: File
 }
 
 object IngestStep {

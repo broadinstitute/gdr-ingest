@@ -12,8 +12,9 @@ import org.broadinstitute.gdr.encode.steps.IngestStep
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class DeriveActualUris(in: File, out: File)(implicit ec: ExecutionContext)
-    extends IngestStep {
+class DeriveActualUris(in: File, override protected val out: File)(
+  implicit ec: ExecutionContext
+) extends IngestStep {
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
     EncodeClient
