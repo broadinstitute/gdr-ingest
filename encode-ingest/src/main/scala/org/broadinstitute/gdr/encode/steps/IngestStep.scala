@@ -4,7 +4,8 @@ import better.files.File
 import cats.effect.{Effect, Sync}
 import cats.implicits._
 import fs2.{Sink, Stream}
-import io.circe.Json
+import io.circe.syntax._
+import io.circe.JsonObject
 
 import scala.language.higherKinds
 
@@ -29,14 +30,19 @@ trait IngestStep {
 
 object IngestStep {
 
-  def readJsonArray[F[_]: Sync](in: File): Stream[F, Json] =
+  def readJsonArray[F[_]: Sync](in: File): Stream[F, JsonObject] =
     fs2.io.file
       .readAll(in.path, 8192)
       .through(io.circe.fs2.byteArrayParser)
+      .map(_.as[JsonObject])
+      .rethrow
 
-  def writeJsonArray[F[_]: Sync](out: File): Sink[F, Json] = jsons => {
+  def writeJsonArray[F[_]: Sync](out: File): Sink[F, JsonObject] = jsons => {
     val byteStream =
-      jsons.map(_.noSpaces).intersperse(",").flatMap(str => Stream.emits(str.getBytes))
+      jsons
+        .map(_.asJson.noSpaces)
+        .intersperse(",")
+        .flatMap(str => Stream.emits(str.getBytes))
 
     Stream
       .emit('['.toByte)

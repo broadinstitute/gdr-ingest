@@ -2,7 +2,7 @@ package org.broadinstitute.gdr.encode.client
 
 import cats.effect.Effect
 import fs2.Stream
-import io.circe.Json
+import io.circe.{Json, JsonObject}
 import org.http4s.{Method, Query, Request, Uri}
 import org.http4s.client.Client
 import org.http4s.client.blaze.{BlazeClientConfig, Http1Client}
@@ -16,7 +16,7 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
 
   private val E = Effect[F]
 
-  def search(searchParams: Seq[(String, String)]): Stream[F, Json] = {
+  def search(searchParams: Seq[(String, String)]): Stream[F, JsonObject] = {
 
     val allParams = Seq("limit" -> "all", "format" -> "json") ++ searchParams
     val searchUri = EncodeClient.EncodeUri
@@ -30,8 +30,8 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
       .flatMap { res =>
         res.hcursor
           .downField("@graph")
-          .as[Seq[Json]]
-          .fold(Stream.raiseError[Json], jss => Stream.emits(jss))
+          .as[Seq[JsonObject]]
+          .fold(Stream.raiseError[JsonObject], jss => Stream.emits(jss))
       }
   }
 

@@ -4,8 +4,8 @@ import better.files.File
 import cats.effect.Effect
 import cats.implicits._
 import fs2.Stream
-import io.circe.Json
-import io.circe.literal._
+import io.circe.JsonObject
+import io.circe.syntax._
 import org.broadinstitute.gdr.encode.client.EncodeClient
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
@@ -26,17 +26,18 @@ class DeriveActualUris(in: File, override protected val out: File)(
       }
       .to(IngestStep.writeJsonArray(out))
 
-  private def deriveUri[F[_]: Effect](client: EncodeClient[F])(file: Json): F[Json] =
+  private def deriveUri[F[_]: Effect](
+    client: EncodeClient[F]
+  )(file: JsonObject): F[JsonObject] =
     Effect[F]
-      .fromEither(file.hcursor.get[String]("href"))
+      .fromOption(
+        file("href").flatMap(_.asString),
+        new IllegalStateException(s"File metadata $file has no href field")
+      )
       .flatMap(client.deriveDownloadUri)
-      .map { uri =>
-        file.deepMerge(
-          json"""{ ${DeriveActualUris.DownloadUriField}: ${uri.toString()} }"""
-        )
-      }
+      .map(uri => file.add(DeriveActualUris.DownloadUriField, uri.toString().asJson))
 }
 
 object DeriveActualUris {
-  val DownloadUriField = "download_uri"
+  val DownloadUriField = "url"
 }

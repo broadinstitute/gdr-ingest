@@ -4,7 +4,7 @@ import better.files.File
 import cats.effect.{Effect, Sync}
 import cats.implicits._
 import fs2.Stream
-import io.circe.Json
+import io.circe.JsonObject
 import org.apache.commons.codec.binary.{Base64, Hex}
 import org.broadinstitute.gdr.encode.steps.IngestStep
 import org.broadinstitute.gdr.encode.steps.transform.DeriveActualUris
@@ -26,17 +26,19 @@ class BuildUrlManifest(fileMetadata: File, override protected val out: File)
       .to(IngestStep.writeLines(out))
   }
 
-  private def buildFileRow[F[_]: Sync](metadata: Json): F[String] = {
-    val cursor = metadata.hcursor
+  private def buildFileRow[F[_]: Sync](metadata: JsonObject): F[String] = {
     val fileRow = for {
-      downloadEndpoint <- cursor.get[String](DeriveActualUris.DownloadUriField)
-      size <- cursor.get[Long]("file_size")
-      hexMd5 <- cursor.get[String]("md5sum")
-      md5Bytes <- Either.catchNonFatal(Hex.decodeHex(hexMd5))
+      downloadEndpoint <- metadata(DeriveActualUris.DownloadUriField).flatMap(_.asString)
+      size <- metadata("file_size").flatMap(_.asNumber).flatMap(_.toLong)
+      hexMd5 <- metadata("md5sum").flatMap(_.asString)
+      md5Bytes <- Either.catchNonFatal(Hex.decodeHex(hexMd5)).toOption
     } yield {
       s"$downloadEndpoint\t$size\t${Base64.encodeBase64String(md5Bytes)}"
     }
 
-    Sync[F].fromEither(fileRow)
+    Sync[F].fromOption(
+      fileRow,
+      new IllegalStateException(s"Expected fields not found in $metadata")
+    )
   }
 }

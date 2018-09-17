@@ -4,8 +4,8 @@ import better.files.File
 import cats.effect.{Effect, Sync}
 import cats.implicits._
 import fs2.Stream
-import io.circe.Json
-import io.circe.literal._
+import io.circe.JsonObject
+import io.circe.syntax._
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
@@ -16,43 +16,45 @@ class CollapseFileMetadata(in: File, override protected val out: File)
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
     fileGraph.flatMap { graph =>
-      fileStream.filter(isLeaf).evalMap(traceFiles(_, graph))
+      IngestStep.readJsonArray(in).filter(isLeaf).evalMap(traceFiles(_, graph))
     }.unNone.to(IngestStep.writeJsonArray(out))
 
-  private def fileStream[F[_]: Sync]: Stream[F, Json] =
-    fs2.io.file
-      .readAll(in.path, 8192)
-      .through(io.circe.fs2.byteArrayParser)
-
   private def fileGraph[F[_]: Sync]: Stream[F, FileGraph] =
-    fileStream.evalMap { file =>
-      val cursor = file.hcursor
-      val newInfo = for {
-        id <- cursor.get[String]("@id")
-        replicateRef <- cursor.get[Option[String]]("replicate")
-        sourceFiles <- cursor.get[Option[List[String]]]("derived_from")
-        fileType <- cursor.get[String]("file_format")
-        readCounts <- cursor.get[Option[Long]]("read_count")
-      } yield {
-        val updatedReplicates =
-          replicateRef.fold(Map.empty[String, String])(r => Map(id -> r))
-        val updatedSources =
-          sourceFiles.fold(Map.empty[String, List[String]])(s => Map(id -> s))
-        val updatedCounts = readCounts
-          .filter(_ => fileType.equals("fastq"))
-          .fold(Map.empty[String, Long])(c => Map(id -> c))
+    IngestStep
+      .readJsonArray(in)
+      .evalMap { file =>
+        val newInfo = for {
+          id <- file("@id").flatMap(_.asString)
+          fileType <- file("file_format").flatMap(_.asString)
+        } yield {
+          val replicateRef = file("replicate").flatMap(_.asString)
+          val sourceFiles =
+            file("derived_from").flatMap(_.asArray.map(_.flatMap(_.asString)))
+          val readCount = file("read_count").flatMap(_.asNumber.flatMap(_.toLong))
 
-        (updatedReplicates, updatedSources, updatedCounts)
+          val updatedReplicates =
+            replicateRef.fold(Map.empty[String, String])(r => Map(id -> r))
+          val updatedSources =
+            sourceFiles.fold(Map.empty[String, Vector[String]])(s => Map(id -> s))
+          val updatedCounts = readCount
+            .filter(_ => fileType.equals("fastq"))
+            .fold(Map.empty[String, Long])(c => Map(id -> c))
+
+          (updatedReplicates, updatedSources, updatedCounts)
+        }
+        Sync[F].fromOption(
+          newInfo,
+          new IllegalStateException(s"Expected fields not found in $file")
+        )
       }
-      Sync[F].fromEither(newInfo)
-    }.foldMonoid.map(FileGraph.tupled)
+      .foldMonoid
+      .map(FileGraph.tupled)
 
-  private def isLeaf(file: Json): Boolean = {
-    val cursor = file.hcursor
+  private def isLeaf(file: JsonObject): Boolean = {
     val keepFile = for {
-      status <- cursor.get[String]("status")
-      format <- cursor.get[String]("file_format")
-      typ <- cursor.get[String]("output_type")
+      status <- file("status").flatMap(_.asString)
+      format <- file("file_format").flatMap(_.asString)
+      typ <- file("output_type").flatMap(_.asString)
     } yield {
       status.equals("released") && FormatTypeWhitelist.contains(format -> typ)
     }
@@ -60,7 +62,10 @@ class CollapseFileMetadata(in: File, override protected val out: File)
     keepFile.getOrElse(false)
   }
 
-  private def traceFiles[F[_]: Sync](file: Json, graph: FileGraph): F[Option[Json]] = {
+  private def traceFiles[F[_]: Sync](
+    file: JsonObject,
+    graph: FileGraph
+  ): F[Option[JsonObject]] = {
     @scala.annotation.tailrec
     def exploreGraph(
       id: String,
@@ -85,33 +90,33 @@ class CollapseFileMetadata(in: File, override protected val out: File)
       }
     }
 
-    val cursor = file.hcursor
-
-    Sync[F].fromEither(cursor.get[String]("@id")).flatMap { id =>
-      val (replicateIds, totalReads) = exploreGraph(id, Nil, Set.empty, 0L)
-      if (replicateIds.isEmpty) {
-        Sync[F].delay {
-          logger.warn(s"Dropping file $id, no replicates found")
-          None
-        }
-      } else {
-        val withDerived = Sync[F].fromEither {
-          cursor.get[String]("file_type").map { fileType =>
-            val base = json"""{ $ReplicateRefsField: $replicateIds }"""
-
-            file.deepMerge {
-              if (fileType == "bam") {
-                base.deepMerge(json"""{ $ReadCountField: $totalReads }""")
-              } else {
-                base
-              }
-            }
+    Sync[F]
+      .fromOption(
+        file("@id").flatMap(_.asString),
+        new IllegalStateException(s"File metadata $file has no ID")
+      )
+      .flatMap { id =>
+        val (replicateIds, totalReads) = exploreGraph(id, Nil, Set.empty, 0L)
+        if (replicateIds.isEmpty) {
+          Sync[F].delay {
+            logger.warn(s"Dropping file $id, no replicates found")
+            None
           }
-        }
+        } else {
+          val maybeMerged = file("file_type").map { tpe =>
+            val base = Map(ReplicateRefsField -> replicateIds.asJson)
+            val newFields = if (tpe == "bam".asJson) {
+              base + (ReadCountField -> totalReads.asJson)
+            } else {
+              base
+            }
 
-        withDerived.map(Some(_))
+            JsonObject.fromMap(newFields ++ file.toMap)
+          }
+
+          Sync[F].pure(maybeMerged)
+        }
       }
-    }
   }
 }
 
