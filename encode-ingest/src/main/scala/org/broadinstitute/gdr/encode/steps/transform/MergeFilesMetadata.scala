@@ -18,6 +18,7 @@ class MergeFilesMetadata(
   libraries: File,
   labs: File,
   samples: File,
+  donors: File,
   override protected val out: File
 ) extends IngestStep {
   import MergeFilesMetadata._
@@ -29,7 +30,8 @@ class MergeFilesMetadata(
       targets -> TargetFields,
       libraries -> LibraryFields,
       labs -> LabFields,
-      samples -> BiosampleFields
+      samples -> BiosampleFields,
+      donors -> DonorFields
     ).evalMap((lookupTable[F] _).tupled)
       .fold(Map.empty[String, JsonObject])(_ ++ _)
       .flatMap { masterLookupTable =>
@@ -49,6 +51,7 @@ class MergeFilesMetadata(
           .evalMap(join("experiment_target", TargetFields, Some("target")))
           .evalMap(join("library_biosample", BiosampleFields, None))
           .evalMap(join("library_lab", LabFields, Some("lab")))
+          .evalMap(join("donor", DonorFields, Some("donor")))
       }
       .map(_.filterKeys(FinalFields.contains))
       .map(stripControls)
@@ -159,6 +162,8 @@ object MergeFilesMetadata {
   val BiosampleFields =
     Set("biosample_term_id", "biosample_term_name", "biosample_type", "donor")
 
+  val DonorFields = Set("accession")
+
   val FinalFields = Set(
     // Direct from downloaded metadata:
     "accession",
@@ -182,7 +187,7 @@ object MergeFilesMetadata {
     "biosample_term_id",
     "biosample_term_name",
     "biosample_type",
-    "donor"
+    "donor_accession"
   )
 
   val FieldsToFlatten = Set(
@@ -194,7 +199,7 @@ object MergeFilesMetadata {
   )
 
   val FieldsToRename = Set(
-    "accession" -> "entity:sample_id",
+    "accession" -> "file_accession",
     "biosample_term_name" -> "cell_type",
     "experiment_assay_term_name" -> "assay_term_name",
     "target_label" -> "target"

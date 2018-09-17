@@ -9,6 +9,7 @@ import org.broadinstitute.gdr.encode.steps.transfer.BuildUrlManifest
 import org.broadinstitute.gdr.encode.steps.transform.{
   CollapseFileMetadata,
   DeriveActualUris,
+  MergeDonorsMetadata,
   MergeFilesMetadata
 }
 
@@ -37,8 +38,9 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
 
       val collapsedFilesOut = out / "files.collapsed.json"
       val filesWithUris = out / "files.with-uris.json"
-      val filesTableJson = out / "files.final.json"
 
+      val filesTableJson = out / "files.final.json"
+      val donorsTableJson = out / "donors.final.json"
       val transferManifest = out / "sts-manifest.tsv"
 
       // FIXME: Implicit dependencies between steps would be better made explict.
@@ -65,7 +67,13 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
         libraries = librariesOut,
         labs = labsOut,
         samples = biosamplesOut,
+        donors = donorsOut,
         out = filesTableJson
+      )
+      val mergeDonorMetadata = new MergeDonorsMetadata(
+        donors = donorsOut,
+        mergedFiles = filesTableJson,
+        out = donorsTableJson
       )
       val buildTransferManifest = new BuildUrlManifest(filesTableJson, transferManifest)
 
@@ -74,11 +82,10 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
         _ <- parallelize(getAudits, getReplicates, getFiles, getTargets)
         _ <- getLibraries.build
         _ <- parallelize(getLabs, getSamples)
-        _ <- getDonors.build
-        _ <- collapseFileMetadata.build
+        _ <- parallelize(getDonors, collapseFileMetadata)
         _ <- deriveUris.build
         _ <- mergeFileMetadata.build
-        _ <- buildTransferManifest.build
+        _ <- parallelize(mergeDonorMetadata, buildTransferManifest)
       } yield {
         ()
       }
