@@ -1,10 +1,11 @@
 package org.broadinstitute.gdr.encode.client
 
 import cats.effect.Effect
+import cats.implicits._
 import fs2.Stream
 import io.circe.{Json, JsonObject}
-import org.http4s.{Method, Query, Request, Uri}
-import org.http4s.client.Client
+import org.http4s.{Method, Query, Request, Status, Uri}
+import org.http4s.client.{Client, UnexpectedStatus}
 import org.http4s.client.blaze.{BlazeClientConfig, Http1Client}
 import org.http4s.client.middleware.Logger
 import org.http4s.headers.Location
@@ -23,15 +24,26 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
       .withPath("/search/")
       .copy(query = Query.fromPairs(allParams: _*))
 
+    val request = client.expectOr[Json](Request[F](uri = searchUri)) { failedResponse =>
+      E.pure(failedResponse.status).map { code =>
+        if (code == Status.NotFound) {
+          EncodeClient.NoResultsFound
+        } else {
+          UnexpectedStatus(code)
+        }
+      }
+    }(org.http4s.circe.jsonDecoder)
+
     Stream
-      .eval(
-        client.expect[Json](Request[F](uri = searchUri))(org.http4s.circe.jsonDecoder)
-      )
+      .eval(request)
       .flatMap { res =>
         res.hcursor
           .downField("@graph")
           .as[Seq[JsonObject]]
           .fold(Stream.raiseError[JsonObject], jss => Stream.emits(jss))
+      }
+      .recoverWith {
+        case EncodeClient.NoResultsFound => Stream.empty
       }
   }
 
@@ -71,4 +83,6 @@ object EncodeClient {
       .map { blaze =>
         new EncodeClient[F](Logger.apply(logHeaders = true, logBody = false)(blaze))
       }
+
+  private object NoResultsFound extends Throwable
 }

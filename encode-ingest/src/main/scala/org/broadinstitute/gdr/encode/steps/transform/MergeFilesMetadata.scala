@@ -87,11 +87,12 @@ class MergeFilesMetadata(
       fks <- fkJson.as[List[String]].toOption
     } yield {
       fks.foldMap[Map[String, Set[Json]]] { fk =>
-        val toJoin = table(fk)
-        collectFields.map { f =>
-          s"${collectionPrefix.fold("")(_ + "_")}$f" -> toJoin(f)
-            .fold(Set.empty[Json])(Set(_))
-        }.toMap
+        table.get(fk).fold(Map.empty[String, Set[Json]]) { toJoin =>
+          collectFields.map { f =>
+            s"${collectionPrefix.fold("")(_ + "_")}$f" -> toJoin(f)
+              .fold(Set.empty[Json])(Set(_))
+          }.toMap
+        }
       }
     }
 
@@ -178,6 +179,7 @@ object MergeFilesMetadata {
     // Derived from processing steps:
     CollapseFileMetadata.ReadCountField,
     DeriveActualUris.DownloadUriField,
+    // Joined into file records from other metadata:
     "replicate_uuid",
     "experiment_accession",
     "experiment_assay_term_name",

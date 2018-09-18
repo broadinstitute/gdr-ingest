@@ -9,8 +9,9 @@ import scala.language.higherKinds
 class GetDonors(in: File, out: File)(implicit ec: ExecutionContext)
     extends GetFromPreviousMetadataStep[String](in, out) {
 
-  final override val entityType = "Donor"
+  final override val entityType = "HumanDonor"
   final override val refField = "donor"
+
   final override def refValueStream[F[_]](refValue: String): Stream[F, String] =
     Stream.emit(refValue)
   final override def filterRefs[F[_]]: Pipe[F, String, String] =
