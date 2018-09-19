@@ -16,7 +16,7 @@ class CollapseFileMetadata(in: File, override protected val out: File)
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
     fileGraph.flatMap { graph =>
-      IngestStep.readJsonArray(in).filter(isLeaf).evalMap(traceFiles(_, graph))
+      IngestStep.readJsonArray(in).evalMap(traceFiles(_, graph))
     }.unNone.to(IngestStep.writeJsonArray(out))
 
   private def fileGraph[F[_]: Sync]: Stream[F, FileGraph] =
@@ -50,18 +50,6 @@ class CollapseFileMetadata(in: File, override protected val out: File)
       .foldMonoid
       .map(FileGraph.tupled)
 
-  private def isLeaf(file: JsonObject): Boolean = {
-    val keepFile = for {
-      status <- file("status").flatMap(_.asString)
-      format <- file("file_format").flatMap(_.asString)
-      typ <- file("output_type").flatMap(_.asString)
-    } yield {
-      status.equals("released") && FormatTypeWhitelist.contains(format -> typ)
-    }
-
-    keepFile.getOrElse(false)
-  }
-
   private def traceFiles[F[_]: Sync](
     file: JsonObject,
     graph: FileGraph
@@ -71,7 +59,8 @@ class CollapseFileMetadata(in: File, override protected val out: File)
       id: String,
       nextIds: List[String],
       replicateAcc: Set[String],
-      readCount: Long
+      readCount: Long,
+      visited: Set[String]
     ): (Set[String], Long) = {
 
       val newNext = graph.fileToSources
@@ -84,9 +73,10 @@ class CollapseFileMetadata(in: File, override protected val out: File)
 
       val newReads = readCount + graph.fastqReadCounts.getOrElse(id, 0L)
 
-      newNext match {
-        case Nil          => (newReplicates, newReads)
-        case next :: more => exploreGraph(next, more, newReplicates, newReads)
+      newNext.dropWhile(visited.contains) match {
+        case Nil => (newReplicates, newReads)
+        case next :: more =>
+          exploreGraph(next, more, newReplicates, newReads, visited + id)
       }
     }
 
@@ -96,7 +86,7 @@ class CollapseFileMetadata(in: File, override protected val out: File)
         new IllegalStateException(s"File metadata $file has no ID")
       )
       .flatMap { id =>
-        val (replicateIds, totalReads) = exploreGraph(id, Nil, Set.empty, 0L)
+        val (replicateIds, totalReads) = exploreGraph(id, Nil, Set.empty, 0L, Set.empty)
         if (replicateIds.isEmpty) {
           Sync[F].delay {
             logger.warn(s"Dropping file $id, no replicates found")
@@ -123,12 +113,6 @@ class CollapseFileMetadata(in: File, override protected val out: File)
 object CollapseFileMetadata {
   val ReadCountField = "read_count"
   val ReplicateRefsField = "replicate_refs"
-
-  val FormatTypeWhitelist = Set(
-    "bam" -> "unfiltered alignments",
-    "bigBed" -> "peaks",
-    "bigWig" -> "fold change over control"
-  )
 
   private case class FileGraph(
     fileToReplicate: Map[String, String],

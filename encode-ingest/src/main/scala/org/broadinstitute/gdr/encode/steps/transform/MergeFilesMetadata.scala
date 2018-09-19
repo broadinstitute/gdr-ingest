@@ -42,10 +42,11 @@ class MergeFilesMetadata(
           curr: String,
           fields: Set[String]
         ): Pipe[F, JsonObject, JsonObject] =
-          _.evalMap(join(joinedName(curr, prev), fields, prev))
+          _.evalMap(join(joinedName(curr, prev), fields, curr))
 
         IngestStep
           .readJsonArray(files)
+          .filter(isLeaf)
           .evalMap(
             join(
               CollapseFileMetadata.ReplicateRefsField,
@@ -61,6 +62,18 @@ class MergeFilesMetadata(
           .through(chainJoin(BiosamplePrefix, DonorPrefix, DonorFields))
       }
       .to(IngestStep.writeJsonArray(out))
+
+  private def isLeaf(file: JsonObject): Boolean = {
+    val keepFile = for {
+      status <- file("status").flatMap(_.asString)
+      format <- file("file_format").flatMap(_.asString)
+      typ <- file("output_type").flatMap(_.asString)
+    } yield {
+      status.equals("released") && FormatTypeWhitelist.contains(format -> typ)
+    }
+
+    keepFile.getOrElse(false)
+  }
 
   private def lookupTable[F[_]: Sync](
     metadata: File,
@@ -101,7 +114,7 @@ class MergeFilesMetadata(
     Sync[F]
       .fromOption(
         accumulatedFields,
-        new IllegalStateException(s"No data found for field '$fkField'")
+        new IllegalStateException(s"No data found for field '$fkField' in $file")
       )
       .map { fields =>
         JsonObject.fromMap(file.toMap ++ fields.mapValues(_.asJson))
@@ -110,6 +123,12 @@ class MergeFilesMetadata(
 }
 
 object MergeFilesMetadata {
+
+  val FormatTypeWhitelist = Set(
+    "bam" -> "unfiltered alignments",
+    "bigBed" -> "peaks",
+    "bigWig" -> "fold change over control"
+  )
 
   val ReplicatePrefix = "replicate"
   val ReplicateFields = Set("experiment", "library", "uuid")

@@ -54,9 +54,8 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
 
       // Transform & combine metadata:
       val collapseFileMetadata = new CollapseFileMetadata(filesOut, collapsedFilesOut)
-      val deriveUris = new DeriveActualUris(collapsedFilesOut, filesWithUris)
       val mergeFileMetadata = new MergeFilesMetadata(
-        files = filesWithUris,
+        files = collapsedFilesOut,
         replicates = replicatesOut,
         experiments = experimentsOut,
         targets = targetsOut,
@@ -68,10 +67,11 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
       )
       val mergeDonorMetadata = new MergeDonorsMetadata(
         donors = donorsOut,
-        mergedFiles = filesTableJson,
+        mergedFiles = mergedFilesJson,
         out = donorsTableJson
       )
-      val cleanFileMetadata = new CleanupFilesMetadata(mergedFilesJson, filesTableJson)
+      val deriveUris = new DeriveActualUris(mergedFilesJson, filesWithUris)
+      val cleanFileMetadata = new CleanupFilesMetadata(filesWithUris, filesTableJson)
       val buildTransferManifest = new BuildUrlManifest(filesTableJson, transferManifest)
 
       val run: F[Unit] = for {
@@ -80,10 +80,11 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
         _ <- getLibraries.build
         _ <- parallelize(getLabs, getSamples)
         _ <- parallelize(getDonors, collapseFileMetadata)
-        _ <- deriveUris.build
         _ <- mergeFileMetadata.build
         _ <- mergeDonorMetadata.build
-        _ <- parallelize(cleanFileMetadata, buildTransferManifest)
+        _ <- deriveUris.build
+        _ <- cleanFileMetadata.build
+        _ <- buildTransferManifest.build
       } yield {
         ()
       }
