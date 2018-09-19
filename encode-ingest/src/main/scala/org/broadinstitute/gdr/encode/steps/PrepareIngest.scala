@@ -6,12 +6,7 @@ import cats.implicits._
 import fs2.Stream
 import org.broadinstitute.gdr.encode.steps.download._
 import org.broadinstitute.gdr.encode.steps.transfer.BuildUrlManifest
-import org.broadinstitute.gdr.encode.steps.transform.{
-  CollapseFileMetadata,
-  DeriveActualUris,
-  MergeDonorsMetadata,
-  MergeFilesMetadata
-}
+import org.broadinstitute.gdr.encode.steps.transform._
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -38,6 +33,7 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
 
       val collapsedFilesOut = out / "files.collapsed.json"
       val filesWithUris = out / "files.with-uris.json"
+      val mergedFilesJson = out / "files.merged.json"
 
       val filesTableJson = out / "files.final.json"
       val donorsTableJson = out / "donors.final.json"
@@ -68,13 +64,14 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
         labs = labsOut,
         samples = biosamplesOut,
         donors = donorsOut,
-        out = filesTableJson
+        out = mergedFilesJson
       )
       val mergeDonorMetadata = new MergeDonorsMetadata(
         donors = donorsOut,
         mergedFiles = filesTableJson,
         out = donorsTableJson
       )
+      val cleanFileMetadata = new CleanupFilesMetadata(mergedFilesJson, filesTableJson)
       val buildTransferManifest = new BuildUrlManifest(filesTableJson, transferManifest)
 
       val run: F[Unit] = for {
@@ -85,7 +82,8 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
         _ <- parallelize(getDonors, collapseFileMetadata)
         _ <- deriveUris.build
         _ <- mergeFileMetadata.build
-        _ <- parallelize(mergeDonorMetadata, buildTransferManifest)
+        _ <- mergeDonorMetadata.build
+        _ <- parallelize(cleanFileMetadata, buildTransferManifest)
       } yield {
         ()
       }

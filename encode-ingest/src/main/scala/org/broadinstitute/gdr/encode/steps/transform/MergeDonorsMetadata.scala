@@ -30,7 +30,10 @@ class MergeDonorsMetadata(
       .readJsonArray(mergedFiles)
       .map { file =>
         for {
-          donorJson <- file("donor_accession")
+          donorJson <- file(
+            MergeFilesMetadata
+              .joinedName("accession", MergeFilesMetadata.DonorPrefix)
+          )
           accessionArray <- donorJson.asArray
         } yield accessionArray.toSet[Json]
       }
