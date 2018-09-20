@@ -2,7 +2,7 @@ package org.broadinstitute.gdr.encode.steps.download
 
 import better.files.File
 import cats.effect.Sync
-import fs2.{Pipe, Stream}
+import fs2.{Pipe, Scheduler, Stream}
 import io.circe.Decoder
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
@@ -10,7 +10,8 @@ import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 abstract class GetFromPreviousMetadataStep[R: Decoder](in: File, out: File)(
-  implicit ec: ExecutionContext
+  implicit ec: ExecutionContext,
+  s: Scheduler
 ) extends GetMetadataStep(out) {
 
   final override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =

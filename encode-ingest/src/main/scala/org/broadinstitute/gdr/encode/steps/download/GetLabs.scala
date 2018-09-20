@@ -1,12 +1,12 @@
 package org.broadinstitute.gdr.encode.steps.download
 
 import better.files.File
-import fs2.{Pipe, Stream}
+import fs2.{Pipe, Scheduler, Stream}
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class GetLabs(in: File, out: File)(implicit ec: ExecutionContext)
+class GetLabs(in: File, out: File)(implicit ec: ExecutionContext, s: Scheduler)
     extends GetFromPreviousMetadataStep[String](in, out) {
 
   final override val entityType = "Lab"

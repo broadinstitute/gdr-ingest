@@ -3,7 +3,7 @@ package org.broadinstitute.gdr.encode.steps.transform
 import better.files.File
 import cats.effect.Effect
 import cats.implicits._
-import fs2.Stream
+import fs2.{Scheduler, Stream}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.client.EncodeClient
@@ -13,7 +13,8 @@ import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 class DeriveActualUris(in: File, override protected val out: File)(
-  implicit ec: ExecutionContext
+  implicit ec: ExecutionContext,
+  s: Scheduler
 ) extends IngestStep {
 
   override def process[F[_]: Effect]: Stream[F, Unit] =

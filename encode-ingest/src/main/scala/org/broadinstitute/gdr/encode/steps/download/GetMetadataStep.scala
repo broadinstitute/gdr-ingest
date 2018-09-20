@@ -2,7 +2,7 @@ package org.broadinstitute.gdr.encode.steps.download
 
 import better.files.File
 import cats.effect.{Effect, Sync}
-import fs2.{Pipe, Stream}
+import fs2.{Pipe, Scheduler, Stream}
 import org.broadinstitute.gdr.encode.client.EncodeClient
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
@@ -10,7 +10,8 @@ import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 abstract class GetMetadataStep(override protected val out: File)(
-  implicit ec: ExecutionContext
+  implicit ec: ExecutionContext,
+  s: Scheduler
 ) extends IngestStep {
 
   final override def process[F[_]: Effect]: Stream[F, Unit] =

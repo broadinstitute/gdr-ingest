@@ -3,7 +3,7 @@ package org.broadinstitute.gdr.encode.steps.transform
 import better.files.File
 import cats.effect.{Effect, Sync}
 import cats.implicits._
-import fs2.{Pipe, Stream}
+import fs2.Stream
 import io.circe.{Json, JsonObject}
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.steps.IngestStep
@@ -37,29 +37,22 @@ class MergeFilesMetadata(
       .flatMap { masterLookupTable =>
         val join = joinWithFile[F](masterLookupTable) _
 
-        def chainJoin(
-          prev: String,
-          curr: String,
-          fields: Set[String]
-        ): Pipe[F, JsonObject, JsonObject] =
-          _.evalMap(join(joinedName(curr, prev), fields, curr))
-
         IngestStep
           .readJsonArray(files)
           .filter(isLeaf)
           .evalMap(
             join(
-              CollapseFileMetadata.ReplicateRefsField,
-              ReplicateFields,
-              ReplicatePrefix
+              ExtendBamMetadata.ReplicateRefsPrefix,
+              ReplicatePrefix,
+              ReplicateFields
             )
           )
-          .through(chainJoin(ReplicatePrefix, ExperimentPrefix, ExperimentFields))
-          .through(chainJoin(ReplicatePrefix, LibraryPrefix, LibraryFields))
-          .through(chainJoin(ExperimentPrefix, TargetPrefix, TargetFields))
-          .through(chainJoin(LibraryPrefix, BiosamplePrefix, BiosampleFields))
-          .through(chainJoin(LibraryPrefix, LabPrefix, LabFields))
-          .through(chainJoin(BiosamplePrefix, DonorPrefix, DonorFields))
+          .evalMap(join(ReplicatePrefix, ExperimentPrefix, ExperimentFields))
+          .evalMap(join(ReplicatePrefix, LibraryPrefix, LibraryFields))
+          .evalMap(join(ExperimentPrefix, TargetPrefix, TargetFields))
+          .evalMap(join(LibraryPrefix, BiosamplePrefix, BiosampleFields))
+          .evalMap(join(LibraryPrefix, LabPrefix, LabFields))
+          .evalMap(join(BiosamplePrefix, DonorPrefix, DonorFields))
       }
       .to(IngestStep.writeJsonArray(out))
 
@@ -94,10 +87,11 @@ class MergeFilesMetadata(
       .fold(Map.empty[String, JsonObject])(_ + _)
 
   private def joinWithFile[F[_]: Sync](table: Map[String, JsonObject])(
-    fkField: String,
-    collectFields: Set[String],
-    collectionPrefix: String
+    prevPrefix: String,
+    prefix: String,
+    collectFields: Set[String]
   )(file: JsonObject): F[JsonObject] = {
+    val fkField = joinedName(prefix, prevPrefix)
     val accumulatedFields = for {
       fkJson <- file(fkField)
       fks <- fkJson.as[List[String]].toOption
@@ -105,7 +99,7 @@ class MergeFilesMetadata(
       fks.foldMap[Map[String, Set[Json]]] { fk =>
         table.get(fk).fold(Map.empty[String, Set[Json]]) { toJoin =>
           collectFields.map { f =>
-            joinedName(f, collectionPrefix) -> toJoin(f).fold(Set.empty[Json])(Set(_))
+            joinedName(f, prefix) -> toJoin(f).fold(Set.empty[Json])(Set(_))
           }.toMap
         }
       }

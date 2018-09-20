@@ -2,12 +2,12 @@ package org.broadinstitute.gdr.encode.steps.download
 
 import better.files.File
 import cats.effect.Sync
-import fs2.Stream
+import fs2.{Scheduler, Stream}
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class GetExperiments(out: File)(implicit ec: ExecutionContext)
+class GetExperiments(out: File)(implicit ec: ExecutionContext, s: Scheduler)
     extends GetMetadataStep(out) {
 
   override val entityType = "Experiment"

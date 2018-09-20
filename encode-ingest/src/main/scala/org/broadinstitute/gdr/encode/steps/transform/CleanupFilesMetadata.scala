@@ -113,7 +113,11 @@ object CleanupFilesMetadata {
     "md5sum",
     "output_type",
     // Derived from processing steps:
-    CollapseFileMetadata.ReadCountField,
+    ExtendBamMetadata.PercentAlignedField,
+    ExtendBamMetadata.PercentDupsField,
+    ExtendBamMetadata.ReadCountField,
+    ExtendBamMetadata.ReadLengthField,
+    ExtendBamMetadata.RunTypeField,
     DeriveActualUris.DownloadUriField,
     // Joined into file records from other metadata:
     joinedName("accession", DonorPrefix),

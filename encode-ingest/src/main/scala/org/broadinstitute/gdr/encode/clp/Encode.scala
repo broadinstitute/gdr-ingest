@@ -7,6 +7,7 @@ import cats.data.{Validated, ValidatedNel}
 import cats.effect.IO
 import cats.implicits._
 import com.monovore.decline.{Argument, CommandApp, Opts}
+import fs2.Scheduler
 import org.broadinstitute.gdr.encode.steps.PrepareIngest
 
 import scala.concurrent.ExecutionContext
@@ -16,8 +17,12 @@ object Encode
       name = "encode-ingest",
       header = "Mirrors data from ENCODE into a Broad repository",
       main = {
-        val ex = Executors.newCachedThreadPool()
-        implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(ex)
+        val ioExecutor = Executors.newCachedThreadPool()
+        val schedulerExecutor = Executors.newScheduledThreadPool(1)
+
+        implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(ioExecutor)
+        implicit val s: Scheduler =
+          Scheduler.fromScheduledExecutorService(schedulerExecutor)
 
         implicit val fileArg: Argument[File] = new Argument[File] {
           override def defaultMetavar: String = "path"
@@ -40,7 +45,7 @@ object Encode
 
         prepIngest.map { cmd =>
           val res = cmd.build[IO].attempt.unsafeRunSync()
-          val _ = ex.shutdownNow()
+          val _ = (ioExecutor.shutdownNow(), schedulerExecutor.shutdownNow())
           res.valueOr(throw _)
         }
       }

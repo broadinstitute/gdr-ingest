@@ -2,15 +2,16 @@ package org.broadinstitute.gdr.encode.client
 
 import cats.effect.Effect
 import cats.implicits._
-import fs2.Stream
+import fs2.{Scheduler, Stream}
 import io.circe.{Json, JsonObject}
 import org.http4s.{Method, Query, Request, Status, Uri}
 import org.http4s.client.{Client, UnexpectedStatus}
 import org.http4s.client.blaze.{BlazeClientConfig, Http1Client}
-import org.http4s.client.middleware.Logger
+import org.http4s.client.middleware.{Logger, Retry, RetryPolicy}
 import org.http4s.headers.Location
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 import scala.language.higherKinds
 
 class EncodeClient[F[_]: Effect] private (client: Client[F]) {
@@ -77,11 +78,17 @@ object EncodeClient {
 
   private val EncodeUri = Uri.unsafeFromString("https://www.encodeproject.org")
 
-  def stream[F[_]: Effect](implicit ec: ExecutionContext): Stream[F, EncodeClient[F]] =
+  def stream[F[_]: Effect](
+    implicit ec: ExecutionContext,
+    s: Scheduler
+  ): Stream[F, EncodeClient[F]] =
     Http1Client
       .stream(BlazeClientConfig.defaultConfig.copy(executionContext = ec))
       .map { blaze =>
-        new EncodeClient[F](Logger.apply(logHeaders = true, logBody = false)(blaze))
+        val retryPolicy = RetryPolicy[F](RetryPolicy.exponentialBackoff(1.second, 5))
+        val wrappedBlaze =
+          Retry(retryPolicy)(Logger(logHeaders = true, logBody = false)(blaze))
+        new EncodeClient[F](wrappedBlaze)
       }
 
   private object NoResultsFound extends Throwable

@@ -3,7 +3,7 @@ package org.broadinstitute.gdr.encode.steps
 import better.files.File
 import cats.effect.Effect
 import cats.implicits._
-import fs2.Stream
+import fs2.{Scheduler, Stream}
 import org.broadinstitute.gdr.encode.steps.download._
 import org.broadinstitute.gdr.encode.steps.transfer.BuildUrlManifest
 import org.broadinstitute.gdr.encode.steps.transform._
@@ -11,8 +11,10 @@ import org.broadinstitute.gdr.encode.steps.transform._
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class PrepareIngest(override protected val out: File)(implicit ec: ExecutionContext)
-    extends IngestStep {
+class PrepareIngest(override protected val out: File)(
+  implicit ec: ExecutionContext,
+  s: Scheduler
+) extends IngestStep {
   override def process[F[_]: Effect]: Stream[F, Unit] = {
     if (!out.isDirectory) {
       Stream.raiseError(
@@ -31,7 +33,7 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
       val replicatesOut = out / "replicates.json"
       val targetsOut = out / "targets.json"
 
-      val collapsedFilesOut = out / "files.collapsed.json"
+      val extendedFilesOut = out / "files.extended.json"
       val filesWithUris = out / "files.with-uris.json"
       val mergedFilesJson = out / "files.merged.json"
 
@@ -53,9 +55,9 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
       val getDonors = new GetDonors(biosamplesOut, donorsOut)
 
       // Transform & combine metadata:
-      val collapseFileMetadata = new CollapseFileMetadata(filesOut, collapsedFilesOut)
+      val extendBamMetadata = new ExtendBamMetadata(filesOut, extendedFilesOut)
       val mergeFileMetadata = new MergeFilesMetadata(
-        files = collapsedFilesOut,
+        files = extendedFilesOut,
         replicates = replicatesOut,
         experiments = experimentsOut,
         targets = targetsOut,
@@ -79,7 +81,7 @@ class PrepareIngest(override protected val out: File)(implicit ec: ExecutionCont
         _ <- parallelize(getAudits, getReplicates, getFiles, getTargets)
         _ <- getLibraries.build
         _ <- parallelize(getLabs, getSamples)
-        _ <- parallelize(getDonors, collapseFileMetadata)
+        _ <- parallelize(getDonors, extendBamMetadata)
         _ <- mergeFileMetadata.build
         _ <- mergeDonorMetadata.build
         _ <- deriveUris.build
