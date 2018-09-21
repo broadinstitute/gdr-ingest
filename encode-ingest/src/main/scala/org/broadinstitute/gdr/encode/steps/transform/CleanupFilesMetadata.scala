@@ -113,6 +113,8 @@ object CleanupFilesMetadata {
     "md5sum",
     "output_type",
     // Derived from processing steps:
+    ExtendBamMetadata.DerivedFromExperimentField,
+    ExtendBamMetadata.DerivedFromReferenceField,
     ExtendBamMetadata.PercentAlignedField,
     ExtendBamMetadata.PercentDupsField,
     ExtendBamMetadata.ReadCountField,

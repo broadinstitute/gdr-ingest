@@ -10,13 +10,14 @@ import io.circe.syntax._
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
+import scala.util.matching.Regex
 
 class ExtendBamMetadata(in: File, override protected val out: File) extends IngestStep {
   import ExtendBamMetadata._
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
     fileGraph.flatMap { graph =>
-      IngestStep.readJsonArray(in).map(addFieldsIfBam(_, graph))
+      IngestStep.readJsonArray(in).map(extendFields(_, graph))
     }.unNone.to(IngestStep.writeJsonArray(out))
 
   private def fileGraph[F[_]: Sync]: Stream[F, FileGraph] =
@@ -30,6 +31,7 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
           val replicateRef = file("replicate").flatMap(_.asString)
           val sourceFiles =
             file("derived_from").flatMap(_.asArray.map(_.flatMap(_.asString)))
+          val experiment = file("dataset").flatMap(_.asString)
 
           val fastqInfo = for {
             readCount <- file("read_count").flatMap(_.asNumber.flatMap(_.toLong))
@@ -38,15 +40,14 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
             FastqInfo(readCount, runType == "paired-ended")
           }
 
-          val updatedReplicates =
-            replicateRef.fold(Map.empty[String, String])(r => Map(id -> r))
-          val updatedSources =
-            sourceFiles.fold(Map.empty[String, Vector[String]])(s => Map(id -> s))
-          val updatedCounts = fastqInfo
-            .filter(_ => fileType.equals("fastq"))
-            .fold(Map.empty[String, FastqInfo])(i => Map(id -> i))
-
-          (updatedReplicates, updatedSources, updatedCounts)
+          FileGraph(
+            replicateRef.fold(Map.empty[String, String])(r => Map(id -> r)),
+            sourceFiles.fold(Map.empty[String, Set[String]])(s => Map(id -> s.toSet)),
+            fastqInfo
+              .filter(_ => fileType.equals("fastq"))
+              .fold(Map.empty[String, FastqInfo])(i => Map(id -> i)),
+            experiment.fold(Map.empty[String, Set[String]])(e => Map(e -> Set(id)))
+          )
         }
         Sync[F].fromOption(
           newInfo,
@@ -54,9 +55,8 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
         )
       }
       .foldMonoid
-      .map(FileGraph.tupled)
 
-  private def addFieldsIfBam(file: JsonObject, graph: FileGraph): Option[JsonObject] = {
+  private def extendFields(file: JsonObject, graph: FileGraph): Option[JsonObject] = {
     for {
       id <- file("@id").flatMap(_.asString)
       (replicateIds, fastqInfo) = exploreGraph(
@@ -69,17 +69,29 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
       )
       nonEmptyIds <- ensureReplicates(id, replicateIds)
       fileType <- file("file_type").flatMap(_.asString)
+      experiment <- file("dataset").flatMap(_.asString)
+      sourceFiles <- file("derived_from").flatMap(_.as[Set[String]].toOption)
     } yield {
-      val extraFields =
-        if (fileType == "bam") bamFields(file, fastqInfo) else Map.empty
+      val filesInExperiment = graph.expToFiles(experiment)
+      val sourceSameExperiment = sourceFiles
+        .intersect(filesInExperiment)
+        .map(FileRefPattern.replaceFirstIn(_, "$1"))
+      val sourceReferences = sourceFiles
+        .diff(filesInExperiment)
+        .map(FileRefPattern.replaceFirstIn(_, "$1"))
 
-      JsonObject
-        .fromMap(extraFields ++ file.toMap)
-        .add(
-          MergeFilesMetadata
-            .joinedName(MergeFilesMetadata.ReplicatePrefix, ReplicateRefsPrefix),
-          nonEmptyIds.asJson
-        )
+      val replicateRefsField = MergeFilesMetadata.joinedName(
+        MergeFilesMetadata.ReplicatePrefix,
+        ReplicateRefsPrefix
+      )
+
+      val extraFields = Map(
+        replicateRefsField -> nonEmptyIds.asJson,
+        DerivedFromExperimentField -> sourceSameExperiment.asJson,
+        DerivedFromReferenceField -> sourceReferences.asJson
+      ) ++ (if (fileType == "bam") bamFields(file, fastqInfo) else Map.empty)
+
+      extraFields.foldRight(file.remove("derived_from"))(_ +: _)
     }
   }
 
@@ -136,8 +148,8 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
       total <- qcObj("in_total").flatMap(_.as[Array[Long]].toOption).map(_.head)
     } yield {
       Iterable(
-        PercentAlignedField -> (aligned / total).asJson,
-        PercentDupsField -> (duplicated / total).asJson
+        PercentAlignedField -> (aligned.toDouble / total).asJson,
+        PercentDupsField -> (duplicated.toDouble / total).asJson
       )
     }
 
@@ -155,6 +167,8 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
 }
 
 object ExtendBamMetadata {
+  val DerivedFromExperimentField = "derived_from_exp"
+  val DerivedFromReferenceField = "derived_from_ref"
   val PercentDupsField = "percent_duplicated"
   val PercentAlignedField = "percent_aligned"
   val ReadCountField = "read_count"
@@ -162,6 +176,10 @@ object ExtendBamMetadata {
   val RunTypeField = "run_type"
 
   val ReplicateRefsPrefix = "file"
+
+  // Hackery to extract file titles out of their IDs, since we can't guarantee we've
+  // downloaded metadata for every file listed in a 'derived_from'.
+  val FileRefPattern: Regex = "/files/(.*)/".r
 
   private case class FastqInfo(
     readCount: Long,
@@ -178,7 +196,22 @@ object ExtendBamMetadata {
 
   private case class FileGraph(
     fileToReplicate: Map[String, String],
-    fileToSources: Map[String, Seq[String]],
-    fastqInfos: Map[String, FastqInfo]
+    fileToSources: Map[String, Set[String]],
+    fastqInfos: Map[String, FastqInfo],
+    expToFiles: Map[String, Set[String]]
   )
+
+  private object FileGraph {
+    implicit val mon: Monoid[FileGraph] = new Monoid[FileGraph] {
+      override def empty: FileGraph =
+        FileGraph(Map.empty, Map.empty, Map.empty, Map.empty)
+      override def combine(x: FileGraph, y: FileGraph): FileGraph =
+        FileGraph(
+          x.fileToReplicate |+| y.fileToReplicate,
+          x.fileToSources |+| y.fileToSources,
+          x.fastqInfos |+| y.fastqInfos,
+          x.expToFiles |+| y.expToFiles
+        )
+    }
+  }
 }
