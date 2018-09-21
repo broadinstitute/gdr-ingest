@@ -39,7 +39,7 @@ class CleanupFilesMetadata(mergedFiles: File, override protected val out: File)
 
   private def flattenSingletons[F[_]: Sync](mergedFile: JsonObject): F[JsonObject] =
     FieldsToFlatten.foldLeft(Sync[F].pure(mergedFile)) { (wrappedAcc, field) =>
-      val listField = s"$field${MergeFilesMetadata.JoinedSuffix}"
+      val listField = s"$field${MergeMetadata.JoinedSuffix}"
       val maybeFlattened = for {
         fieldJson <- mergedFile(listField)
         fieldArray <- fieldJson.asArray
@@ -69,7 +69,7 @@ class CleanupFilesMetadata(mergedFiles: File, override protected val out: File)
 }
 
 object CleanupFilesMetadata {
-  import MergeFilesMetadata._
+  import MergeMetadata._
 
   val AssayField = joinedName("assay_term_name", ExperimentPrefix, withSuffix = false)
 
@@ -86,6 +86,9 @@ object CleanupFilesMetadata {
   val SampleTermField =
     joinedName("biosample_term_id", BiosamplePrefix, withSuffix = false)
 
+  val FileAccessionField = "file_accession"
+  val DonorFkField = joinedName("accession", DonorPrefix)
+
   val FieldsToFlatten = Set(
     AssayField,
     CellTypeField,
@@ -95,7 +98,7 @@ object CleanupFilesMetadata {
   )
 
   val FieldsToRename = Map(
-    "accession" -> "file_accession",
+    "accession" -> FileAccessionField,
     CellTypeField -> "cell_type",
     AssayField -> "assay_term_name",
     LabelField -> "target"
@@ -103,13 +106,13 @@ object CleanupFilesMetadata {
 
   val FinalFields = Set(
     // Direct from downloaded metadata:
-    "accession",
     "assembly",
     "controlled_by",
     "derived_from",
     "file_format",
     "file_size",
     "file_type",
+    "href",
     "md5sum",
     "output_type",
     // Derived from processing steps:
@@ -120,10 +123,8 @@ object CleanupFilesMetadata {
     ExtendBamMetadata.ReadCountField,
     ExtendBamMetadata.ReadLengthField,
     ExtendBamMetadata.RunTypeField,
-    DeriveActualUris.DownloadUriField,
     // Joined into file records from other metadata:
-    AuditColorField,
-    joinedName("accession", DonorPrefix),
+    DonorFkField,
     ExperimentAccessionField,
     joinedName("accession", LibraryPrefix),
     joinedName("name", LabPrefix),

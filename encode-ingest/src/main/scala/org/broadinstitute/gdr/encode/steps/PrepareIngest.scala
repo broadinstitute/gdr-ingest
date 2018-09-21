@@ -34,11 +34,11 @@ class PrepareIngest(override protected val out: File)(
       val targetsOut = out / "targets.json"
 
       val extendedFilesOut = out / "files.extended.json"
-      val filesWithUris = out / "files.with-uris.json"
       val mergedFilesJson = out / "files.merged.json"
-
-      val filesTableJson = out / "files.final.json"
-      val donorsTableJson = out / "donors.final.json"
+      val mergedDonorsJson = out / "donors.merged.json"
+      val cleanedFiles = out / "files.cleaned.json"
+      val mergedWithAudits = out / "files.merged.with-audits.json"
+      val filesWithUris = out / "files.with-uris.json"
       val transferManifest = out / "sts-manifest.tsv"
 
       // FIXME: Implicit dependencies between steps would be better made explict.
@@ -56,7 +56,7 @@ class PrepareIngest(override protected val out: File)(
 
       // Transform & combine metadata:
       val extendBamMetadata = new ExtendBamMetadata(filesOut, extendedFilesOut)
-      val mergeFileMetadata = new MergeFilesMetadata(
+      val mergeFileMetadata = new MergeMetadata(
         files = extendedFilesOut,
         replicates = replicatesOut,
         experiments = experimentsOut,
@@ -65,17 +65,17 @@ class PrepareIngest(override protected val out: File)(
         labs = labsOut,
         samples = biosamplesOut,
         donors = donorsOut,
-        audits = auditsOut,
         out = mergedFilesJson
       )
       val mergeDonorMetadata = new MergeDonorsMetadata(
         donors = donorsOut,
         mergedFiles = mergedFilesJson,
-        out = donorsTableJson
+        out = mergedDonorsJson
       )
-      val deriveUris = new DeriveActualUris(mergedFilesJson, filesWithUris)
-      val cleanFileMetadata = new CleanupFilesMetadata(filesWithUris, filesTableJson)
-      val buildTransferManifest = new BuildUrlManifest(filesTableJson, transferManifest)
+      val cleanFileMetadata = new CleanupFilesMetadata(mergedFilesJson, cleanedFiles)
+      val addAudits = new AddAuditMetadata(cleanedFiles, auditsOut, mergedWithAudits)
+      val deriveUris = new DeriveActualUris(mergedWithAudits, filesWithUris)
+      val buildTransferManifest = new BuildUrlManifest(filesWithUris, transferManifest)
 
       val run: F[Unit] = for {
         _ <- getExperiments.build
@@ -84,9 +84,9 @@ class PrepareIngest(override protected val out: File)(
         _ <- parallelize(getLabs, getSamples)
         _ <- parallelize(getDonors, extendBamMetadata)
         _ <- mergeFileMetadata.build
-        _ <- mergeDonorMetadata.build
+        _ <- parallelize(cleanFileMetadata, mergeDonorMetadata)
+        _ <- addAudits.build
         _ <- deriveUris.build
-        _ <- cleanFileMetadata.build
         _ <- buildTransferManifest.build
       } yield {
         ()

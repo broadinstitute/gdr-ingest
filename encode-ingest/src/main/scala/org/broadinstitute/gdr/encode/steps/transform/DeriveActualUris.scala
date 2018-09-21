@@ -36,7 +36,11 @@ class DeriveActualUris(in: File, override protected val out: File)(
         new IllegalStateException(s"File metadata $file has no href field")
       )
       .flatMap(client.deriveDownloadUri)
-      .map(uri => file.add(DeriveActualUris.DownloadUriField, uri.toString().asJson))
+      .map { uri =>
+        file
+          .add(DeriveActualUris.DownloadUriField, uri.toString().asJson)
+          .remove("href")
+      }
 }
 
 object DeriveActualUris {

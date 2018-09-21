@@ -10,7 +10,7 @@ import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
 
-class MergeFilesMetadata(
+class MergeMetadata(
   files: File,
   replicates: File,
   experiments: File,
@@ -19,13 +19,12 @@ class MergeFilesMetadata(
   labs: File,
   samples: File,
   donors: File,
-  audits: File,
   override protected val out: File
 ) extends IngestStep {
-  import MergeFilesMetadata._
+  import MergeMetadata._
 
-  override def process[F[_]: Effect]: Stream[F, Unit] = {
-    val tableStream = Stream(
+  override def process[F[_]: Effect]: Stream[F, Unit] =
+    Stream(
       replicates -> ReplicateFields,
       experiments -> ExperimentFields,
       targets -> TargetFields,
@@ -35,36 +34,27 @@ class MergeFilesMetadata(
       donors -> DonorFields
     ).evalMap((lookupTable[F] _).tupled)
       .fold(Map.empty[String, JsonObject])(_ ++ _)
+      .flatMap { masterLookupTable =>
+        val join = joinWithFile[F](masterLookupTable) _
 
-    val auditStream = Stream
-      .eval(auditMessagesToLevels[F])
-
-    tableStream
-      .zip(auditStream)
-      .flatMap {
-        case (masterLookupTable, auditInfo) =>
-          val join = joinWithFile[F](masterLookupTable) _
-
-          IngestStep
-            .readJsonArray(files)
-            .filter(isLeaf)
-            .evalMap(
-              join(
-                ExtendBamMetadata.ReplicateRefsPrefix,
-                ReplicatePrefix,
-                ReplicateFields
-              )
+        IngestStep
+          .readJsonArray(files)
+          .filter(isLeaf)
+          .evalMap(
+            join(
+              ExtendBamMetadata.ReplicateRefsPrefix,
+              ReplicatePrefix,
+              ReplicateFields
             )
-            .evalMap(join(ReplicatePrefix, ExperimentPrefix, ExperimentFields))
-            .evalMap(join(ReplicatePrefix, LibraryPrefix, LibraryFields))
-            .evalMap(join(ExperimentPrefix, TargetPrefix, TargetFields))
-            .evalMap(join(LibraryPrefix, BiosamplePrefix, BiosampleFields))
-            .evalMap(join(LibraryPrefix, LabPrefix, LabFields))
-            .evalMap(join(BiosamplePrefix, DonorPrefix, DonorFields))
-            .map(linkAudits(auditInfo))
+          )
+          .evalMap(join(ReplicatePrefix, ExperimentPrefix, ExperimentFields))
+          .evalMap(join(ReplicatePrefix, LibraryPrefix, LibraryFields))
+          .evalMap(join(ExperimentPrefix, TargetPrefix, TargetFields))
+          .evalMap(join(LibraryPrefix, BiosamplePrefix, BiosampleFields))
+          .evalMap(join(LibraryPrefix, LabPrefix, LabFields))
+          .evalMap(join(BiosamplePrefix, DonorPrefix, DonorFields))
       }
       .to(IngestStep.writeJsonArray(out))
-  }
 
   private def isLeaf(file: JsonObject): Boolean = {
     val keepFile = for {
@@ -96,21 +86,6 @@ class MergeFilesMetadata(
       .compile
       .fold(Map.empty[String, JsonObject])(_ + _)
 
-  private def auditMessagesToLevels[F[_]: Sync]: F[List[(String, Int)]] =
-    IngestStep
-      .readJsonArray(audits)
-      .map { js =>
-        for {
-          level <- js("level").flatMap(_.as[Int].toOption)
-          detail <- js("detail").flatMap(_.asString)
-        } yield {
-          List(detail -> level)
-        }
-      }
-      .unNone
-      .compile
-      .foldMonoid
-
   private def joinWithFile[F[_]: Sync](table: Map[String, JsonObject])(
     prevPrefix: String,
     prefix: String,
@@ -139,53 +114,15 @@ class MergeFilesMetadata(
         JsonObject.fromMap(file.toMap ++ fields.mapValues(_.asJson))
       }
   }
-
-  private def linkAudits(messagesToLevels: List[(String, Int)])(
-    mergedJson: JsonObject
-  ): JsonObject = {
-    val markers = auditMarkers(mergedJson)
-    val matchingAudits = messagesToLevels.filter {
-      case (message, _) => markers.exists(message.contains)
-    }
-
-    val maxAuditLevel =
-      if (matchingAudits.isEmpty) 0 else matchingAudits.maxBy(_._2)._2
-
-    mergedJson.add(AuditColorField, AuditColors(maxAuditLevel))
-  }
-
-  private def auditMarkers(mergedJson: JsonObject): Iterable[String] = {
-    val fileId = mergedJson("accession").flatMap(_.asString)
-    val experimentIds = mergedJson(joinedName("accession", ExperimentPrefix))
-      .flatMap(_.asArray.map(_.flatMap(_.asString)))
-    val replicateIds = mergedJson(joinedName("uuid", ReplicatePrefix))
-      .flatMap(_.asArray.map(_.flatMap(_.asString)))
-
-    Iterable.concat(
-      fileId,
-      experimentIds.toIterable.flatten,
-      replicateIds.toIterable.flatten
-    )
-  }
 }
 
-object MergeFilesMetadata {
+object MergeMetadata {
 
   val FormatTypeWhitelist = Set(
     "bam" -> "unfiltered alignments",
     "bigBed" -> "peaks",
     "bigWig" -> "fold change over control"
   )
-
-  val AuditColors = Map(
-    0 -> "white",
-    30 -> "white",
-    40 -> "yellow",
-    50 -> "orange",
-    60 -> "red"
-  ).mapValues(_.asJson)
-
-  val AuditColorField = "audit_color"
 
   val ReplicatePrefix = "replicate"
   val ReplicateFields = Set("experiment", "library", "uuid")

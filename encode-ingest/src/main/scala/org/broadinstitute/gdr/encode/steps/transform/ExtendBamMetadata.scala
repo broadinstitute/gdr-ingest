@@ -80,8 +80,8 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
         .diff(filesInExperiment)
         .map(FileRefPattern.replaceFirstIn(_, "$1"))
 
-      val replicateRefsField = MergeFilesMetadata.joinedName(
-        MergeFilesMetadata.ReplicatePrefix,
+      val replicateRefsField = MergeMetadata.joinedName(
+        MergeMetadata.ReplicatePrefix,
         ReplicateRefsPrefix
       )
 
