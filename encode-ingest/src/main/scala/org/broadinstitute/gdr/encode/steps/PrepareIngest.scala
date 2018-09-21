@@ -65,6 +65,7 @@ class PrepareIngest(override protected val out: File)(
         labs = labsOut,
         samples = biosamplesOut,
         donors = donorsOut,
+        audits = auditsOut,
         out = mergedFilesJson
       )
       val mergeDonorMetadata = new MergeDonorsMetadata(

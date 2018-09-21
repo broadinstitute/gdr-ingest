@@ -122,6 +122,7 @@ object CleanupFilesMetadata {
     ExtendBamMetadata.RunTypeField,
     DeriveActualUris.DownloadUriField,
     // Joined into file records from other metadata:
+    AuditColorField,
     joinedName("accession", DonorPrefix),
     ExperimentAccessionField,
     joinedName("accession", LibraryPrefix),

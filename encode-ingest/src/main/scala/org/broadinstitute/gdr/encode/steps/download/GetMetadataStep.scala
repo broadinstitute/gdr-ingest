@@ -3,6 +3,7 @@ package org.broadinstitute.gdr.encode.steps.download
 import better.files.File
 import cats.effect.{Effect, Sync}
 import fs2.{Pipe, Scheduler, Stream}
+import io.circe.JsonObject
 import org.broadinstitute.gdr.encode.client.EncodeClient
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
@@ -17,12 +18,13 @@ abstract class GetMetadataStep(override protected val out: File)(
   final override def process[F[_]: Effect]: Stream[F, Unit] =
     EncodeClient
       .stream[F]
-      .flatMap { client =>
-        searchParams.map { params =>
-          client.search(("type" -> entityType) :: ("frame" -> searchFrame) :: params)
-        }.join(EncodeClient.Parallelism)
-      }
+      .flatMap(pullMetadata[F])
       .to(IngestStep.writeJsonArray(out))
+
+  def pullMetadata[F[_]: Effect](client: EncodeClient[F]): Stream[F, JsonObject] =
+    searchParams.map { params =>
+      client.search(("type" -> entityType) :: ("frame" -> searchFrame) :: params)
+    }.join(EncodeClient.Parallelism)
 
   def entityType: String
   def searchFrame: String = "object"
