@@ -7,6 +7,7 @@ import fs2.{Sink, Stream}
 import io.circe.syntax._
 import io.circe.JsonObject
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 trait IngestStep {
@@ -55,4 +56,15 @@ object IngestStep {
     _.intersperse("\n")
       .flatMap(str => Stream.emits(str.getBytes))
       .to(fs2.io.file.writeAll(out.path))
+
+  def parallelize[F[_]: Effect](steps: IngestStep*)(
+    implicit ec: ExecutionContext
+  ): F[Unit] =
+    Stream
+      .emits(steps)
+      .map(_.build[F])
+      .map(Stream.eval)
+      .joinUnbounded
+      .compile
+      .drain
 }

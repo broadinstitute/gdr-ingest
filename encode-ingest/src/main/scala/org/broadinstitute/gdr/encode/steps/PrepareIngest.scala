@@ -77,6 +77,8 @@ class PrepareIngest(override protected val out: File)(
       val deriveUris = new DeriveActualUris(mergedWithAudits, filesWithUris)
       val buildTransferManifest = new BuildUrlManifest(filesWithUris, transferManifest)
 
+      import IngestStep.parallelize
+
       val run: F[Unit] = for {
         _ <- getExperiments.build
         _ <- parallelize(getAudits, getReplicates, getFiles, getTargets)
@@ -95,13 +97,4 @@ class PrepareIngest(override protected val out: File)(
       Stream.eval(run)
     }
   }
-
-  private def parallelize[F[_]: Effect](steps: IngestStep*): F[Unit] =
-    Stream
-      .emits(steps)
-      .map(_.build[F])
-      .map(Stream.eval)
-      .joinUnbounded
-      .compile
-      .drain
 }

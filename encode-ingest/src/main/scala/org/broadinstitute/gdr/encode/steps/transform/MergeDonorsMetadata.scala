@@ -19,7 +19,7 @@ class MergeDonorsMetadata(
       IngestStep
         .readJsonArray(donors)
         .filter { donor =>
-          donor("accession").exists(accessionsToKeep.contains)
+          donor(MergeDonorsMetadata.IdField).exists(accessionsToKeep.contains)
         }
         .map(_.filterKeys(MergeDonorsMetadata.DonorFields.contains))
         .to(IngestStep.writeJsonArray(out))
@@ -32,7 +32,7 @@ class MergeDonorsMetadata(
         for {
           donorJson <- file(
             MergeMetadata
-              .joinedName("accession", MergeMetadata.DonorPrefix)
+              .joinedName(MergeDonorsMetadata.IdField, MergeMetadata.DonorPrefix)
           )
           accessionArray <- donorJson.asArray
         } yield accessionArray.toSet[Json]
@@ -42,5 +42,6 @@ class MergeDonorsMetadata(
 }
 
 object MergeDonorsMetadata {
-  val DonorFields = Set("accession", "age", "health_status", "sex")
+  val IdField = "accession"
+  val DonorFields = Set(IdField, "age", "health_status", "sex")
 }

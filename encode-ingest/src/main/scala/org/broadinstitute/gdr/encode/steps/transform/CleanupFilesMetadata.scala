@@ -108,7 +108,6 @@ object CleanupFilesMetadata {
     // Direct from downloaded metadata:
     "assembly",
     "controlled_by",
-    "derived_from",
     "file_format",
     "file_size",
     "file_type",
