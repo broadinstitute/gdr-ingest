@@ -15,36 +15,35 @@ import scala.language.higherKinds
 class CreateSamplesTsv(filesJson: File, override protected val out: File)
     extends IngestStep {
   override protected def process[F[_]: Effect]: Stream[F, Unit] = {
-    val tsvHeaders = CreateSamplesTsv.IdHeader :: CreateSamplesTsv.ParticipantHeader ::
-      (CleanupFilesMetadata.FinalFields - CleanupFilesMetadata.FileAccessionField - CleanupFilesMetadata.DonorFkField).toList
-    val jsonFields = CleanupFilesMetadata.FileAccessionField :: CleanupFilesMetadata.DonorFkField :: tsvHeaders
-      .drop(2)
 
     val fileRows =
       IngestStep
-        .readJsonArray(filesJson) /*.filter(oneParticipant)*/
-        .map(buildRow(jsonFields))
+        .readJsonArray(filesJson)
+        .filter(oneParticipant)
+        .map(buildRow(CreateSamplesTsv.ObjectFields))
 
     Stream
-      .emit(tsvHeaders)
+      .emit(CreateSamplesTsv.TsvHeaders)
       .append(fileRows)
       .map(_.mkString("\t"))
       .to(IngestStep.writeLines(out))
   }
 
-  /*private def oneParticipant(fileJson: JsonObject): Boolean =
+  private def oneParticipant(fileJson: JsonObject): Boolean =
     fileJson(CleanupFilesMetadata.DonorFkField)
       .flatMap(_.asArray)
-      .fold(false)(_.length == 1)*/
+      .fold(false)(_.length == 1)
 
   private def buildRow(fields: List[String])(fileJson: JsonObject): List[String] =
     fields.foldRight(List.empty[String]) { (field, acc) =>
       val rawValue = fileJson(field).getOrElse(Json.fromString(""))
       val tsvValue = field match {
         case DeriveActualUris.DownloadUriField =>
-          rawValue.mapString(_.replaceFirst("^https://", "gs://"))
-        //case CleanupFilesMetadata.DonorFkField => rawValue.withArray(_.head)
-        case _ => rawValue
+          rawValue.mapString(
+            _.replaceFirst("^https://", s"gs://${CreateSamplesTsv.RawStorageBucket}/")
+          )
+        case CleanupFilesMetadata.DonorFkField => rawValue.withArray(_.head)
+        case _                                 => rawValue
       }
 
       tsvValue.noSpaces :: acc
@@ -52,6 +51,24 @@ class CreateSamplesTsv(filesJson: File, override protected val out: File)
 }
 
 object CreateSamplesTsv {
-  val IdHeader = "entity:sample_id"
-  val ParticipantHeader = "participant_id"
+
+  val RawStorageBucket = "broad-gdr-encode-storage"
+
+  val TsvHeaders = List.concat(
+    List(
+      "entity:sample_id",
+      "participant_id",
+      DeriveActualUris.DownloadUriField
+    ),
+    CleanupFilesMetadata.FinalFields -- Set(
+      CleanupFilesMetadata.FileAccessionField,
+      CleanupFilesMetadata.DonorFkField,
+      "href"
+    )
+  )
+
+  val ObjectFields = List.concat(
+    List(CleanupFilesMetadata.FileAccessionField, CleanupFilesMetadata.DonorFkField),
+    TsvHeaders.drop(2)
+  )
 }

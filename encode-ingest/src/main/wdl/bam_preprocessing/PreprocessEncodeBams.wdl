@@ -1,6 +1,7 @@
 version 1.0
 
 struct EncodeBam {
+  String bam_accession
   String bam_href
   String? bai_href
   Int bam_size
@@ -20,9 +21,10 @@ workflow PreprocessEncodeBams {
     }
 
     EncodeBam processed_bam = object {
+      bam_accession: bam_info.bam_accession,
       bam_href: SortAndIndexBam.sorted_bam,
       bai_href: SortAndIndexBam.sorted_bam_index,
-      bam_size: SortAndIndexBam.sorted_bam_size,
+      bam_size: size(SortAndIndexBam.sorted_bam),
       bam_md5: SortAndIndexBam.sorted_bam_md5
     }
   }
@@ -87,7 +89,6 @@ task SortAndIndexBam {
     # NOTE: Output as a File, instead of wrapped up in a struct, to force delocalization.
     File sorted_bam = sorted_bam_name
     File sorted_bam_index = sorted_base + ".bai"
-    Int sorted_bam_size = size(sorted_bam_name)
     String sorted_bam_md5 = read_string(sorted_bam_name + ".md5")
   }
 }

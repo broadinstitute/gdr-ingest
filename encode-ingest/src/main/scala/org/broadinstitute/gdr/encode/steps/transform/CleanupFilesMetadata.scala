@@ -107,7 +107,6 @@ object CleanupFilesMetadata {
   val FinalFields = Set(
     // Direct from downloaded metadata:
     "assembly",
-    "controlled_by",
     "file_format",
     "file_size",
     "file_type",
