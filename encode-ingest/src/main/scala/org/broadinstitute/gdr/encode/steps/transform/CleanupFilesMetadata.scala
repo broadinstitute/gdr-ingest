@@ -76,15 +76,8 @@ object CleanupFilesMetadata {
   val CellTypeField =
     joinedName("biosample_term_name", BiosamplePrefix, withSuffix = false)
 
-  val ExperimentAccessionField = joinedName("accession", ExperimentPrefix)
-
   val LabelField = joinedName("label", TargetPrefix, withSuffix = false)
   val SuffixedLabel = s"$LabelField$JoinedSuffix"
-
-  val SampleTypeField = joinedName("biosample_type", BiosamplePrefix, withSuffix = false)
-
-  val SampleTermField =
-    joinedName("biosample_term_id", BiosamplePrefix, withSuffix = false)
 
   val FileAccessionField = "file_accession"
   val DonorFkField = joinedName("accession", DonorPrefix)
@@ -92,8 +85,8 @@ object CleanupFilesMetadata {
   val FieldsToFlatten = Set(
     AssayField,
     CellTypeField,
-    SampleTypeField,
-    SampleTermField,
+    joinedName("biosample_type", BiosamplePrefix, withSuffix = false),
+    joinedName("biosample_term_id", BiosamplePrefix, withSuffix = false),
     LabelField
   )
 
@@ -114,6 +107,7 @@ object CleanupFilesMetadata {
     "md5sum",
     "output_type",
     // Derived from processing steps:
+    AddAuditMetadata.AuditColorField,
     ExtendBamMetadata.DerivedFromExperimentField,
     ExtendBamMetadata.DerivedFromReferenceField,
     ExtendBamMetadata.PercentAlignedField,
@@ -123,7 +117,8 @@ object CleanupFilesMetadata {
     ExtendBamMetadata.RunTypeField,
     // Joined into file records from other metadata:
     DonorFkField,
-    ExperimentAccessionField,
+    joinedName("accession", BiosamplePrefix),
+    joinedName("accession", ExperimentPrefix),
     joinedName("accession", LibraryPrefix),
     joinedName("name", LabPrefix),
     joinedName("uuid", ReplicatePrefix)

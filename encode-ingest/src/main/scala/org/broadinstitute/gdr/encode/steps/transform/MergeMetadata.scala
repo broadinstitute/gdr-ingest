@@ -141,8 +141,13 @@ object MergeMetadata {
 
   val BiosamplePrefix = "biosample"
 
-  val BiosampleFields =
-    Set("biosample_term_id", "biosample_term_name", "biosample_type", "donor")
+  val BiosampleFields = Set(
+    "accession",
+    "biosample_term_id",
+    "biosample_term_name",
+    "biosample_type",
+    "donor"
+  )
 
   val DonorPrefix = "donor"
   val DonorFields = Set("accession")

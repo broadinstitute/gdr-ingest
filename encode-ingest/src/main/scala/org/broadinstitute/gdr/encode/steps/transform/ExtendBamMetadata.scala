@@ -31,7 +31,6 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
           val replicateRef = file("replicate").flatMap(_.asString)
           val sourceFiles =
             file("derived_from").flatMap(_.asArray.map(_.flatMap(_.asString)))
-          val experiment = file("dataset").flatMap(_.asString)
 
           val fastqInfo = for {
             readCount <- file("read_count").flatMap(_.asNumber.flatMap(_.toLong))
@@ -46,7 +45,7 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
             fastqInfo
               .filter(_ => fileType.equals("fastq"))
               .fold(Map.empty[String, FastqInfo])(i => Map(id -> i)),
-            experiment.fold(Map.empty[String, Set[String]])(e => Map(e -> Set(id)))
+            Set(id)
           )
         }
         Sync[F].fromOption(
@@ -69,15 +68,13 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
       )
       nonEmptyIds <- ensureReplicates(id, replicateIds)
       fileType <- file("file_type").flatMap(_.asString)
-      experiment <- file("dataset").flatMap(_.asString)
       sourceFiles <- file("derived_from").flatMap(_.as[Set[String]].toOption)
     } yield {
-      val filesInExperiment = graph.expToFiles(experiment)
-      val sourceSameExperiment = sourceFiles
-        .intersect(filesInExperiment)
+      val sourceFilesFromExperiments = sourceFiles
+        .intersect(graph.allFiles)
         .map(FileRefPattern.replaceFirstIn(_, "$1"))
       val sourceReferences = sourceFiles
-        .diff(filesInExperiment)
+        .diff(graph.allFiles)
         .map(FileRefPattern.replaceFirstIn(_, "$1"))
 
       val replicateRefsField = MergeMetadata.joinedName(
@@ -87,7 +84,7 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
 
       val extraFields = Map(
         replicateRefsField -> nonEmptyIds.asJson,
-        DerivedFromExperimentField -> sourceSameExperiment.asJson,
+        DerivedFromExperimentField -> sourceFilesFromExperiments.asJson,
         DerivedFromReferenceField -> sourceReferences.asJson
       ) ++ (if (fileType == "bam") bamFields(file, fastqInfo) else Map.empty)
 
@@ -198,19 +195,19 @@ object ExtendBamMetadata {
     fileToReplicate: Map[String, String],
     fileToSources: Map[String, Set[String]],
     fastqInfos: Map[String, FastqInfo],
-    expToFiles: Map[String, Set[String]]
+    allFiles: Set[String]
   )
 
   private object FileGraph {
     implicit val mon: Monoid[FileGraph] = new Monoid[FileGraph] {
       override def empty: FileGraph =
-        FileGraph(Map.empty, Map.empty, Map.empty, Map.empty)
+        FileGraph(Map.empty, Map.empty, Map.empty, Set.empty)
       override def combine(x: FileGraph, y: FileGraph): FileGraph =
         FileGraph(
           x.fileToReplicate |+| y.fileToReplicate,
           x.fileToSources |+| y.fileToSources,
           x.fastqInfos |+| y.fastqInfos,
-          x.expToFiles |+| y.expToFiles
+          x.allFiles |+| y.allFiles
         )
     }
   }
