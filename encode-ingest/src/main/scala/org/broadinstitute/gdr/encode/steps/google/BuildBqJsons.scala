@@ -1,4 +1,4 @@
-package org.broadinstitute.gdr.encode.steps.firecloud
+package org.broadinstitute.gdr.encode.steps.google
 
 import better.files.File
 import cats.effect.Effect
@@ -8,14 +8,13 @@ import org.broadinstitute.gdr.encode.steps.IngestStep
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class CreateTsvs(
-  filesJson: File,
-  donorsJson: File,
+class BuildBqJsons(
+  fileMetadata: File,
+  donorsMetadata: File,
   storageBucket: String,
-  protected override val out: File
-)(
-  implicit ec: ExecutionContext
-) extends IngestStep {
+  override protected val out: File
+)(implicit ec: ExecutionContext)
+    extends IngestStep {
 
   override protected def process[F[_]: Effect]: Stream[F, Unit] = {
     if (!out.isDirectory) {
@@ -25,12 +24,10 @@ class CreateTsvs(
         )
       )
     } else {
-      val samples =
-        new CreateSamplesTsv(filesJson, storageBucket, out / "samples.tsv")
-      val participants = new CreateParticipantsTsv(donorsJson, out / "participants.tsv")
+      val files = new BuildBqFilesJson(fileMetadata, storageBucket, out / "files.bq.json")
+      val donors = new BuildBqDonorsJson(donorsMetadata, out / "donors.bq.json")
 
-      Stream.eval(IngestStep.parallelize(samples, participants))
+      Stream.eval(IngestStep.parallelize(files, donors))
     }
   }
-
 }

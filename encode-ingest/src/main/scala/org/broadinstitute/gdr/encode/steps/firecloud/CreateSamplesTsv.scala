@@ -5,6 +5,7 @@ import cats.effect.Effect
 import fs2.Stream
 import io.circe.{Json, JsonObject}
 import org.broadinstitute.gdr.encode.steps.IngestStep
+import org.broadinstitute.gdr.encode.steps.google.Gcs
 import org.broadinstitute.gdr.encode.steps.transform.{
   CleanupFilesMetadata,
   DeriveActualUris
@@ -12,8 +13,11 @@ import org.broadinstitute.gdr.encode.steps.transform.{
 
 import scala.language.higherKinds
 
-class CreateSamplesTsv(filesJson: File, override protected val out: File)
-    extends IngestStep {
+class CreateSamplesTsv(
+  filesJson: File,
+  rawStorageBucket: String,
+  override protected val out: File
+) extends IngestStep {
   override protected def process[F[_]: Effect]: Stream[F, Unit] = {
 
     val fileRows =
@@ -39,9 +43,7 @@ class CreateSamplesTsv(filesJson: File, override protected val out: File)
       val rawValue = fileJson(field).getOrElse(Json.fromString(""))
       val tsvValue = field match {
         case DeriveActualUris.DownloadUriField =>
-          rawValue.mapString(
-            _.replaceFirst("^https://", s"gs://${CreateSamplesTsv.RawStorageBucket}/")
-          )
+          rawValue.mapString(Gcs.expectedStsUri(rawStorageBucket))
         case CleanupFilesMetadata.DonorFkField => rawValue.withArray(_.head)
         case _                                 => rawValue
       }
@@ -52,13 +54,11 @@ class CreateSamplesTsv(filesJson: File, override protected val out: File)
 
 object CreateSamplesTsv {
 
-  val RawStorageBucket = "broad-gdr-encode-storage"
-
   val TsvHeaders = List.concat(
     List(
       "entity:sample_id",
       "participant_id",
-      DeriveActualUris.DownloadUriField
+      Gcs.BlobPathField
     ),
     CleanupFilesMetadata.FinalFields -- Set(
       CleanupFilesMetadata.FileAccessionField,
@@ -68,7 +68,11 @@ object CreateSamplesTsv {
   )
 
   val ObjectFields = List.concat(
-    List(CleanupFilesMetadata.FileAccessionField, CleanupFilesMetadata.DonorFkField),
-    TsvHeaders.drop(2)
+    List(
+      CleanupFilesMetadata.FileAccessionField,
+      CleanupFilesMetadata.DonorFkField,
+      DeriveActualUris.DownloadUriField
+    ),
+    TsvHeaders.drop(3)
   )
 }

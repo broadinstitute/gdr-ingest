@@ -5,7 +5,7 @@ import cats.effect.Effect
 import cats.implicits._
 import fs2.{Scheduler, Stream}
 import org.broadinstitute.gdr.encode.steps.download._
-import org.broadinstitute.gdr.encode.steps.transfer.BuildUrlManifest
+import org.broadinstitute.gdr.encode.steps.google.BuildStsManifest
 import org.broadinstitute.gdr.encode.steps.transform._
 
 import scala.concurrent.ExecutionContext
@@ -75,7 +75,7 @@ class PrepareIngest(override protected val out: File)(
       val cleanFileMetadata = new CleanupFilesMetadata(mergedFilesJson, cleanedFiles)
       val addAudits = new AddAuditMetadata(cleanedFiles, auditsOut, mergedWithAudits)
       val deriveUris = new DeriveActualUris(mergedWithAudits, filesWithUris)
-      val buildTransferManifest = new BuildUrlManifest(filesWithUris, transferManifest)
+      val buildTransferManifest = new BuildStsManifest(filesWithUris, transferManifest)
 
       import IngestStep.parallelize
 

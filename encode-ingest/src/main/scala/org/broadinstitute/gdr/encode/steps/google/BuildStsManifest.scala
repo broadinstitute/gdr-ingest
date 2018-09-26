@@ -1,4 +1,4 @@
-package org.broadinstitute.gdr.encode.steps.transfer
+package org.broadinstitute.gdr.encode.steps.google
 
 import better.files.File
 import cats.effect.{Effect, Sync}
@@ -11,7 +11,7 @@ import org.broadinstitute.gdr.encode.steps.transform.DeriveActualUris
 
 import scala.language.higherKinds
 
-class BuildUrlManifest(fileMetadata: File, override protected val out: File)
+class BuildStsManifest(fileMetadata: File, override protected val out: File)
     extends IngestStep {
 
   override def process[F[_]: Effect]: Stream[F, Unit] = {
