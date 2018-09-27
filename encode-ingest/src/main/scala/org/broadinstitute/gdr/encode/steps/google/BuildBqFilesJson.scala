@@ -20,6 +20,7 @@ class BuildBqFilesJson(
     IngestStep
       .readJsonArray(fileMetadata)
       .map(swapUriFields)
+      .map(sanitizeNames)
       .map(_.asJson.noSpaces)
       .to(IngestStep.writeLines(out))
 
@@ -31,4 +32,18 @@ class BuildBqFilesJson(
           .add(Gcs.BlobPathField, Gcs.expectedStsUri(rawStorageBucket)(uri).asJson)
           .remove(DeriveActualUris.DownloadUriField)
       }
+
+  private def sanitizeNames(fileJson: JsonObject): JsonObject =
+    JsonObject.fromMap {
+      fileJson.toMap.map {
+        case (name, value) =>
+          val noSuffix = if (name.endsWith("_list")) {
+            name.dropRight(5)
+          } else {
+            name
+          }
+
+          noSuffix.replaceAll("__", "_") -> value
+      }
+    }
 }

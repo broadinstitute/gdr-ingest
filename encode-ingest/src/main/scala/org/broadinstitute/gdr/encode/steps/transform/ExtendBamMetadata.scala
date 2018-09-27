@@ -10,7 +10,6 @@ import io.circe.syntax._
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
-import scala.util.matching.Regex
 
 class ExtendBamMetadata(in: File, override protected val out: File) extends IngestStep {
   import ExtendBamMetadata._
@@ -45,7 +44,7 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
             fastqInfo
               .filter(_ => fileType.equals("fastq"))
               .fold(Map.empty[String, FastqInfo])(i => Map(id -> i)),
-            Set(id)
+            Set(ExtendBamMetadata.extractFileId(id))
           )
         }
         Sync[F].fromOption(
@@ -68,14 +67,15 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
       )
       nonEmptyIds <- ensureReplicates(id, replicateIds)
       fileType <- file("file_type").flatMap(_.asString)
-      sourceFiles <- file("derived_from").flatMap(_.as[Set[String]].toOption)
+      sourceFiles <- file("derived_from")
+        .flatMap(_.as[Set[String]].toOption)
+        .map(_.map(ExtendBamMetadata.extractFileId))
     } yield {
+      // Hackery to extract file titles out of their IDs.
+      // 'derived_from' contains refs of the form '/files/:title:/'
       val sourceFilesFromExperiments = sourceFiles
         .intersect(graph.allFiles)
-        .map(FileRefPattern.replaceFirstIn(_, "$1"))
-      val sourceReferences = sourceFiles
-        .diff(graph.allFiles)
-        .map(FileRefPattern.replaceFirstIn(_, "$1"))
+      val sourceReferences = sourceFiles.diff(sourceFilesFromExperiments)
 
       val replicateRefsField = MergeMetadata.joinedName(
         MergeMetadata.ReplicatePrefix,
@@ -174,9 +174,8 @@ object ExtendBamMetadata {
 
   val ReplicateRefsPrefix = "file"
 
-  // Hackery to extract file titles out of their IDs, since we can't guarantee we've
-  // downloaded metadata for every file listed in a 'derived_from'.
-  val FileRefPattern: Regex = "/files/(.*)/".r
+  private def extractFileId(fileRef: String): String =
+    fileRef.drop(7).dropRight(1)
 
   private case class FastqInfo(
     readCount: Long,

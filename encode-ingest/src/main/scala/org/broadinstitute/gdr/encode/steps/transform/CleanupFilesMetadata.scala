@@ -82,11 +82,15 @@ object CleanupFilesMetadata {
   val FileAccessionField = "file_accession"
   val DonorFkField = joinedName("accession", DonorPrefix)
 
+  val SampleTermField =
+    joinedName("biosample_term_id", BiosamplePrefix, withSuffix = false)
+  val SampleTypeField = joinedName("biosample_type", BiosamplePrefix, withSuffix = false)
+
   val FieldsToFlatten = Set(
     AssayField,
     CellTypeField,
-    joinedName("biosample_type", BiosamplePrefix, withSuffix = false),
-    joinedName("biosample_term_id", BiosamplePrefix, withSuffix = false),
+    SampleTermField,
+    SampleTypeField,
     LabelField
   )
 
@@ -94,7 +98,9 @@ object CleanupFilesMetadata {
     "accession" -> FileAccessionField,
     CellTypeField -> "cell_type",
     AssayField -> "assay_term_name",
-    LabelField -> "target"
+    LabelField -> "target",
+    SampleTermField -> "biosample_term_id",
+    SampleTypeField -> "biosample_type"
   )
 
   val FinalFields = Set(

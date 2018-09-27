@@ -13,6 +13,9 @@ class BuildBqDonorsJson(donorsMetadata: File, override protected val out: File)
   override protected def process[F[_]: Effect]: Stream[F, Unit] =
     IngestStep
       .readJsonArray(donorsMetadata)
+      .map { d =>
+        d("accession").fold(d)(d.add("donor_accession", _).remove("accession"))
+      }
       .map(_.asJson.noSpaces)
       .to(IngestStep.writeLines(out))
 }
