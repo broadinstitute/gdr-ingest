@@ -5,17 +5,16 @@ import cats.effect.Effect
 import fs2.Stream
 import io.circe.JsonObject
 import org.broadinstitute.gdr.encode.steps.IngestStep
-import org.broadinstitute.gdr.encode.steps.transform.MergeDonorsMetadata
 
 import scala.language.higherKinds
 
 class CreateParticipantsTsv(donorsJson: File, override protected val out: File)
     extends IngestStep {
+  import org.broadinstitute.gdr.encode.EncodeFields._
 
   override protected def process[F[_]: Effect]: Stream[F, Unit] = {
-    val tsvHeaders = CreateParticipantsTsv.IdHeader ::
-      (MergeDonorsMetadata.DonorFields - MergeDonorsMetadata.IdField).toList
-    val jsonFields = MergeDonorsMetadata.IdField :: tsvHeaders.tail
+    val tsvHeaders = CreateParticipantsTsv.IdHeader :: (DonorFields - DonorIdField).toList
+    val jsonFields = DonorIdField :: tsvHeaders.tail
 
     val donorRows = IngestStep.readJsonArray(donorsJson).map(buildRow(jsonFields))
 

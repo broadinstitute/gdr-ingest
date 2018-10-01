@@ -13,15 +13,16 @@ class MergeDonorsMetadata(
   mergedFiles: File,
   override protected val out: File
 ) extends IngestStep {
+  import org.broadinstitute.gdr.encode.EncodeFields._
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
     donorAccessions[F].flatMap { accessionsToKeep =>
       IngestStep
         .readJsonArray(donors)
         .filter { donor =>
-          donor(MergeDonorsMetadata.IdField).exists(accessionsToKeep.contains)
+          donor(DonorIdField).exists(accessionsToKeep.contains)
         }
-        .map(_.filterKeys(MergeDonorsMetadata.DonorFields.contains))
+        .map(_.filterKeys(DonorFields.contains))
         .to(IngestStep.writeJsonArray(out))
     }
 
@@ -30,18 +31,10 @@ class MergeDonorsMetadata(
       .readJsonArray(mergedFiles)
       .map { file =>
         for {
-          donorJson <- file(
-            MergeMetadata
-              .joinedName(MergeDonorsMetadata.IdField, MergeMetadata.DonorPrefix)
-          )
+          donorJson <- file(joinedName(DonorIdField, DonorPrefix))
           accessionArray <- donorJson.asArray
         } yield accessionArray.toSet[Json]
       }
       .unNone
       .fold(Set.empty[Json])(_ union _)
-}
-
-object MergeDonorsMetadata {
-  val IdField = "accession"
-  val DonorFields = Set(IdField, "age", "health_status", "sex")
 }

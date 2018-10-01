@@ -6,10 +6,6 @@ import fs2.Stream
 import io.circe.{Json, JsonObject}
 import org.broadinstitute.gdr.encode.steps.IngestStep
 import org.broadinstitute.gdr.encode.steps.google.Gcs
-import org.broadinstitute.gdr.encode.steps.transform.{
-  CleanupFilesMetadata,
-  DeriveActualUris
-}
 
 import scala.language.higherKinds
 
@@ -18,6 +14,8 @@ class CreateSamplesTsv(
   rawStorageBucket: String,
   override protected val out: File
 ) extends IngestStep {
+  import org.broadinstitute.gdr.encode.EncodeFields._
+
   override protected def process[F[_]: Effect]: Stream[F, Unit] = {
 
     val fileRows =
@@ -34,7 +32,7 @@ class CreateSamplesTsv(
   }
 
   private def oneParticipant(fileJson: JsonObject): Boolean =
-    fileJson(CleanupFilesMetadata.DonorFkField)
+    fileJson(DonorFkField)
       .flatMap(_.asArray)
       .exists(_.length == 1)
 
@@ -42,10 +40,10 @@ class CreateSamplesTsv(
     fields.foldRight(List.empty[String]) { (field, acc) =>
       val rawValue = fileJson(field).getOrElse(Json.fromString(""))
       val tsvValue = field match {
-        case DeriveActualUris.DownloadUriField =>
+        case DownloadUriField =>
           rawValue.mapString(Gcs.expectedStsUri(rawStorageBucket))
-        case CleanupFilesMetadata.DonorFkField => rawValue.withArray(_.head)
-        case _                                 => rawValue
+        case DonorFkField => rawValue.withArray(_.head)
+        case _            => rawValue
       }
 
       tsvValue.noSpaces :: acc
@@ -53,26 +51,15 @@ class CreateSamplesTsv(
 }
 
 object CreateSamplesTsv {
+  import org.broadinstitute.gdr.encode.EncodeFields._
 
   val TsvHeaders = List.concat(
-    List(
-      "entity:sample_id",
-      "participant_id",
-      Gcs.BlobPathField
-    ),
-    CleanupFilesMetadata.FinalFields -- Set(
-      CleanupFilesMetadata.FileAccessionField,
-      CleanupFilesMetadata.DonorFkField,
-      "href"
-    )
+    List("entity:sample_id", "participant_id", Gcs.BlobPathField),
+    FinalFileFields -- Set(FileAccessionField, DonorFkField, "href")
   )
 
   val ObjectFields = List.concat(
-    List(
-      CleanupFilesMetadata.FileAccessionField,
-      CleanupFilesMetadata.DonorFkField,
-      DeriveActualUris.DownloadUriField
-    ),
+    List(FileAccessionField, DonorFkField, DownloadUriField),
     TsvHeaders.drop(3)
   )
 }

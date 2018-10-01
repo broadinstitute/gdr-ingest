@@ -6,6 +6,7 @@ import cats.implicits._
 import fs2.{Scheduler, Stream}
 import io.circe.JsonObject
 import io.circe.syntax._
+import org.broadinstitute.gdr.encode.EncodeFields
 import org.broadinstitute.gdr.encode.client.EncodeClient
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
@@ -38,11 +39,7 @@ class DeriveActualUris(in: File, override protected val out: File)(
       .flatMap(client.deriveDownloadUri)
       .map { uri =>
         file
-          .add(DeriveActualUris.DownloadUriField, uri.toString().asJson)
+          .add(EncodeFields.DownloadUriField, uri.toString().asJson)
           .remove("href")
       }
-}
-
-object DeriveActualUris {
-  val DownloadUriField = "url"
 }

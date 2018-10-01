@@ -10,11 +10,13 @@ import scala.language.higherKinds
 
 class BuildBqDonorsJson(donorsMetadata: File, override protected val out: File)
     extends IngestStep {
+  import org.broadinstitute.gdr.encode.EncodeFields._
+
   override protected def process[F[_]: Effect]: Stream[F, Unit] =
     IngestStep
       .readJsonArray(donorsMetadata)
       .map { d =>
-        d("accession").fold(d)(d.add("donor_accession", _).remove("accession"))
+        d(DonorIdField).fold(d)(d.add("donor_accession", _).remove(DonorIdField))
       }
       .map(_.asJson.noSpaces)
       .to(IngestStep.writeLines(out))

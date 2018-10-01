@@ -16,6 +16,7 @@ class AddAuditMetadata(
   auditJson: File,
   override protected val out: File
 ) extends IngestStep {
+  import org.broadinstitute.gdr.encode.EncodeFields._
   import AddAuditMetadata._
 
   override protected def process[F[_]: Effect]: Stream[F, Unit] =
@@ -55,12 +56,10 @@ class AddAuditMetadata(
   }
 
   private def auditMarkers(mergedJson: JsonObject): Iterable[String] = {
-    import MergeMetadata._
-
     val fileId = mergedJson("accession").flatMap(_.asString)
-    val expDerived = mergedJson(ExtendBamMetadata.DerivedFromExperimentField)
+    val expDerived = mergedJson(DerivedFromExperimentField)
       .flatMap(_.asArray.map(_.flatMap(_.asString)))
-    val refDerived = mergedJson(ExtendBamMetadata.DerivedFromReferenceField)
+    val refDerived = mergedJson(DerivedFromReferenceField)
       .flatMap(_.asArray.map(_.flatMap(_.asString)))
     val experimentIds = mergedJson(joinedName("accession", ExperimentPrefix))
       .flatMap(_.asArray.map(_.flatMap(_.asString)))
@@ -88,6 +87,4 @@ object AddAuditMetadata {
     50 -> "orange",
     60 -> "red"
   ).mapValues(_.asJson)
-
-  val AuditColorField = "audit_color"
 }

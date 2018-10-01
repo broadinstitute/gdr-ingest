@@ -12,7 +12,7 @@ import scala.language.higherKinds
 
 class CleanupFilesMetadata(mergedFiles: File, override protected val out: File)
     extends IngestStep {
-  import CleanupFilesMetadata._
+  import org.broadinstitute.gdr.encode.EncodeFields._
 
   override protected def process[F[_]: Effect]: Stream[F, Unit] =
     IngestStep
@@ -20,7 +20,7 @@ class CleanupFilesMetadata(mergedFiles: File, override protected val out: File)
       .map(stripControls)
       .evalMap(flattenSingletons[F])
       .map(renameFields)
-      .map(_.filterKeys(FinalFields.contains))
+      .map(_.filterKeys(FinalFileFields.contains))
       .to(IngestStep.writeJsonArray(out))
 
   private def stripControls(mergedFile: JsonObject): JsonObject = {
@@ -39,7 +39,7 @@ class CleanupFilesMetadata(mergedFiles: File, override protected val out: File)
 
   private def flattenSingletons[F[_]: Sync](mergedFile: JsonObject): F[JsonObject] =
     FieldsToFlatten.foldLeft(Sync[F].pure(mergedFile)) { (wrappedAcc, field) =>
-      val listField = s"$field${MergeMetadata.JoinedSuffix}"
+      val listField = s"$field$JoinedSuffix"
       val maybeFlattened = for {
         fieldJson <- mergedFile(listField)
         fieldArray <- fieldJson.asArray
@@ -66,67 +66,4 @@ class CleanupFilesMetadata(mergedFiles: File, override protected val out: File)
       case (acc, (oldName, newName)) =>
         acc(oldName).fold(acc)(v => acc.add(newName, v).remove(oldName))
     }
-}
-
-object CleanupFilesMetadata {
-  import MergeMetadata._
-
-  val AssayField = joinedName("assay_term_name", ExperimentPrefix, withSuffix = false)
-
-  val CellTypeField =
-    joinedName("biosample_term_name", BiosamplePrefix, withSuffix = false)
-
-  val LabelField = joinedName("label", TargetPrefix, withSuffix = false)
-  val SuffixedLabel = s"$LabelField$JoinedSuffix"
-
-  val FileAccessionField = "file_accession"
-  val DonorFkField = joinedName("accession", DonorPrefix)
-
-  val SampleTermField =
-    joinedName("biosample_term_id", BiosamplePrefix, withSuffix = false)
-  val SampleTypeField = joinedName("biosample_type", BiosamplePrefix, withSuffix = false)
-
-  val FieldsToFlatten = Set(
-    AssayField,
-    CellTypeField,
-    SampleTermField,
-    SampleTypeField,
-    LabelField
-  )
-
-  val FieldsToRename = Map(
-    "accession" -> FileAccessionField,
-    CellTypeField -> "cell_type",
-    AssayField -> "assay_term_name",
-    LabelField -> "target",
-    SampleTermField -> "biosample_term_id",
-    SampleTypeField -> "biosample_type"
-  )
-
-  val FinalFields = Set(
-    // Direct from downloaded metadata:
-    "assembly",
-    "file_format",
-    "file_size",
-    "file_type",
-    "href",
-    "md5sum",
-    "output_type",
-    // Derived from processing steps:
-    AddAuditMetadata.AuditColorField,
-    ExtendBamMetadata.DerivedFromExperimentField,
-    ExtendBamMetadata.DerivedFromReferenceField,
-    ExtendBamMetadata.PercentAlignedField,
-    ExtendBamMetadata.PercentDupsField,
-    ExtendBamMetadata.ReadCountField,
-    ExtendBamMetadata.ReadLengthField,
-    ExtendBamMetadata.RunTypeField,
-    // Joined into file records from other metadata:
-    DonorFkField,
-    joinedName("accession", BiosamplePrefix),
-    joinedName("accession", ExperimentPrefix),
-    joinedName("accession", LibraryPrefix),
-    joinedName("name", LabPrefix),
-    joinedName("uuid", ReplicatePrefix)
-  ).union(FieldsToFlatten).union(FieldsToRename.values.toSet)
 }

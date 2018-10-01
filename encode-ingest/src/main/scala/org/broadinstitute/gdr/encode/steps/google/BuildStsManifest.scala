@@ -7,12 +7,12 @@ import fs2.Stream
 import io.circe.JsonObject
 import org.apache.commons.codec.binary.{Base64, Hex}
 import org.broadinstitute.gdr.encode.steps.IngestStep
-import org.broadinstitute.gdr.encode.steps.transform.DeriveActualUris
 
 import scala.language.higherKinds
 
 class BuildStsManifest(fileMetadata: File, override protected val out: File)
     extends IngestStep {
+  import org.broadinstitute.gdr.encode.EncodeFields._
 
   override def process[F[_]: Effect]: Stream[F, Unit] = {
 
@@ -28,7 +28,7 @@ class BuildStsManifest(fileMetadata: File, override protected val out: File)
 
   private def buildFileRow[F[_]: Sync](metadata: JsonObject): F[String] = {
     val fileRow = for {
-      downloadEndpoint <- metadata(DeriveActualUris.DownloadUriField).flatMap(_.asString)
+      downloadEndpoint <- metadata(DownloadUriField).flatMap(_.asString)
       size <- metadata("file_size").flatMap(_.asNumber).flatMap(_.toLong)
       hexMd5 <- metadata("md5sum").flatMap(_.asString)
       md5Bytes <- Either.catchNonFatal(Hex.decodeHex(hexMd5)).toOption

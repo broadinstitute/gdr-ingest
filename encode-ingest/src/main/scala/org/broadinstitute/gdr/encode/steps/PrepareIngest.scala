@@ -56,7 +56,7 @@ class PrepareIngest(override protected val out: File)(
 
       // Transform & combine metadata:
       val extendBamMetadata = new ExtendBamMetadata(filesOut, extendedFilesOut)
-      val mergeFileMetadata = new MergeMetadata(
+      val mergeFileMetadata = new MergeFilesMetadata(
         files = extendedFilesOut,
         replicates = replicatesOut,
         experiments = experimentsOut,

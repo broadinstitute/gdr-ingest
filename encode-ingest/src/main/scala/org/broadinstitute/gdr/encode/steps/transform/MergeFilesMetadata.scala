@@ -10,7 +10,7 @@ import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
 
-class MergeMetadata(
+class MergeFilesMetadata(
   files: File,
   replicates: File,
   experiments: File,
@@ -21,7 +21,7 @@ class MergeMetadata(
   donors: File,
   override protected val out: File
 ) extends IngestStep {
-  import MergeMetadata._
+  import org.broadinstitute.gdr.encode.EncodeFields._
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
     Stream(
@@ -31,7 +31,7 @@ class MergeMetadata(
       libraries -> LibraryFields,
       labs -> LabFields,
       samples -> BiosampleFields,
-      donors -> DonorFields
+      donors -> Set(DonorIdField)
     ).evalMap((lookupTable[F] _).tupled)
       .fold(Map.empty[String, JsonObject])(_ ++ _)
       .flatMap { masterLookupTable =>
@@ -40,19 +40,13 @@ class MergeMetadata(
         IngestStep
           .readJsonArray(files)
           .filter(isLeaf)
-          .evalMap(
-            join(
-              ExtendBamMetadata.ReplicateRefsPrefix,
-              ReplicatePrefix,
-              ReplicateFields
-            )
-          )
+          .evalMap(join(ReplicateRefsPrefix, ReplicatePrefix, ReplicateFields))
           .evalMap(join(ReplicatePrefix, ExperimentPrefix, ExperimentFields))
           .evalMap(join(ReplicatePrefix, LibraryPrefix, LibraryFields))
           .evalMap(join(ExperimentPrefix, TargetPrefix, TargetFields))
           .evalMap(join(LibraryPrefix, BiosamplePrefix, BiosampleFields))
           .evalMap(join(LibraryPrefix, LabPrefix, LabFields))
-          .evalMap(join(BiosamplePrefix, DonorPrefix, DonorFields))
+          .evalMap(join(BiosamplePrefix, DonorPrefix, Set(DonorIdField)))
       }
       .to(IngestStep.writeJsonArray(out))
 
@@ -62,7 +56,8 @@ class MergeMetadata(
       format <- file("file_format").flatMap(_.asString)
       typ <- file("output_type").flatMap(_.asString)
     } yield {
-      status.equals("released") && FormatTypeWhitelist.contains(format -> typ)
+      status.equals("released") &&
+      MergeFilesMetadata.FormatTypeWhitelist.contains(format -> typ)
     }
 
     keepFile.getOrElse(false)
@@ -116,48 +111,11 @@ class MergeMetadata(
   }
 }
 
-object MergeMetadata {
+object MergeFilesMetadata {
 
   val FormatTypeWhitelist = Set(
     "bam" -> "unfiltered alignments",
     "bigBed" -> "peaks",
     "bigWig" -> "fold change over control"
   )
-
-  val ReplicatePrefix = "replicate"
-  val ReplicateFields = Set("experiment", "library", "uuid")
-
-  val ExperimentPrefix = "experiment"
-  val ExperimentFields = Set("accession", "assay_term_name", "target")
-
-  val TargetPrefix = "target"
-  val TargetFields = Set("label")
-
-  val LibraryPrefix = "library"
-  val LibraryFields = Set("accession", "biosample", "lab")
-
-  val LabPrefix = "lab"
-  val LabFields = Set("name")
-
-  val BiosamplePrefix = "biosample"
-
-  val BiosampleFields = Set(
-    "accession",
-    "biosample_term_id",
-    "biosample_term_name",
-    "biosample_type",
-    "donor"
-  )
-
-  val DonorPrefix = "donor"
-  val DonorFields = Set("accession")
-
-  val JoinedSuffix = "_list"
-
-  def joinedName(
-    fieldName: String,
-    joinedPrefix: String,
-    withSuffix: Boolean = true
-  ): String =
-    s"${joinedPrefix}__$fieldName${if (withSuffix) JoinedSuffix else ""}"
 }

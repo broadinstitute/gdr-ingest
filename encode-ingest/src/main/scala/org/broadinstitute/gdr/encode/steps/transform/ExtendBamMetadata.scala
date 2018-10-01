@@ -12,6 +12,7 @@ import org.broadinstitute.gdr.encode.steps.IngestStep
 import scala.language.higherKinds
 
 class ExtendBamMetadata(in: File, override protected val out: File) extends IngestStep {
+  import org.broadinstitute.gdr.encode.EncodeFields._
   import ExtendBamMetadata._
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
@@ -77,10 +78,7 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
         .intersect(graph.allFiles)
       val sourceReferences = sourceFiles.diff(sourceFilesFromExperiments)
 
-      val replicateRefsField = MergeMetadata.joinedName(
-        MergeMetadata.ReplicatePrefix,
-        ReplicateRefsPrefix
-      )
+      val replicateRefsField = joinedName(ReplicatePrefix, ReplicateRefsPrefix)
 
       val extraFields = Map(
         replicateRefsField -> nonEmptyIds.asJson,
@@ -164,16 +162,6 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
 }
 
 object ExtendBamMetadata {
-  val DerivedFromExperimentField = "derived_from_exp"
-  val DerivedFromReferenceField = "derived_from_ref"
-  val PercentDupsField = "percent_duplicated"
-  val PercentAlignedField = "percent_aligned"
-  val ReadCountField = "read_count"
-  val ReadLengthField = "read_length"
-  val RunTypeField = "run_type"
-
-  val ReplicateRefsPrefix = "file"
-
   private def extractFileId(fileRef: String): String =
     fileRef.drop(7).dropRight(1)
 
