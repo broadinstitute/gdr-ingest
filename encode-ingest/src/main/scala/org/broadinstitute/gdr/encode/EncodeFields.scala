@@ -61,6 +61,7 @@ object EncodeFields {
   //////////////////////////////////////////////////////
 
   val AuditColorField = "audit_color"
+  val AuditWarningsField = "warning_summary"
 
   //////////////////////////////////////////////////////
 
@@ -107,6 +108,7 @@ object EncodeFields {
     "output_type",
     // Derived from processing steps:
     AuditColorField,
+    AuditWarningsField,
     DerivedFromExperimentField,
     DerivedFromReferenceField,
     PercentAlignedField,

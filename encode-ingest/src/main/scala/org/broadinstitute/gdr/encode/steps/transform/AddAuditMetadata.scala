@@ -4,7 +4,7 @@ import better.files.File
 import cats.effect.{Effect, Sync}
 import cats.implicits._
 import fs2.Stream
-import io.circe.JsonObject
+import io.circe.{Json, JsonObject}
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
@@ -21,38 +21,47 @@ class AddAuditMetadata(
 
   override protected def process[F[_]: Effect]: Stream[F, Unit] =
     Stream
-      .eval(auditMessagesToLevels[F])
+      .eval(auditMessagesToInfo[F])
       .flatMap { auditInfo =>
         IngestStep.readJsonArray(mergedFilesJson).map(linkAudits(auditInfo))
       }
       .to(IngestStep.writeJsonArray(out))
 
-  private def auditMessagesToLevels[F[_]: Sync]: F[Map[String, Int]] =
+  private def auditMessagesToInfo[F[_]: Sync]: F[Map[String, (Int, List[String])]] =
     IngestStep
       .readJsonArray(auditJson)
       .map { js =>
         for {
           level <- js("level").flatMap(_.as[Int].toOption)
+          category <- js("category").flatMap(_.asString)
+          path <- js("path").flatMap(_.asString)
           detail <- js("detail").flatMap(_.asString)
         } yield {
-          RefPattern.findAllMatchIn(detail).map(_.group(1) -> level).toMap
+          RefPattern
+            .findAllMatchIn(detail)
+            .map(m => (m.group(1), (level, s"${AuditColors(level)}: $category $path")))
+            .toMap
         }
       }
       .unNone
       .compile
-      .fold(Map.empty[String, Int]) { (acc, levels) =>
+      .fold(Map.empty[String, (Int, List[String])]) { (acc, levels) =>
         levels.foldLeft(acc) {
-          case (inner, (ref, level)) =>
-            inner + (ref -> math.max(level, inner.getOrElse(ref, 0)))
+          case (inner, (ref, (level, summary))) =>
+            val (prevLevel, prevSummaries) = inner.getOrElse(ref, (0, Nil))
+            val newValue = (math.max(level, prevLevel), summary :: prevSummaries)
+            inner + (ref -> newValue)
         }
       }
 
-  private def linkAudits(refToMaxLevel: Map[String, Int])(
+  private def linkAudits(refToMaxLevel: Map[String, (Int, List[String])])(
     mergedJson: JsonObject
   ): JsonObject = {
     val markers = auditMarkers(mergedJson)
-    val maxAuditLevel = markers.map(refToMaxLevel.getOrElse(_, 0)).max
-    mergedJson.add(AuditColorField, AuditColors(maxAuditLevel))
+    val (maxAuditLevel, summaries) = markers.map(refToMaxLevel.getOrElse(_, (0, Nil))).max
+    mergedJson
+      .add(AuditColorField, AuditColors(maxAuditLevel))
+      .add(AuditWarningsField, summaries.asJson)
   }
 
   private def auditMarkers(mergedJson: JsonObject): Iterable[String] = {
@@ -80,7 +89,7 @@ object AddAuditMetadata {
 
   val RefPattern: Regex = "/[^/]+/([^/]+)/".r
 
-  val AuditColors = Map(
+  val AuditColors: Map[Int, Json] = Map(
     0 -> "white",
     30 -> "white",
     40 -> "yellow",
