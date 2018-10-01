@@ -14,13 +14,32 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.higherKinds
 
+/**
+  * Client for pulling information out of ENCODE's REST API.
+  *
+  * @param client generic blaze/http4s client handling the actual request-sending/parsing logic
+  * @see https://www.encodeproject.org/help/rest-api/
+  */
 class EncodeClient[F[_]: Effect] private (client: Client[F]) {
 
+  /**
+    * Typeclass instance with knowledge of how to capture side-effects within the wrapper type `F`.
+    */
   private val E = Effect[F]
 
-  def search(searchParams: Seq[(String, String)]): Stream[F, JsonObject] = {
+  /**
+    * Pull all metadata for a specific ENCODE entity type matching a set of criteria.
+    *
+    * @param entityType category to search within. Must be one of the schema titles listed at https://www.encodeproject.org/profiles/
+    * @param searchParams key-value pairs to match entities against. If a key is provided multiple times, entities
+    *                     matching any of the associated values will be returned
+    */
+  def search(
+    entityType: String,
+    searchParams: Seq[(String, String)]
+  ): Stream[F, JsonObject] = {
 
-    val allParams = Seq("limit" -> "all", "format" -> "json") ++ searchParams
+    val allParams = Seq("type" -> entityType, "limit" -> "all", "format" -> "json") ++ searchParams
     val searchUri = EncodeClient.EncodeUri
       .withPath("/search/")
       .copy(query = Query.fromPairs(allParams: _*))
@@ -48,6 +67,11 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
       }
   }
 
+  /**
+    * Query ENCODE for the AWS download URI backing the download endpoint for a file entity.
+    *
+    * @param downloadEndpoint value of an "href" field pulled from file entity metadata
+    */
   def deriveDownloadUri(downloadEndpoint: String): F[Uri] = {
 
     val request = Request[F](
@@ -74,6 +98,12 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
 }
 
 object EncodeClient {
+
+  /**
+    * Max number of requests a client should send to ENCODE at a time.
+    *
+    * FIXME: This should really be something the client enforces internally.
+    */
   val Parallelism: Int = Runtime.getRuntime.availableProcessors()
 
   private val EncodeUri = Uri.unsafeFromString("https://www.encodeproject.org")

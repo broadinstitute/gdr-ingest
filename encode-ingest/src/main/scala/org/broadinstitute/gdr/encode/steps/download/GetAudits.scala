@@ -1,30 +1,23 @@
 package org.broadinstitute.gdr.encode.steps.download
 
 import better.files.File
-import cats.effect.Effect
-import fs2.{Pipe, Pure, Scheduler, Stream}
+import fs2.{Pure, Scheduler, Stream}
 import io.circe.JsonObject
-import org.broadinstitute.gdr.encode.client.EncodeClient
 
 import scala.concurrent.ExecutionContext
-import scala.language.higherKinds
 
 class GetAudits(in: File, out: File)(implicit ec: ExecutionContext, s: Scheduler)
-    extends GetFromPreviousMetadataStep[String](in, out) {
+    extends GetFromPreviousMetadataStep(in, out) {
 
   final override val entityType = "Experiment"
-  final override val searchFrame = "audit"
   final override val refField = "@id"
+  final override val manyRefs = false
 
-  final override def refValueStream[F[_]](refValue: String): Stream[F, String] =
-    Stream.emit(refValue)
-  final override def filterRefs[F[_]]: Pipe[F, String, String] = identity
+  // Audit is a magic, undocumented field in the ENCODE metadata.
+  // Requesting frame=audit forces it to be generated.
+  final override val searchFrame = "audit"
 
-  final override def pullMetadata[F[_]: Effect](
-    client: EncodeClient[F]
-  ): Stream[F, JsonObject] = super.pullMetadata(client).flatMap(extractAudits)
-
-  private def extractAudits(
+  final override def transformMetadata(
     experimentJson: JsonObject
   ): Stream[Pure, JsonObject] =
     Stream

@@ -14,6 +14,9 @@ import org.broadinstitute.gdr.encode.steps.google.BuildBqJsons
 
 import scala.concurrent.ExecutionContext
 
+/**
+  * Lightweight CLI wrapper for demo ENCODE ingest logic.
+  */
 object Encode
     extends CommandApp(
       name = "encode-ingest",

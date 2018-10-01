@@ -10,11 +10,27 @@ import io.circe.JsonObject
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
+/**
+  * Distinct step in the ENCODE ingest pipeline.
+  *
+  * In vague terms, steps should end at whatever point it makes sense
+  * to dump intermediate results to disk for caching.
+  */
 trait IngestStep {
   protected val logger = org.log4s.getLogger
 
+  /**
+    * Run step-specific logic.
+    *
+    * Steps are responsible for persisting their own outputs as an effect (i.e. writing them to disk).
+    */
   protected def process[F[_]: Effect]: Stream[F, Unit]
 
+  /**
+    * Convenience wrapper for packaging up custom stream logic into a runnable effect.
+    *
+    * Does some hacky caching that should probably get ripped out sooner rather than later.
+    */
   final def build[F[_]: Effect]: F[Unit] =
     Effect[F].delay(out.isRegularFile).flatMap { outputExists =>
       if (outputExists) {
@@ -26,6 +42,7 @@ trait IngestStep {
       }
     }
 
+  /** File to dump step outputs into. */
   protected def out: File
 }
 
