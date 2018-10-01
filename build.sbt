@@ -1,7 +1,7 @@
 inThisBuild(
   Seq(
     organization := "org.broadinstitute",
-    scalaVersion := "2.12.6",
+    scalaVersion := "2.12.7",
     scalafmtConfig := Some((baseDirectory in ThisBuild)(_ / ".scalafmt.conf").value),
     scalafmtOnCompile := true,
     scalacOptions ++= Seq(

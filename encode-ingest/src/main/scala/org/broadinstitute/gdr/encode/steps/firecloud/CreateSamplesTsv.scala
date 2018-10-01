@@ -36,7 +36,7 @@ class CreateSamplesTsv(
   private def oneParticipant(fileJson: JsonObject): Boolean =
     fileJson(CleanupFilesMetadata.DonorFkField)
       .flatMap(_.asArray)
-      .fold(false)(_.length == 1)
+      .exists(_.length == 1)
 
   private def buildRow(fields: List[String])(fileJson: JsonObject): List[String] =
     fields.foldRight(List.empty[String]) { (field, acc) =>
