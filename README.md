@@ -27,3 +27,9 @@ You can also run "help" for specific sub-commands to see their options, i.e.
 ```bash
 sbt:gdr-ingest> encode-ingest/run prep-ingest --help
 ```
+
+## Testing ENCODE ingest
+
+There aren't any automated tests (yet). Manual testing has been done by comparing outputs to a
+[test workspace](https://portal.firecloud.org/#workspaces/broad-cil-devel-fc/ENCODE_test5) in FireCloud containing a
+subset of all data.
