@@ -70,11 +70,16 @@ object EncodeFields {
   val CellTypeField =
     joinedName("biosample_term_name", BiosamplePrefix, withSuffix = false)
 
+  val ExperimentLinkField = joinedName("accession", ExperimentPrefix)
+
   val LabelField = joinedName("label", TargetPrefix, withSuffix = false)
   val SuffixedLabel = s"$LabelField$JoinedSuffix"
 
+  val FileIdField = "accession"
   val FileAccessionField = "file_accession"
-  val DonorFkField = joinedName("accession", DonorPrefix)
+  val DonorFkField = joinedName(DonorIdField, DonorPrefix)
+
+  val ReplicateLinkField = joinedName("uuid", ReplicatePrefix)
 
   val SampleTermField =
     joinedName("biosample_term_id", BiosamplePrefix, withSuffix = false)
@@ -89,7 +94,7 @@ object EncodeFields {
   )
 
   val FieldsToRename = Map(
-    "accession" -> FileAccessionField,
+    FileIdField -> FileAccessionField,
     CellTypeField -> "cell_type",
     AssayField -> "assay_term_name",
     LabelField -> "target",
@@ -118,10 +123,10 @@ object EncodeFields {
     RunTypeField,
     // Joined into file records from other metadata:
     DonorFkField,
+    ExperimentLinkField,
+    ReplicateLinkField,
     joinedName("accession", BiosamplePrefix),
-    joinedName("accession", ExperimentPrefix),
     joinedName("accession", LibraryPrefix),
-    joinedName("name", LabPrefix),
-    joinedName("uuid", ReplicatePrefix)
+    joinedName("name", LabPrefix)
   ).union(FieldsToFlatten).union(FieldsToRename.values.toSet)
 }
