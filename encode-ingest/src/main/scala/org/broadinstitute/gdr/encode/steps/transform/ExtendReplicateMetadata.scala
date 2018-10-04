@@ -1,8 +1,7 @@
 package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
-import cats.effect.{Effect, Sync}
-import cats.implicits._
+import cats.effect.Effect
 import fs2.Stream
 import io.circe.JsonObject
 import org.broadinstitute.gdr.encode.steps.IngestStep
@@ -31,7 +30,7 @@ class ExtendReplicateMetadata(
       donorMetadata
     ).evalMap(IngestStep.readLookupTable[F])
       .fold(Map.empty[String, JsonObject])(_ ++ _)
-      .map(extendMetadata[F])
+      .map(extendMetadata)
       .flatMap { join =>
         val transforms = Seq(
           join(ExperimentPrefix, ExperimentPrefix, ExperimentFields),
@@ -50,7 +49,7 @@ class ExtendReplicateMetadata(
           .readJsonArray(replicateMetadata)
           .map(_.filterKeys((ReplicateFields + EncodeIdField).contains))
 
-        transforms.foldLeft(replicates)(_ evalMap _)
+        transforms.foldLeft(replicates)(_.map(_).unNone)
       }
       .to(IngestStep.writeJsonArray(out))
 
@@ -58,22 +57,14 @@ class ExtendReplicateMetadata(
     * Extend JSON metadata by replacing a foreign-key field with a set of fields
     * associated with the entity pointed to by the key.
     */
-  private def extendMetadata[F[_]: Sync](idToMetadata: Map[String, JsonObject])(
+  private def extendMetadata(idToMetadata: Map[String, JsonObject])(
     foreignKeyField: String,
     joinedFieldPrefix: String,
     fieldsToJoin: Set[String]
-  )(metadata: JsonObject): F[JsonObject] = {
+  )(metadata: JsonObject): Option[JsonObject] = {
     val foreignMetadata = for {
-      foreignKey <- metadata(foreignKeyField)
-        .flatMap(_.asString)
-        .liftTo[F][Throwable](
-          new IllegalStateException(s"Field '$foreignKeyField' not found in $metadata")
-        )
-      foreignMetadata <- idToMetadata
-        .get(foreignKey)
-        .liftTo[F][Throwable](
-          new IllegalStateException(s"No metadata found for '$foreignKey'")
-        )
+      foreignKey <- metadata(foreignKeyField).flatMap(_.asString)
+      foreignMetadata <- idToMetadata.get(foreignKey)
     } yield {
       fieldsToJoin.flatMap { field =>
         foreignMetadata(field).map(joinedName(field, joinedFieldPrefix) -> _)
