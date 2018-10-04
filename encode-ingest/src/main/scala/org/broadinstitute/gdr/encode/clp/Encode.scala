@@ -9,7 +9,7 @@ import cats.implicits._
 import com.monovore.decline.{Argument, CommandApp, Opts}
 import fs2.Scheduler
 import org.broadinstitute.gdr.encode.steps.PrepareIngest
-import org.broadinstitute.gdr.encode.steps.google.BuildBqJsons
+import org.broadinstitute.gdr.encode.steps.google.BuildBqJson
 
 import scala.concurrent.ExecutionContext
 
@@ -64,13 +64,13 @@ object Encode
             help = "Bucket containing raw ENCODE data from a run of Google's STS"
           )
           val outOpt = Opts.option[File](
-            "output-dir",
-            help = "Directory into which generated JSONs should be written"
+            "output",
+            help = "Path to where JSON output should be written"
           )
 
           (filesOpt, donorsOpt, bucketOpt, outOpt).mapN {
             case (files, donors, bucket, out) =>
-              new BuildBqJsons(files, donors, bucket, out)
+              new BuildBqJson(files, donors, bucket, out)
           }
         }
 

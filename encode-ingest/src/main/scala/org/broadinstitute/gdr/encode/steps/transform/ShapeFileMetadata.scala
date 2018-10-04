@@ -20,18 +20,8 @@ class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
     fileGraph.flatMap { graph =>
-      IngestStep.readJsonArray(fileMetadata).map { file =>
-        for {
-          accession <- file(FileIdField).flatMap(_.asString)
-          withExtraFields <- extendFields(file, graph)
-        } yield {
-          withExtraFields
-            .filterKeys(RetainedFields.contains)
-            .add(FileAccessionField, accession.asJson)
-            .add(EncodeUriField, (EncodeClient.EncodeUri / accession).toString.asJson)
-        }
-      }
-    }.unNone.to(IngestStep.writeJsonArray(out))
+      IngestStep.readJsonArray(fileMetadata).map(addFields(graph))
+    }.unNone.map(_.filterKeys(RetainedFields.contains)).to(IngestStep.writeJsonArray(out))
 
   private def fileGraph[F[_]: Sync]: Stream[F, FileGraph] =
     IngestStep
@@ -68,9 +58,10 @@ class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
       }
       .foldMonoid
 
-  private def extendFields(file: JsonObject, graph: FileGraph): Option[JsonObject] = {
+  private def addFields(graph: FileGraph)(file: JsonObject): Option[JsonObject] = {
     for {
       id <- file(EncodeIdField).flatMap(_.asString)
+      accession <- file(FileIdField).flatMap(_.asString)
       (replicateIds, fastqInfo) = exploreGraph(
         id,
         graph,
@@ -85,19 +76,25 @@ class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
         .flatMap(_.as[Set[String]].toOption)
         .map(_.map(ShapeFileMetadata.extractFileId))
     } yield {
-      // Hackery to extract file titles out of their IDs.
-      // 'derived_from' contains refs of the form '/files/:title:/'
       val sourceFilesFromExperiments = sourceFiles
         .intersect(graph.allFiles)
       val sourceReferences = sourceFiles.diff(sourceFilesFromExperiments)
 
-      val extraFields = Map(
-        ReplicateLinkField -> nonEmptyIds.asJson,
+      val generalFields = Map(
+        ReplicateFkField -> nonEmptyIds.asJson,
         DerivedFromExperimentField -> sourceFilesFromExperiments.asJson,
-        DerivedFromReferenceField -> sourceReferences.asJson
-      ) ++ (if (fileType == "bam") bamFields(file, fastqInfo) else Map.empty)
+        DerivedFromReferenceField -> sourceReferences.asJson,
+        FileAccessionField -> accession.asJson,
+        EncodeLinkField -> (EncodeClient.EncodeUri / accession).toString.asJson
+      )
 
-      extraFields.foldRight(file.remove("derived_from"))(_ +: _)
+      val typeSpecificFields = fileType match {
+        case "bam"   => bamFields(file, fastqInfo)
+        case "fastq" => Map(RunTypeField -> graph.fastqInfos(id).pairedReads.asJson)
+        case _       => Map.empty
+      }
+
+      (generalFields ++ typeSpecificFields).foldRight(file)(_ +: _)
     }
   }
 
@@ -163,7 +160,7 @@ class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
       .concat(
         Iterable(
           ReadCountField -> fastqInfo.readCount.asJson,
-          RunTypeField -> (if (fastqInfo.pairedReads) "paired" else "unpaired").asJson
+          RunTypeField -> fastqInfo.pairedReads.asJson
         ),
         bamJson("mapped_read_length").map(ReadLengthField -> _),
         qcFields.getOrElse(Iterable.empty)
@@ -175,38 +172,40 @@ class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
 object ShapeFileMetadata {
   val DerivedFromExperimentField = "derived_from_exp"
   val DerivedFromReferenceField = "derived_from_ref"
+  val EncodeLinkField = "url"
+  val FileIdField = "accession"
+  val FileAccessionField = "file_accession"
   val PercentDupsField = "percent_duplicated"
   val PercentAlignedField = "percent_aligned"
   val ReadCountField = "read_count"
   val ReadLengthField = "read_length"
-  val RunTypeField = "run_type"
+  val RunTypeField = "paired_run"
 
   val ReplicateRefsPrefix = "file"
 
-  val FileIdField = "accession"
-  val FileAccessionField = "file_accession"
-
-  val ReplicateLinkField =
-    EncodeFields.joinedName("id", EncodeFields.ReplicatePrefix, withSuffix = true)
+  val ReplicateFkField =
+    EncodeFields.joinedName("id", JoinReplicateMetadata.ReplicatePrefix)
 
   val RetainedFields = Set(
-    EncodeFields.EncodeIdField,
-    ReplicateLinkField,
     "assembly",
+    DerivedFromExperimentField,
+    DerivedFromReferenceField,
+    EncodeFields.EncodeIdField,
+    EncodeLinkField,
+    FileAccessionField,
     "file_format",
     "file_size",
     "file_type",
     "href",
     "md5sum",
     "output_type",
-    "status",
-    DerivedFromExperimentField,
-    DerivedFromReferenceField,
     PercentAlignedField,
     PercentDupsField,
     ReadCountField,
     ReadLengthField,
-    RunTypeField
+    ReplicateFkField,
+    RunTypeField,
+    "status"
   )
 
   private def extractFileId(fileRef: String): String =

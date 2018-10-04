@@ -36,11 +36,9 @@ class PrepareIngest(override protected val out: File)(
       val shapedFiles = out / "files.shaped.json"
       val shapedFilesWithAudits = out / "files.shaped.with-audits.json"
 
-      val extendedReplicates = out / "replicates.extended.json"
+      val joinedReplicates = out / "replicates.joined.json"
+      val fullJoinedFilesMetadata = out / "files.joined.json"
 
-      val fullJoinedMetadata = out / "files.joined.json"
-
-      val cleanedFiles = out / "files.cleaned.json"
       val cleanedDonorsJson = out / "donors.cleaned.json"
 
       val filesWithUris = out / "files.with-uris.json"
@@ -60,7 +58,7 @@ class PrepareIngest(override protected val out: File)(
       val getDonors = new GetDonors(rawSamples, rawDonors)
 
       // Transform & combine metadata:
-      val extendReplicateMetadata = new ExtendReplicateMetadata(
+      val extendReplicateMetadata = new JoinReplicateMetadata(
         replicateMetadata = rawReplicates,
         experimentMetadata = rawExperiments,
         targetMetadata = rawTargets,
@@ -68,7 +66,7 @@ class PrepareIngest(override protected val out: File)(
         labMetadata = rawLabs,
         sampleMetadata = rawSamples,
         donorMetadata = rawDonors,
-        out = extendedReplicates
+        out = joinedReplicates
       )
       val shapeFileMetadata = new ShapeFileMetadata(rawFiles, shapedFiles)
       val addFileAudits =
@@ -76,17 +74,16 @@ class PrepareIngest(override protected val out: File)(
 
       val joinReplicatesToFiles = new JoinReplicatesToFiles(
         extendedFileMetadata = shapedFilesWithAudits,
-        extendedReplicateMetadata = extendedReplicates,
-        out = fullJoinedMetadata
+        extendedReplicateMetadata = joinedReplicates,
+        out = fullJoinedFilesMetadata
       )
       val cleanDonorMetadata = new CleanDonorsMetadata(
         donorMetadata = rawDonors,
-        joinedFileMetadata = fullJoinedMetadata,
+        joinedFileMetadata = fullJoinedFilesMetadata,
         out = cleanedDonorsJson
       )
-      val cleanFileMetadata = new CleanupFilesMetadata(fullJoinedMetadata, cleanedFiles)
 
-      val deriveUris = new DeriveActualUris(cleanedFiles, filesWithUris)
+      val deriveUris = new DeriveActualUris(fullJoinedFilesMetadata, filesWithUris)
       val buildTransferManifest = new BuildStsManifest(filesWithUris, transferManifest)
 
       import IngestStep.parallelize
@@ -102,7 +99,7 @@ class PrepareIngest(override protected val out: File)(
         _ <- parallelize(shapeFileMetadata, extendReplicateMetadata)
         _ <- addFileAudits.build
         _ <- joinReplicatesToFiles.build
-        _ <- parallelize(cleanFileMetadata, cleanDonorMetadata)
+        _ <- cleanDonorMetadata.build
         // Find actual URIs for raw files:
         _ <- deriveUris.build
         // Generate inputs to downstream ingest processes:

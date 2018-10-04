@@ -1,7 +1,7 @@
 package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
-import cats.effect.Effect
+import cats.effect.{Effect, Sync}
 import cats.implicits._
 import fs2.Stream
 import io.circe.JsonObject
@@ -16,6 +16,7 @@ class JoinReplicatesToFiles(
   extendedReplicateMetadata: File,
   override protected val out: File
 ) extends IngestStep {
+  import JoinReplicatesToFiles._
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
     Stream
@@ -25,21 +26,19 @@ class JoinReplicatesToFiles(
           .readJsonArray(extendedFileMetadata)
           .map { fileRecord =>
             for {
-              replicateIds <- fileRecord(ShapeFileMetadata.ReplicateLinkField)
+              replicateIds <- fileRecord(ShapeFileMetadata.ReplicateFkField)
                 .flatMap(_.as[List[String]].toOption)
               joinedJson <- joinReplicates(replicateTable)(
-                fileRecord.remove(ShapeFileMetadata.ReplicateLinkField),
+                fileRecord.remove(ShapeFileMetadata.ReplicateFkField),
                 replicateIds
               )
             } yield {
-              joinedJson.add(
-                JoinReplicatesToFiles.FileAvailableField,
-                shouldTransfer(joinedJson).asJson
-              )
+              joinedJson.add(FileAvailableField, shouldTransfer(joinedJson).asJson)
             }
           }
       }
       .unNone
+      .evalMap(flattenSingletons[F])
       .to(IngestStep.writeJsonArray(out))
 
   private def shouldTransfer(file: JsonObject): Boolean = {
@@ -49,7 +48,7 @@ class JoinReplicatesToFiles(
       typ <- file("output_type").flatMap(_.asString)
     } yield {
       status.equals("released") &&
-      JoinReplicatesToFiles.FormatTypeWhitelist.contains(format -> typ)
+      FormatTypeWhitelist.contains(format -> typ)
     }
 
     keepFile.getOrElse(false)
@@ -61,7 +60,7 @@ class JoinReplicatesToFiles(
     val replicateInfo =
       stripControls(replicateIds.flatMap(replicateTable.get)).foldMap {
         _.toIterable.map {
-          case (k, v) => s"$k${EncodeFields.JoinedSuffix}" -> Set(v)
+          case (k, v) => s"$k$JoinedSuffix" -> Set(v)
         }.toMap
       }
 
@@ -79,15 +78,44 @@ class JoinReplicatesToFiles(
       replicateRecords
     } else {
       replicateRecords.flatMap { record =>
-        record(EncodeFields.LabelField).flatMap(_.asString).map(_ -> record)
+        record(JoinReplicateMetadata.TargetLabelField)
+          .flatMap(_.asString)
+          .map(_ -> record)
       }.collect {
         case (label, record) if !label.matches(".*[Cc]ontrol.*") => record
       }
     }
   }
+
+  private def flattenSingletons[F[_]: Sync](mergedFile: JsonObject): F[JsonObject] =
+    FieldsToFlatten.foldLeft(Sync[F].pure(mergedFile)) { (wrappedAcc, field) =>
+      val listField = s"$field$JoinedSuffix"
+      val maybeFlattened = for {
+        fieldJson <- mergedFile(listField)
+        fieldArray <- fieldJson.asArray
+        if fieldArray.length == 1
+      } yield {
+        field -> fieldArray.head
+      }
+
+      for {
+        acc <- wrappedAcc
+        flattened <- Sync[F].fromOption(
+          maybeFlattened,
+          new IllegalStateException(
+            s"'$listField' is not a singleton array in $mergedFile"
+          )
+        )
+      } yield {
+        (flattened +: acc).remove(listField)
+      }
+    }
 }
 
 object JoinReplicatesToFiles {
+  import JoinReplicateMetadata._
+
+  val JoinedSuffix = "_list"
 
   val FormatTypeWhitelist = Set(
     "bam" -> "unfiltered alignments",
@@ -96,4 +124,14 @@ object JoinReplicatesToFiles {
   )
 
   val FileAvailableField = "gcs_file_available"
+
+  val FieldsToFlatten = Set(
+    AssayField,
+    CellTypeField,
+    SampleTermField,
+    SampleTypeField,
+    TargetLabelField
+  )
+
+  val DonorFkField = s"${EncodeFields.joinedName(DonorIdField, DonorPrefix)}$JoinedSuffix"
 }

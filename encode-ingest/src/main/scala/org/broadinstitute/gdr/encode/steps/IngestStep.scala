@@ -57,13 +57,16 @@ object IngestStep {
       .rethrow
 
   /** Slurp a JSON array of metadata into an in-memory map from ID -> fields. */
-  def readLookupTable[F[_]: Sync](metadata: File): F[Map[String, JsonObject]] =
+  def readLookupTable[F[_]: Sync](
+    metadata: File,
+    idField: String = EncodeFields.EncodeIdField
+  ): F[Map[String, JsonObject]] =
     IngestStep
       .readJsonArray(metadata)
       .map { js =>
-        js(EncodeFields.EncodeIdField)
+        js(idField)
           .flatMap(_.asString)
-          .map(_ -> js.remove(EncodeFields.EncodeIdField))
+          .map(_ -> js.remove(idField))
       }
       .unNone
       .compile

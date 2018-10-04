@@ -4,11 +4,12 @@ import better.files.File
 import cats.effect.Effect
 import fs2.Stream
 import io.circe.JsonObject
+import org.broadinstitute.gdr.encode.EncodeFields
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
 
-class ExtendReplicateMetadata(
+class JoinReplicateMetadata(
   replicateMetadata: File,
   experimentMetadata: File,
   targetMetadata: File,
@@ -18,7 +19,8 @@ class ExtendReplicateMetadata(
   donorMetadata: File,
   override protected val out: File
 ) extends IngestStep {
-  import org.broadinstitute.gdr.encode.EncodeFields._
+  import EncodeFields._
+  import JoinReplicateMetadata._
 
   override protected def process[F[_]: Effect]: Stream[F, Unit] =
     Stream(
@@ -28,7 +30,7 @@ class ExtendReplicateMetadata(
       labMetadata,
       sampleMetadata,
       donorMetadata
-    ).evalMap(IngestStep.readLookupTable[F])
+    ).evalMap(IngestStep.readLookupTable[F](_))
       .fold(Map.empty[String, JsonObject])(_ ++ _)
       .map(extendMetadata)
       .flatMap { join =>
@@ -51,6 +53,7 @@ class ExtendReplicateMetadata(
 
         transforms.foldLeft(replicates)(_.map(_).unNone)
       }
+      .map(renameFields)
       .to(IngestStep.writeJsonArray(out))
 
   /**
@@ -75,4 +78,58 @@ class ExtendReplicateMetadata(
       JsonObject.fromMap(metadata.toMap ++ fm).remove(foreignKeyField)
     }
   }
+
+  private def renameFields(joinedMetadata: JsonObject): JsonObject =
+    FieldsToRename.foldLeft(joinedMetadata) {
+      case (acc, (oldName, newName)) =>
+        acc(oldName).fold(acc)(v => acc.add(newName, v).remove(oldName))
+    }
+}
+
+object JoinReplicateMetadata {
+  import EncodeFields._
+
+  val ReplicatePrefix = "replicate"
+  val ReplicateFields = Set("uuid", "experiment", "library")
+
+  val ExperimentPrefix = "experiment"
+  val ExperimentFields = Set("accession", "assay_term_name", "target")
+
+  val TargetPrefix = "target"
+  val TargetFields = Set("label")
+
+  val LibraryPrefix = "library"
+  val LibraryFields = Set("accession", "biosample", "lab")
+
+  val LabPrefix = "lab"
+  val LabFields = Set("name")
+
+  val BiosamplePrefix = "biosample"
+
+  val BiosampleFields = Set(
+    "accession",
+    "biosample_term_id",
+    "biosample_term_name",
+    "biosample_type",
+    "donor"
+  )
+
+  val DonorPrefix = "donor"
+  val DonorIdField = "accession"
+
+  val AssayField = "assay_term_name"
+  val CellTypeField = "cell_type"
+  val TargetLabelField = "target"
+  val ReplicateIdField = joinedName("uuid", ReplicatePrefix)
+  val SampleTermField = "biosample_term_id"
+  val SampleTypeField = "biosample_type"
+
+  val FieldsToRename = Map(
+    joinedName("assay_term_name", ExperimentPrefix) -> AssayField,
+    joinedName("biosample_term_id", BiosamplePrefix) -> SampleTermField,
+    joinedName("biosample_term_name", BiosamplePrefix) -> CellTypeField,
+    joinedName("biosample_type", BiosamplePrefix) -> SampleTypeField,
+    joinedName("label", TargetPrefix) -> TargetLabelField,
+    "uuid" -> ReplicateIdField
+  )
 }
