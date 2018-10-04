@@ -3,6 +3,8 @@ package org.broadinstitute.gdr.encode
 /** Bucket for field names used while transforming raw metadata pulled from ENCODE. */
 object EncodeFields {
 
+  val EncodeIdField = "@id"
+
   ///////////////////////////////////////////////////
 
   val DerivedFromExperimentField = "derived_from_exp"
@@ -25,12 +27,13 @@ object EncodeFields {
   def joinedName(
     fieldName: String,
     joinedPrefix: String,
-    withSuffix: Boolean = true
+    withSuffix: Boolean = false
   ): String =
     s"${joinedPrefix}__$fieldName${if (withSuffix) JoinedSuffix else ""}"
 
   val ReplicatePrefix = "replicate"
-  val ReplicateFields = Set("experiment", "library", "uuid")
+  val ReplicateIdField = "uuid"
+  val ReplicateFields = Set("uuid", "experiment", "library")
 
   val ExperimentPrefix = "experiment"
   val ExperimentFields = Set("accession", "assay_term_name", "target")
@@ -65,25 +68,24 @@ object EncodeFields {
 
   //////////////////////////////////////////////////////
 
-  val AssayField = joinedName("assay_term_name", ExperimentPrefix, withSuffix = false)
+  val AssayField = joinedName("assay_term_name", ExperimentPrefix)
 
   val CellTypeField =
-    joinedName("biosample_term_name", BiosamplePrefix, withSuffix = false)
+    joinedName("biosample_term_name", BiosamplePrefix)
 
-  val ExperimentLinkField = joinedName("accession", ExperimentPrefix)
+  val ExperimentLinkField = joinedName("accession", ExperimentPrefix, withSuffix = true)
 
-  val LabelField = joinedName("label", TargetPrefix, withSuffix = false)
-  val SuffixedLabel = s"$LabelField$JoinedSuffix"
+  val LabelField = joinedName("label", TargetPrefix)
 
   val FileIdField = "accession"
   val FileAccessionField = "file_accession"
   val DonorFkField = joinedName(DonorIdField, DonorPrefix)
 
-  val ReplicateLinkField = joinedName("uuid", ReplicatePrefix)
+  val ReplicateLinkField = joinedName("id", ReplicatePrefix, withSuffix = true)
 
   val SampleTermField =
-    joinedName("biosample_term_id", BiosamplePrefix, withSuffix = false)
-  val SampleTypeField = joinedName("biosample_type", BiosamplePrefix, withSuffix = false)
+    joinedName("biosample_term_id", BiosamplePrefix)
+  val SampleTypeField = joinedName("biosample_type", BiosamplePrefix)
 
   val FieldsToFlatten = Set(
     AssayField,

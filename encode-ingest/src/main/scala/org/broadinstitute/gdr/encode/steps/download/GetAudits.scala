@@ -3,6 +3,7 @@ package org.broadinstitute.gdr.encode.steps.download
 import better.files.File
 import fs2.{Pure, Scheduler, Stream}
 import io.circe.JsonObject
+import org.broadinstitute.gdr.encode.EncodeFields
 
 import scala.concurrent.ExecutionContext
 
@@ -10,7 +11,7 @@ class GetAudits(in: File, out: File)(implicit ec: ExecutionContext, s: Scheduler
     extends GetFromPreviousMetadataStep(in, out) {
 
   final override val entityType = "Experiment"
-  final override val refField = "@id"
+  final override val refField = EncodeFields.EncodeIdField
   final override val manyRefs = false
 
   // Audit is a magic, undocumented field in the ENCODE metadata.

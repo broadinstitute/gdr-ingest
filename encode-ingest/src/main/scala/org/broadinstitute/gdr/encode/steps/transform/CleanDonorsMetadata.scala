@@ -2,15 +2,16 @@ package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
 import cats.effect.{Effect, Sync}
+import cats.implicits._
 import fs2.Stream
 import io.circe.Json
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
 
-class MergeDonorsMetadata(
-  donors: File,
-  mergedFiles: File,
+class CleanDonorsMetadata(
+  donorMetadata: File,
+  joinedFileMetadata: File,
   override protected val out: File
 ) extends IngestStep {
   import org.broadinstitute.gdr.encode.EncodeFields._
@@ -18,7 +19,7 @@ class MergeDonorsMetadata(
   override def process[F[_]: Effect]: Stream[F, Unit] =
     donorAccessions[F].flatMap { accessionsToKeep =>
       IngestStep
-        .readJsonArray(donors)
+        .readJsonArray(donorMetadata)
         .filter { donor =>
           donor(DonorIdField).exists(accessionsToKeep.contains)
         }
@@ -28,13 +29,13 @@ class MergeDonorsMetadata(
 
   private def donorAccessions[F[_]: Sync]: Stream[F, Set[Json]] =
     IngestStep
-      .readJsonArray(mergedFiles)
+      .readJsonArray(joinedFileMetadata)
       .map { file =>
         for {
-          donorJson <- file(joinedName(DonorIdField, DonorPrefix))
+          donorJson <- file(joinedName(DonorIdField, DonorPrefix, withSuffix = true))
           accessionArray <- donorJson.asArray
         } yield accessionArray.toSet[Json]
       }
       .unNone
-      .fold(Set.empty[Json])(_ union _)
+      .foldMonoid
 }

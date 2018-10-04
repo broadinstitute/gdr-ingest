@@ -4,6 +4,7 @@ import better.files.File
 import cats.effect.Sync
 import cats.implicits._
 import fs2.{Pipe, Pure, Scheduler, Stream}
+import org.broadinstitute.gdr.encode.EncodeFields
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.concurrent.ExecutionContext
@@ -51,7 +52,9 @@ abstract class GetFromPreviousMetadataStep(in: File, out: File)(
       // Sending much larger of a batch size sometimes causes "URI too long" errors.
       .segmentN(100)
       .map {
-        _.fold(List.empty[(String, String)])((acc, ref) => ("@id" -> ref) :: acc).force.run._2
+        _.fold(List.empty[(String, String)]) { (acc, ref) =>
+          (EncodeFields.EncodeIdField -> ref) :: acc
+        }.force.run._2
       }
 
   /**

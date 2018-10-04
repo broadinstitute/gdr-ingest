@@ -25,7 +25,7 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
       .readJsonArray(in)
       .evalMap { file =>
         val newInfo = for {
-          id <- file("@id").flatMap(_.asString)
+          id <- file(EncodeIdField).flatMap(_.asString)
           fileType <- file("file_format").flatMap(_.asString)
         } yield {
           val replicateRef = file("replicate").flatMap(_.asString)
@@ -57,7 +57,7 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
 
   private def extendFields(file: JsonObject, graph: FileGraph): Option[JsonObject] = {
     for {
-      id <- file("@id").flatMap(_.asString)
+      id <- file(EncodeIdField).flatMap(_.asString)
       (replicateIds, fastqInfo) = exploreGraph(
         id,
         graph,
@@ -78,10 +78,8 @@ class ExtendBamMetadata(in: File, override protected val out: File) extends Inge
         .intersect(graph.allFiles)
       val sourceReferences = sourceFiles.diff(sourceFilesFromExperiments)
 
-      val replicateRefsField = joinedName(ReplicatePrefix, ReplicateRefsPrefix)
-
       val extraFields = Map(
-        replicateRefsField -> nonEmptyIds.asJson,
+        ReplicateLinkField -> nonEmptyIds.asJson,
         DerivedFromExperimentField -> sourceFilesFromExperiments.asJson,
         DerivedFromReferenceField -> sourceReferences.asJson
       ) ++ (if (fileType == "bam") bamFields(file, fastqInfo) else Map.empty)
