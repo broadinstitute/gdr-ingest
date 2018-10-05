@@ -8,7 +8,8 @@ object EncodeFields {
 
   ///////////////////////////////////////////////////
 
-  val DownloadUriField = "url"
+  val EncodeUriField = "url"
+  val DownloadUriField = "download_uri"
 
   ///////////////////////////////////////////////////
 
@@ -49,7 +50,6 @@ object EncodeFields {
 
   val DonorPrefix = "donor"
   val DonorIdField = "accession"
-  val DonorFields = Set(DonorIdField, "age", "health_status", "sex")
 
   //////////////////////////////////////////////////////
 

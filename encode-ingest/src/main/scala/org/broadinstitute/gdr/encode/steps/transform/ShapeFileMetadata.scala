@@ -8,6 +8,7 @@ import fs2.Stream
 import io.circe.{Json, JsonObject}
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.EncodeFields
+import org.broadinstitute.gdr.encode.client.EncodeClient
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
@@ -21,12 +22,13 @@ class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
     fileGraph.flatMap { graph =>
       IngestStep.readJsonArray(fileMetadata).map { file =>
         for {
-          accession <- file(FileIdField)
+          accession <- file(FileIdField).flatMap(_.asString)
           withExtraFields <- extendFields(file, graph)
         } yield {
           withExtraFields
-            .add(FileAccessionField, accession)
             .filterKeys(RetainedFields.contains)
+            .add(FileAccessionField, accession.asJson)
+            .add(EncodeUriField, (EncodeClient.EncodeUri / accession).toString.asJson)
         }
       }
     }.unNone.to(IngestStep.writeJsonArray(out))
@@ -189,7 +191,6 @@ object ShapeFileMetadata {
 
   val RetainedFields = Set(
     EncodeFields.EncodeIdField,
-    FileAccessionField,
     ReplicateLinkField,
     "assembly",
     "file_format",
