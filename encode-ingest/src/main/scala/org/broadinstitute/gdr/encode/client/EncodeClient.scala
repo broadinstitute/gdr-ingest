@@ -106,7 +106,7 @@ object EncodeClient {
     */
   val Parallelism: Int = Runtime.getRuntime.availableProcessors()
 
-  private val EncodeUri = Uri.unsafeFromString("https://www.encodeproject.org")
+  val EncodeUri: Uri = Uri.unsafeFromString("https://www.encodeproject.org")
 
   def stream[F[_]: Effect](
     implicit ec: ExecutionContext,

@@ -23,73 +23,91 @@ class PrepareIngest(override protected val out: File)(
         )
       )
     } else {
-      val auditsOut = out / "audits.json"
-      val biosamplesOut = out / "biosamples.json"
-      val donorsOut = out / "donors.json"
-      val experimentsOut = out / "experiments.json"
-      val filesOut = out / "files.json"
-      val labsOut = out / "labs.json"
-      val librariesOut = out / "libraries.json"
-      val replicatesOut = out / "replicates.json"
-      val targetsOut = out / "targets.json"
+      val rawAudits = out / "audits.json"
+      val rawSamples = out / "biosamples.json"
+      val rawDonors = out / "donors.json"
+      val rawExperiments = out / "experiments.json"
+      val rawFiles = out / "files.json"
+      val rawLabs = out / "labs.json"
+      val rawLibraries = out / "libraries.json"
+      val rawReplicates = out / "replicates.json"
+      val rawTargets = out / "targets.json"
 
-      val extendedFilesOut = out / "files.extended.json"
-      val mergedFilesJson = out / "files.merged.json"
-      val mergedDonorsJson = out / "donors.merged.json"
+      val shapedFiles = out / "files.shaped.json"
+      val shapedFilesWithAudits = out / "files.shaped.with-audits.json"
+
+      val extendedReplicates = out / "replicates.extended.json"
+
+      val fullJoinedMetadata = out / "files.joined.json"
+
       val cleanedFiles = out / "files.cleaned.json"
-      val mergedWithAudits = out / "files.merged.with-audits.json"
+      val cleanedDonorsJson = out / "donors.cleaned.json"
+
       val filesWithUris = out / "files.with-uris.json"
       val transferManifest = out / "sts-manifest.tsv"
 
       // FIXME: Implicit dependencies between steps would be better made explict.
 
       // Download metadata:
-      val getExperiments = new GetExperiments(experimentsOut)
-      val getAudits = new GetAudits(experimentsOut, auditsOut)
-      val getReplicates = new GetReplicates(experimentsOut, replicatesOut)
-      val getFiles = new GetFiles(experimentsOut, filesOut)
-      val getTargets = new GetTargets(experimentsOut, targetsOut)
-      val getLibraries = new GetLibraries(replicatesOut, librariesOut)
-      val getLabs = new GetLabs(librariesOut, labsOut)
-      val getSamples = new GetBiosamples(librariesOut, biosamplesOut)
-      val getDonors = new GetDonors(biosamplesOut, donorsOut)
+      val getExperiments = new GetExperiments(rawExperiments)
+      val getReplicates = new GetReplicates(rawExperiments, rawReplicates)
+      val getFiles = new GetFiles(rawExperiments, rawFiles)
+      val getAudits = new GetAudits(rawFiles, rawAudits)
+      val getTargets = new GetTargets(rawExperiments, rawTargets)
+      val getLibraries = new GetLibraries(rawReplicates, rawLibraries)
+      val getLabs = new GetLabs(rawLibraries, rawLabs)
+      val getSamples = new GetBiosamples(rawLibraries, rawSamples)
+      val getDonors = new GetDonors(rawSamples, rawDonors)
 
       // Transform & combine metadata:
-      val extendBamMetadata = new ExtendBamMetadata(filesOut, extendedFilesOut)
-      val mergeFileMetadata = new MergeFilesMetadata(
-        files = extendedFilesOut,
-        replicates = replicatesOut,
-        experiments = experimentsOut,
-        targets = targetsOut,
-        libraries = librariesOut,
-        labs = labsOut,
-        samples = biosamplesOut,
-        donors = donorsOut,
-        out = mergedFilesJson
+      val extendReplicateMetadata = new ExtendReplicateMetadata(
+        replicateMetadata = rawReplicates,
+        experimentMetadata = rawExperiments,
+        targetMetadata = rawTargets,
+        libraryMetadata = rawLibraries,
+        labMetadata = rawLabs,
+        sampleMetadata = rawSamples,
+        donorMetadata = rawDonors,
+        out = extendedReplicates
       )
-      val mergeDonorMetadata = new MergeDonorsMetadata(
-        donors = donorsOut,
-        mergedFiles = mergedFilesJson,
-        out = mergedDonorsJson
+      val shapeFileMetadata = new ShapeFileMetadata(rawFiles, shapedFiles)
+      val addFileAudits =
+        new JoinAuditsToFiles(rawAudits, shapedFiles, shapedFilesWithAudits)
+
+      val joinReplicatesToFiles = new JoinReplicatesToFiles(
+        extendedFileMetadata = shapedFilesWithAudits,
+        extendedReplicateMetadata = extendedReplicates,
+        out = fullJoinedMetadata
       )
-      val cleanFileMetadata = new CleanupFilesMetadata(mergedFilesJson, cleanedFiles)
-      val addAudits = new AddAuditMetadata(cleanedFiles, auditsOut, mergedWithAudits)
-      val deriveUris = new DeriveActualUris(mergedWithAudits, filesWithUris)
+      val cleanDonorMetadata = new CleanDonorsMetadata(
+        donorMetadata = rawDonors,
+        joinedFileMetadata = fullJoinedMetadata,
+        out = cleanedDonorsJson
+      )
+      val cleanFileMetadata = new CleanupFilesMetadata(fullJoinedMetadata, cleanedFiles)
+
+      val deriveUris = new DeriveActualUris(cleanedFiles, filesWithUris)
       val buildTransferManifest = new BuildStsManifest(filesWithUris, transferManifest)
 
       import IngestStep.parallelize
 
       val run: F[Unit] = for {
+        // Download the universe of raw metadata:
         _ <- getExperiments.build
-        _ <- parallelize(getAudits, getReplicates, getFiles, getTargets)
-        _ <- getLibraries.build
+        _ <- parallelize(getReplicates, getFiles, getTargets)
+        _ <- parallelize(getAudits, getLibraries)
         _ <- parallelize(getLabs, getSamples)
-        _ <- parallelize(getDonors, extendBamMetadata)
-        _ <- mergeFileMetadata.build
-        _ <- parallelize(cleanFileMetadata, mergeDonorMetadata)
-        _ <- addAudits.build
+        _ <- getDonors.build
+        // Merge downloaded metadata into the expected schema:
+        _ <- parallelize(shapeFileMetadata, extendReplicateMetadata)
+        _ <- addFileAudits.build
+        _ <- joinReplicatesToFiles.build
+        _ <- parallelize(cleanFileMetadata, cleanDonorMetadata)
+        // Find actual URIs for raw files:
         _ <- deriveUris.build
+        // Generate inputs to downstream ingest processes:
         _ <- buildTransferManifest.build
+        // TODO: Also generate Cromwell input JSONs
       } yield {
         ()
       }

@@ -5,7 +5,6 @@ import cats.effect.{Effect, Sync}
 import cats.implicits._
 import fs2.Stream
 import io.circe.JsonObject
-import io.circe.syntax._
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
@@ -17,25 +16,9 @@ class CleanupFilesMetadata(mergedFiles: File, override protected val out: File)
   override protected def process[F[_]: Effect]: Stream[F, Unit] =
     IngestStep
       .readJsonArray(mergedFiles)
-      .map(stripControls)
       .evalMap(flattenSingletons[F])
       .map(renameFields)
-      .map(_.filterKeys(FinalFileFields.contains))
       .to(IngestStep.writeJsonArray(out))
-
-  private def stripControls(mergedFile: JsonObject): JsonObject = {
-    val strippedTargets = for {
-      labelJson <- mergedFile(SuffixedLabel)
-      labels <- labelJson.as[Seq[String]].toOption
-    } yield {
-      if (labels.length <= 1) {
-        labels
-      } else {
-        labels.filterNot(_.matches(".*[Cc]ontrol.*"))
-      }
-    }
-    strippedTargets.fold(mergedFile)(ts => mergedFile.add(SuffixedLabel, ts.asJson))
-  }
 
   private def flattenSingletons[F[_]: Sync](mergedFile: JsonObject): F[JsonObject] =
     FieldsToFlatten.foldLeft(Sync[F].pure(mergedFile)) { (wrappedAcc, field) =>

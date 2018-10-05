@@ -6,6 +6,7 @@ import cats.implicits._
 import fs2.{Sink, Stream}
 import io.circe.syntax._
 import io.circe.JsonObject
+import org.broadinstitute.gdr.encode.EncodeFields
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -54,6 +55,19 @@ object IngestStep {
       .through(io.circe.fs2.byteArrayParser)
       .map(_.as[JsonObject])
       .rethrow
+
+  /** Slurp a JSON array of metadata into an in-memory map from ID -> fields. */
+  def readLookupTable[F[_]: Sync](metadata: File): F[Map[String, JsonObject]] =
+    IngestStep
+      .readJsonArray(metadata)
+      .map { js =>
+        js(EncodeFields.EncodeIdField)
+          .flatMap(_.asString)
+          .map(_ -> js.remove(EncodeFields.EncodeIdField))
+      }
+      .unNone
+      .compile
+      .fold(Map.empty[String, JsonObject])(_ + _)
 
   def writeJsonArray[F[_]: Sync](out: File): Sink[F, JsonObject] = jsons => {
     val byteStream =
