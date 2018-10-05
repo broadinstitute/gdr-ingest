@@ -18,7 +18,6 @@ class CleanupFilesMetadata(mergedFiles: File, override protected val out: File)
       .readJsonArray(mergedFiles)
       .evalMap(flattenSingletons[F])
       .map(renameFields)
-      .map(_.filterKeys(FinalFileFields.contains))
       .to(IngestStep.writeJsonArray(out))
 
   private def flattenSingletons[F[_]: Sync](mergedFile: JsonObject): F[JsonObject] =

@@ -2,7 +2,7 @@ package org.broadinstitute.gdr.encode.steps.download
 
 import better.files.File
 import cats.effect.{Effect, Sync}
-import fs2.{Pure, Scheduler, Stream}
+import fs2.{Scheduler, Stream}
 import io.circe.JsonObject
 import org.broadinstitute.gdr.encode.client.EncodeClient
 import org.broadinstitute.gdr.encode.steps.IngestStep
@@ -20,16 +20,11 @@ abstract class GetMetadataStep(override protected val out: File)(
     EncodeClient
       .stream[F]
       .flatMap(pullMetadata[F])
-      .flatMap(transformMetadata)
+      .map(transformMetadata)
       .to(IngestStep.writeJsonArray(out))
 
-  /**
-    * Transform a downloaded entity into a stream of (potentially) many different objects.
-    *
-    * Useful for extracting out a specific field from an entity type.
-    */
-  def transformMetadata(metadata: JsonObject): Stream[Pure, JsonObject] =
-    Stream.emit(metadata)
+  /** Transform a downloaded entity before it is written to disk. */
+  def transformMetadata(metadata: JsonObject): JsonObject = metadata
 
   /** String ID for the entity type this step will query. */
   def entityType: String

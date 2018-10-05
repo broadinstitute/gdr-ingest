@@ -4,17 +4,7 @@ package org.broadinstitute.gdr.encode
 object EncodeFields {
 
   val EncodeIdField = "@id"
-
-  ///////////////////////////////////////////////////
-
-  val DerivedFromExperimentField = "derived_from_exp"
-  val DerivedFromReferenceField = "derived_from_ref"
-  val PercentDupsField = "percent_duplicated"
-  val PercentAlignedField = "percent_aligned"
-  val ReadCountField = "read_count"
-  val ReadLengthField = "read_length"
-  val RunTypeField = "run_type"
-  val ReplicateRefsPrefix = "file"
+  val EncodeAuditField = "audit"
 
   ///////////////////////////////////////////////////
 
@@ -63,11 +53,6 @@ object EncodeFields {
 
   //////////////////////////////////////////////////////
 
-  val AuditColorField = "audit_color"
-  val AuditWarningsField = "warning_summary"
-
-  //////////////////////////////////////////////////////
-
   val AssayField = joinedName("assay_term_name", ExperimentPrefix)
 
   val CellTypeField =
@@ -77,11 +62,7 @@ object EncodeFields {
 
   val LabelField = joinedName("label", TargetPrefix)
 
-  val FileIdField = "accession"
-  val FileAccessionField = "file_accession"
   val DonorFkField = joinedName(DonorIdField, DonorPrefix)
-
-  val ReplicateLinkField = joinedName("id", ReplicatePrefix, withSuffix = true)
 
   val SampleTermField =
     joinedName("biosample_term_id", BiosamplePrefix)
@@ -96,39 +77,10 @@ object EncodeFields {
   )
 
   val FieldsToRename = Map(
-    FileIdField -> FileAccessionField,
     CellTypeField -> "cell_type",
     AssayField -> "assay_term_name",
     LabelField -> "target",
     SampleTermField -> "biosample_term_id",
     SampleTypeField -> "biosample_type"
   )
-
-  val FinalFileFields = Set(
-    // Direct from downloaded metadata:
-    "assembly",
-    "file_format",
-    "file_size",
-    "file_type",
-    "href",
-    "md5sum",
-    "output_type",
-    // Derived from processing steps:
-    AuditColorField,
-    AuditWarningsField,
-    DerivedFromExperimentField,
-    DerivedFromReferenceField,
-    PercentAlignedField,
-    PercentDupsField,
-    ReadCountField,
-    ReadLengthField,
-    RunTypeField,
-    // Joined into file records from other metadata:
-    DonorFkField,
-    ExperimentLinkField,
-    ReplicateLinkField,
-    joinedName("accession", BiosamplePrefix),
-    joinedName("accession", LibraryPrefix),
-    joinedName("name", LabPrefix)
-  ).union(FieldsToFlatten).union(FieldsToRename.values.toSet)
 }

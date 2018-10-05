@@ -9,7 +9,6 @@ import cats.implicits._
 import com.monovore.decline.{Argument, CommandApp, Opts}
 import fs2.Scheduler
 import org.broadinstitute.gdr.encode.steps.PrepareIngest
-import org.broadinstitute.gdr.encode.steps.firecloud.CreateTsvs
 import org.broadinstitute.gdr.encode.steps.google.BuildBqJsons
 
 import scala.concurrent.ExecutionContext
@@ -48,34 +47,6 @@ object Encode
             .map(new PrepareIngest(_))
         }
 
-        val genFirecloud = Opts.subcommand(
-          name = "generate-firecloud-tsvs",
-          help =
-            "Generate TSVs from prepared ENCODE metadata, for upload to a FireCloud workspace"
-        ) {
-          val filesOpt = Opts.option[File](
-            "files-json",
-            help = "Final files JSON produced by the 'prep-ingest' step"
-          )
-          val donorsOpt = Opts.option[File](
-            "donors-json",
-            help = "Final donors JSON produced by the 'prep-ingest' step"
-          )
-          val bucketOpt = Opts.option[String](
-            "transfer-bucket",
-            help = "Bucket containing raw ENCODE data from a run of Google's STS"
-          )
-          val outOpt = Opts.option[File](
-            "output-dir",
-            help = "Directory into which generated TSVs should be written"
-          )
-
-          (filesOpt, donorsOpt, bucketOpt, outOpt).mapN {
-            case (files, donors, bucket, out) =>
-              new CreateTsvs(files, donors, bucket, out)
-          }
-        }
-
         val genBq = Opts.subcommand(
           name = "generate-bigquery-json",
           help = "Generate JSON for upload to BigQuery from prepared ENCODE metadata"
@@ -103,7 +74,7 @@ object Encode
           }
         }
 
-        prepIngest.orElse(genFirecloud).orElse(genBq).map { cmd =>
+        prepIngest.orElse(genBq).map { cmd =>
           val res = cmd.build[IO].attempt.unsafeRunSync()
           val _ = (ioExecutor.shutdownNow(), schedulerExecutor.shutdownNow())
           res.valueOr(throw _)

@@ -5,7 +5,7 @@ import cats.effect.Effect
 import cats.implicits._
 import fs2.{Scheduler, Stream}
 import org.broadinstitute.gdr.encode.steps.download._
-//import org.broadinstitute.gdr.encode.steps.google.BuildStsManifest
+import org.broadinstitute.gdr.encode.steps.google.BuildStsManifest
 import org.broadinstitute.gdr.encode.steps.transform._
 
 import scala.concurrent.ExecutionContext
@@ -23,87 +23,90 @@ class PrepareIngest(override protected val out: File)(
         )
       )
     } else {
-      val auditsOut = out / "audits.json"
-      val biosamplesOut = out / "biosamples.json"
-      val donorsOut = out / "donors.json"
-      val experimentsOut = out / "experiments.json"
-      val filesOut = out / "files.json"
-      val labsOut = out / "labs.json"
-      val librariesOut = out / "libraries.json"
-      val replicatesOut = out / "replicates.json"
-      val targetsOut = out / "targets.json"
+      val rawAudits = out / "audits.json"
+      val rawSamples = out / "biosamples.json"
+      val rawDonors = out / "donors.json"
+      val rawExperiments = out / "experiments.json"
+      val rawFiles = out / "files.json"
+      val rawLabs = out / "labs.json"
+      val rawLibraries = out / "libraries.json"
+      val rawReplicates = out / "replicates.json"
+      val rawTargets = out / "targets.json"
 
-      val extendedReplicatesOut = out / "replicates.extended.json"
-      val extendedFilesOut = out / "files.extended.json"
+      val shapedFiles = out / "files.shaped.json"
+      val shapedFilesWithAudits = out / "files.shaped.with-audits.json"
 
-      val joinedFilesJson = out / "files.joined.json"
+      val extendedReplicates = out / "replicates.extended.json"
+
+      val fullJoinedMetadata = out / "files.joined.json"
 
       val cleanedFiles = out / "files.cleaned.json"
       val cleanedDonorsJson = out / "donors.cleaned.json"
 
-      val mergedWithAudits = out / "files.with-audits.json"
-      /*val filesWithUris = out / "files.with-uris.json"
-      val transferManifest = out / "sts-manifest.tsv"*/
+      val filesWithUris = out / "files.with-uris.json"
+      val transferManifest = out / "sts-manifest.tsv"
 
       // FIXME: Implicit dependencies between steps would be better made explict.
 
       // Download metadata:
-      val getExperiments = new GetExperiments(experimentsOut)
-      val getAudits = new GetAudits(experimentsOut, auditsOut)
-      val getReplicates = new GetReplicates(experimentsOut, replicatesOut)
-      val getFiles = new GetFiles(experimentsOut, filesOut)
-      val getTargets = new GetTargets(experimentsOut, targetsOut)
-      val getLibraries = new GetLibraries(replicatesOut, librariesOut)
-      val getLabs = new GetLabs(librariesOut, labsOut)
-      val getSamples = new GetBiosamples(librariesOut, biosamplesOut)
-      val getDonors = new GetDonors(biosamplesOut, donorsOut)
+      val getExperiments = new GetExperiments(rawExperiments)
+      val getReplicates = new GetReplicates(rawExperiments, rawReplicates)
+      val getFiles = new GetFiles(rawExperiments, rawFiles)
+      val getAudits = new GetAudits(rawFiles, rawAudits)
+      val getTargets = new GetTargets(rawExperiments, rawTargets)
+      val getLibraries = new GetLibraries(rawReplicates, rawLibraries)
+      val getLabs = new GetLabs(rawLibraries, rawLabs)
+      val getSamples = new GetBiosamples(rawLibraries, rawSamples)
+      val getDonors = new GetDonors(rawSamples, rawDonors)
 
       // Transform & combine metadata:
-      val extendBamMetadata = new ExtendBamMetadata(filesOut, extendedFilesOut)
       val extendReplicateMetadata = new ExtendReplicateMetadata(
-        replicateMetadata = replicatesOut,
-        experimentMetadata = experimentsOut,
-        targetMetadata = targetsOut,
-        libraryMetadata = librariesOut,
-        labMetadata = labsOut,
-        sampleMetadata = biosamplesOut,
-        donorMetadata = donorsOut,
-        out = extendedReplicatesOut
+        replicateMetadata = rawReplicates,
+        experimentMetadata = rawExperiments,
+        targetMetadata = rawTargets,
+        libraryMetadata = rawLibraries,
+        labMetadata = rawLabs,
+        sampleMetadata = rawSamples,
+        donorMetadata = rawDonors,
+        out = extendedReplicates
       )
+      val shapeFileMetadata = new ShapeFileMetadata(rawFiles, shapedFiles)
+      val addFileAudits =
+        new JoinAuditsToFiles(rawAudits, shapedFiles, shapedFilesWithAudits)
+
       val joinReplicatesToFiles = new JoinReplicatesToFiles(
-        extendedFileMetadata = extendedFilesOut,
-        extendedReplicateMetadata = extendedReplicatesOut,
-        out = joinedFilesJson
+        extendedFileMetadata = shapedFilesWithAudits,
+        extendedReplicateMetadata = extendedReplicates,
+        out = fullJoinedMetadata
       )
       val cleanDonorMetadata = new CleanDonorsMetadata(
-        donorMetadata = donorsOut,
-        joinedFileMetadata = joinedFilesJson,
+        donorMetadata = rawDonors,
+        joinedFileMetadata = fullJoinedMetadata,
         out = cleanedDonorsJson
       )
-      val cleanFileMetadata = new CleanupFilesMetadata(joinedFilesJson, cleanedFiles)
-      val addAudits = new AddAuditMetadata(cleanedFiles, auditsOut, mergedWithAudits)
+      val cleanFileMetadata = new CleanupFilesMetadata(fullJoinedMetadata, cleanedFiles)
 
-      /*val deriveUris = new DeriveActualUris(mergedWithAudits, filesWithUris)
-      val buildTransferManifest = new BuildStsManifest(filesWithUris, transferManifest)*/
+      val deriveUris = new DeriveActualUris(cleanedFiles, filesWithUris)
+      val buildTransferManifest = new BuildStsManifest(filesWithUris, transferManifest)
 
       import IngestStep.parallelize
 
       val run: F[Unit] = for {
         // Download the universe of raw metadata:
         _ <- getExperiments.build
-        _ <- parallelize(getAudits, getReplicates, getFiles, getTargets)
-        _ <- getLibraries.build
+        _ <- parallelize(getReplicates, getFiles, getTargets)
+        _ <- parallelize(getAudits, getLibraries)
         _ <- parallelize(getLabs, getSamples)
         _ <- getDonors.build
         // Merge downloaded metadata into the expected schema:
-        _ <- parallelize(extendBamMetadata, extendReplicateMetadata)
+        _ <- parallelize(shapeFileMetadata, extendReplicateMetadata)
+        _ <- addFileAudits.build
         _ <- joinReplicatesToFiles.build
         _ <- parallelize(cleanFileMetadata, cleanDonorMetadata)
-        _ <- addAudits.build
         // Find actual URIs for raw files:
-        /*_ <- deriveUris.build
+        _ <- deriveUris.build
         // Generate inputs to downstream ingest processes:
-        _ <- buildTransferManifest.build*/
+        _ <- buildTransferManifest.build
         // TODO: Also generate Cromwell input JSONs
       } yield {
         ()

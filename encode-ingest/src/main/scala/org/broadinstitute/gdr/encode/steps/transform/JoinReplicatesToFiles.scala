@@ -6,6 +6,7 @@ import cats.implicits._
 import fs2.Stream
 import io.circe.JsonObject
 import io.circe.syntax._
+import org.broadinstitute.gdr.encode.EncodeFields
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
@@ -15,7 +16,6 @@ class JoinReplicatesToFiles(
   extendedReplicateMetadata: File,
   override protected val out: File
 ) extends IngestStep {
-  import org.broadinstitute.gdr.encode.EncodeFields._
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
     Stream
@@ -25,31 +25,19 @@ class JoinReplicatesToFiles(
           .readJsonArray(extendedFileMetadata)
           .filter(shouldTransfer)
           .map { fileRecord =>
-            fileRecord(ReplicateLinkField)
-              .flatMap(_.as[List[String]].toOption)
-              .map(fileRecord.remove(ReplicateLinkField) -> _)
+            for {
+              replicateIds <- fileRecord(ShapeFileMetadata.ReplicateLinkField)
+                .flatMap(_.as[List[String]].toOption)
+              joinedJson <- joinReplicates(replicateTable)(
+                fileRecord.remove(ShapeFileMetadata.ReplicateLinkField),
+                replicateIds
+              )
+            } yield {
+              joinedJson
+            }
           }
-          .unNone
-          .map {
-            case (fileRecord, replicateIds) =>
-              val replicateInfo =
-                stripControls(replicateIds.flatMap(replicateTable.get)).foldMap {
-                  _.toIterable.map {
-                    case (k, v) => s"$k$JoinedSuffix" -> Set(v)
-                  }.toMap
-                }
-
-              if (replicateInfo.isEmpty) {
-                None
-              } else {
-                Some(
-                  JsonObject
-                    .fromMap(fileRecord.toMap ++ replicateInfo.mapValues(_.asJson))
-                )
-              }
-          }
-          .unNone
       }
+      .unNone
       .to(IngestStep.writeJsonArray(out))
 
   private def shouldTransfer(file: JsonObject): Boolean = {
@@ -65,12 +53,31 @@ class JoinReplicatesToFiles(
     keepFile.getOrElse(false)
   }
 
+  private def joinReplicates(
+    replicateTable: Map[String, JsonObject]
+  )(fileJson: JsonObject, replicateIds: List[String]): Option[JsonObject] = {
+    val replicateInfo =
+      stripControls(replicateIds.flatMap(replicateTable.get)).foldMap {
+        _.toIterable.map {
+          case (k, v) => s"$k${EncodeFields.JoinedSuffix}" -> Set(v)
+        }.toMap
+      }
+
+    if (replicateInfo.isEmpty) {
+      None
+    } else {
+      Some(
+        JsonObject.fromMap(fileJson.toMap ++ replicateInfo.mapValues(_.asJson))
+      )
+    }
+  }
+
   private def stripControls(replicateRecords: List[JsonObject]): List[JsonObject] = {
     if (replicateRecords.length <= 1) {
       replicateRecords
     } else {
       replicateRecords.flatMap { record =>
-        record(LabelField).flatMap(_.asString).map(_ -> record)
+        record(EncodeFields.LabelField).flatMap(_.asString).map(_ -> record)
       }.collect {
         case (label, record) if !label.matches(".*[Cc]ontrol.*") => record
       }
