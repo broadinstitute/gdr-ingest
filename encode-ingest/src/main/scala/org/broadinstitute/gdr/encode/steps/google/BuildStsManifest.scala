@@ -7,6 +7,7 @@ import fs2.Stream
 import io.circe.JsonObject
 import org.apache.commons.codec.binary.{Base64, Hex}
 import org.broadinstitute.gdr.encode.steps.IngestStep
+import org.broadinstitute.gdr.encode.steps.transform.JoinReplicatesToFiles
 
 import scala.language.higherKinds
 
@@ -18,6 +19,11 @@ class BuildStsManifest(fileMetadata: File, override protected val out: File)
 
     val manifestRows = IngestStep
       .readJsonArray(fileMetadata)
+      .filter { file =>
+        file(JoinReplicatesToFiles.FileAvailableField)
+          .flatMap(_.asBoolean)
+          .getOrElse(false)
+      }
       .evalMap(buildFileRow[F])
 
     Stream

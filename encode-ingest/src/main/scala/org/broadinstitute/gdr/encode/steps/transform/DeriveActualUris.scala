@@ -30,16 +30,26 @@ class DeriveActualUris(in: File, override protected val out: File)(
 
   private def deriveUri[F[_]: Effect](
     client: EncodeClient[F]
-  )(file: JsonObject): F[JsonObject] =
-    Effect[F]
-      .fromOption(
-        file("href").flatMap(_.asString),
-        new IllegalStateException(s"File metadata $file has no href field")
-      )
-      .flatMap(client.deriveDownloadUri)
-      .map { uri =>
-        file
-          .add(EncodeFields.DownloadUriField, uri.toString().asJson)
-          .remove("href")
-      }
+  )(file: JsonObject): F[JsonObject] = {
+    val shouldDerive = file(JoinReplicatesToFiles.FileAvailableField)
+      .flatMap(_.asBoolean)
+      .getOrElse(false)
+
+    val withDerived = if (!shouldDerive) {
+      Effect[F].pure(file)
+    } else {
+      Effect[F]
+        .fromOption(
+          file("href").flatMap(_.asString),
+          new IllegalStateException(s"File metadata $file has no href field")
+        )
+        .flatMap(client.deriveDownloadUri)
+        .map { uri =>
+          file
+            .add(EncodeFields.DownloadUriField, uri.toString().asJson)
+        }
+    }
+
+    withDerived.map(_.remove("href"))
+  }
 }

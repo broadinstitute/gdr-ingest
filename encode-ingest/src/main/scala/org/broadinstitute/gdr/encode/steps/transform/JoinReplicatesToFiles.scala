@@ -23,7 +23,6 @@ class JoinReplicatesToFiles(
       .flatMap { replicateTable =>
         IngestStep
           .readJsonArray(extendedFileMetadata)
-          .filter(shouldTransfer)
           .map { fileRecord =>
             for {
               replicateIds <- fileRecord(ShapeFileMetadata.ReplicateLinkField)
@@ -33,7 +32,10 @@ class JoinReplicatesToFiles(
                 replicateIds
               )
             } yield {
-              joinedJson
+              joinedJson.add(
+                JoinReplicatesToFiles.FileAvailableField,
+                shouldTransfer(joinedJson).asJson
+              )
             }
           }
       }
@@ -92,4 +94,6 @@ object JoinReplicatesToFiles {
     "bigBed" -> "peaks",
     "bigWig" -> "fold change over control"
   )
+
+  val FileAvailableField = "gcs_file_available"
 }
