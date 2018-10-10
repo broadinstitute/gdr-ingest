@@ -22,9 +22,15 @@ class BuildStsManifest(fileMetadata: File, override protected val out: File)
     val manifestRows = IngestStep
       .readJsonArray(fileMetadata)
       .filter { file =>
-        file(JoinReplicatesToFiles.FileAvailableField)
-          .flatMap(_.asBoolean)
-          .getOrElse(false)
+        val shouldTransfer = for {
+          isAvailable <- file(JoinReplicatesToFiles.FileAvailableField)
+            .flatMap(_.asBoolean)
+          format <- file("file_format").flatMap(_.asString)
+        } yield {
+          isAvailable && format != "bam"
+        }
+
+        shouldTransfer.getOrElse(false)
       }
       .evalMap(buildFileRow[F])
 
