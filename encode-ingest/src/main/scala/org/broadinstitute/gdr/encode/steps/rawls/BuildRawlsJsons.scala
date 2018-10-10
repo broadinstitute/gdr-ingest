@@ -9,6 +9,7 @@ import org.broadinstitute.gdr.encode.steps.IngestStep
 import org.broadinstitute.gdr.encode.steps.google.Gcs
 import org.broadinstitute.gdr.encode.steps.transform.{
   JoinReplicateMetadata,
+  JoinReplicatesToFiles,
   ShapeFileMetadata
 }
 
@@ -85,25 +86,52 @@ class BuildRawlsJsons(
       )
     }
 
-  private def rawlsOperations(key: String, value: Json): Iterable[Json] =
+  private def rawlsOperations(key: String, value: Json): Iterable[Json] = {
+    import BuildRawlsJsons._
+
+    val jsonKey = key.asJson
     if (value.isArray) {
+      val donorReference = key == JoinReplicatesToFiles.DonorFkField
+      val (createListKey, createListOp) = if (donorReference) {
+        ("attributeListName", CreateReferenceListOp)
+      } else {
+        ("attributeName", CreateValueListOp)
+      }
+
       value.asArray.toIterable.flatMap { values =>
-        Json.obj("op" -> "RemoveAttribute".asJson, "attributeName" -> key.asJson) +:
-          values.map { v =>
-            Json.obj(
-              "op" -> "AddListMember".asJson,
-              "attributeListName" -> key.asJson,
-              "newMember" -> v
-            )
+        Vector(
+          Json.obj("op" -> RemoveFieldOp, "attributeName" -> jsonKey),
+          Json.obj("op" -> createListOp.asJson, createListKey -> jsonKey)
+        ) ++ values.map { v =>
+          val vJson = if (donorReference) {
+            Json.obj("entityType" -> "participant".asJson, "entityName" -> v.asJson)
+          } else {
+            v.asJson
           }
+
+          Json.obj(
+            "op" -> AddListMemberOp,
+            "attributeListName" -> jsonKey,
+            "newMember" -> vJson
+          )
+        }
       }
     } else {
       Iterable {
         Json.obj(
-          "op" -> "AddUpdateAttribute".asJson,
-          "attributeName" -> key.asJson,
+          "op" -> UpsertScalarOp,
+          "attributeName" -> jsonKey,
           "addUpdateAttribute" -> value
         )
       }
     }
+  }
+}
+
+object BuildRawlsJsons {
+  val AddListMemberOp = "AddListMember".asJson
+  val UpsertScalarOp = "AddUpdateAttribute".asJson
+  val CreateReferenceListOp = "CreateAttributeEntityReferenceList".asJson
+  val CreateValueListOp = "CreateAttributeValueList".asJson
+  val RemoveFieldOp = "RemoveAttribute".asJson
 }
