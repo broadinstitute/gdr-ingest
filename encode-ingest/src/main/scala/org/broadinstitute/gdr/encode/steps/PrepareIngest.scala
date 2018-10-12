@@ -4,6 +4,7 @@ import better.files.File
 import cats.effect.Effect
 import cats.implicits._
 import fs2.{Scheduler, Stream}
+import org.broadinstitute.gdr.encode.steps.cromwell.BuildCromwellInputs
 import org.broadinstitute.gdr.encode.steps.download._
 import org.broadinstitute.gdr.encode.steps.google.BuildStsManifest
 import org.broadinstitute.gdr.encode.steps.transform._
@@ -84,7 +85,9 @@ class PrepareIngest(override protected val out: File)(
       )
 
       val deriveUris = new DeriveActualUris(fullJoinedFilesMetadata, filesWithUris)
+
       val buildTransferManifest = new BuildStsManifest(filesWithUris, transferManifest)
+      val buildCromwellInputs = new BuildCromwellInputs(filesWithUris, out)
 
       import IngestStep.parallelize
 
@@ -103,8 +106,7 @@ class PrepareIngest(override protected val out: File)(
         // Find actual URIs for raw files:
         _ <- deriveUris.build
         // Generate inputs to downstream ingest processes:
-        _ <- buildTransferManifest.build
-        // TODO: Also generate Cromwell input JSONs
+        _ <- parallelize(buildTransferManifest, buildCromwellInputs)
       } yield {
         ()
       }
