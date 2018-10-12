@@ -2,5 +2,5 @@
   "read_from_cache": true,
   "write_to_cache": true,
   "google_project": "broad-gdr-encode",
-  "jes_gcs_root": "gs://broad-gdr-encode-storage/broad-gdr-encode-caas-execution"
+  "jes_gcs_root": "gs://broad-gdr-encode-caas-execution"
 }
