@@ -23,6 +23,7 @@ read_inputs_file="{}"
 
 gcp_bucket = 'broad-gdr-encode-test'
 gcp_project = 'broad-gdr-encode-storage'
+gcp_project_2 = 'broad-gdr-dig'
 gcp_ingest = 'broad-gdr-encode-ingest-staging'
 
 
@@ -70,29 +71,19 @@ taskEncodeUpload = BashOperator(
 # Order task download before re-upload
 taskEncodeDownload.set_downstream(taskEncodeUpload)
 
-# Once the files are in gcp -- start a one - off transfer job to run immediately and copy the files from the urllist to GCS
+# Once the files are in gcp -- start a one-off transfer job to run immediately and copy the files from the urllist to GCS & poll until done
 
-def transfer_to_gcp(ds, **kwargs):
-    job = encode_transfer_gcp.Transfer(gcp_project).from_urllist(urllist, gcp_bucket, description="ENCODE refresh on {}".format(directory_date))
-    job_name = job["name"]
-    return job_name
-
-taskDataTransfer = PythonOperator(
-    task_id = 'data_transfer',
-    params={'directory_date': directory_date},
-    dag = dag,
-    python_callable = transfer_to_gcp)
-
-# create sensor to check on status of transfer job
 class TransferSensor(BaseSensorOperator):
+    job = encode_transfer_gcp.Transfer(gcp_project).from_urllist(urllist, gcp_bucket, description="ENCODE refresh for {}".format(directory_date))
+    job_name = job["name"] # what happens when this ^ fails? 
+
     def poke(self, context):
-        job_name = context['ti'].xcom_pull('data_transfer')
-        status = encode_transfer_gcp.Transfer(gcp_project).get_transfer_status(job_name)
+        status = encode_transfer_gcp.Transfer(gcp_project).get_transfer_status(self.job_name)
         pprint(status)
         if status == 'SUCCESS':
             return True
-        if status == 'FAILED' or 'ABORTED':
-            raise ValueError('GCS Transfer job has failed or was canceled') #---should it try the transfer again?
+        if status == 'FAILED' or status == 'ABORTED':
+            raise ValueError('GCS Transfer job has failed or was canceled')
         return False
 
 sensorTransferStatus = TransferSensor(
@@ -100,11 +91,6 @@ sensorTransferStatus = TransferSensor(
   params={},
   mode = 'reschedule',  # If reschedule, use first start date of current try
   dag = dag)
-  # add failure option --failed or aborted?
-
-# Order task transfer before polling
-taskDataTransfer.set_downstream(sensorTransferStatus)
-
 
 # Now kick off a cromwell job and poller to id when it's done
 
