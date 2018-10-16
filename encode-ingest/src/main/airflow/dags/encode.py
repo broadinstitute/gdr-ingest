@@ -20,15 +20,16 @@ wdl_file = '/Users/aurora/cromwell/myWorkflow.wdl' # change me
 caas_key='/Users/aurora/.secrets.json' # change me
 cromwell_url="http://localhost:8080/api/workflows/v1"
 read_inputs_file="{}"
-urllist = 'https://storage.googleapis.com/broad-gdr-encode-ingest-staging/10-15-2018/sts-manifest.tsv'
 
 gcp_bucket = 'broad-gdr-encode-test'
 gcp_project = 'broad-gdr-encode-storage'
+gcp_ingest = 'broad-gdr-encode-ingest-staging'
 
 
 storagetransfer = googleapiclient.discovery.build('storagetransfer', 'v1')
 read_wdl_file = open(wdl_file, 'rb')
 directory_date = date.today() # will look like: yyyy-mm-dd
+urllist = 'https://storage.googleapis.com/{}/{}/sts-manifest.tsv'.format(gcp_ingest, directory_date)
 
 default_args = {
   'owner': 'airflow', # the owner of the task, using the unix username is recommended
@@ -57,12 +58,12 @@ taskEncodeTesting = BashOperator( # for testing only
   bash_command = "sed -i '' '10,$ d' {{ params.local_path }}/encode_files/sts-manifest.tsv"
   )
 
-# Push now local files from sts_files directory into the broad-gdr-encode-ingest-staging bucket as a new directory w name based on date
+# Push now local files from sts_files directory into the gcp_ingest bucket as a new directory w name based on date
 taskEncodeUpload = BashOperator(
     task_id = 'encode_upload',
     dag = dag,
-    params={'local_path': local_path, 'directory_date': directory_date},
-    bash_command = "gsutil -m cp {{ params.local_path }}/encode_files/*  gs://broad-gdr-encode-ingest-staging/{{ params.directory_date }}"
+    params={'local_path': local_path, 'gcp_ingest': gcp_ingest, 'directory_date': directory_date},
+    bash_command = "gsutil -m cp {{ params.local_path }}/encode_files/*  gs://{{ params.gcp_ingest }}/{{ params.directory_date }}"
     # TODO should this overwrite whatever is already in the remote directory?
    )
 
