@@ -60,8 +60,7 @@ taskEncodeUpload = BashOperator(
    )
 
 # Order task download before re-upload
-taskEncodeDownload >> taskEncodeUpload
-
+taskEncodeDownload.set_downstream(taskEncodeUpload)
 
 # Once the files are in gcp -- start a one - off transfer job to run immediately and copy the files from the urllist to GCS
 
@@ -96,7 +95,7 @@ sensorTransferStatus = TransferSensor(
   # add failure option --failed or aborted?
 
 # Order task transfer before polling
-taskDataTransfer >> sensorTransferStatus
+taskDataTransfer.set_downstream(sensorTransferStatus)
 
 
 # Now kick off a cromwell job and poller to id when it's done
@@ -128,4 +127,4 @@ sensorCromwellStatus = HttpSensor(
   # add failure option --failed or aborted?
 
 # Order task transfer before polling
-taskCromwellJob >> sensorCromwellStatus
+taskCromwellJob.set_downstream(sensorCromwellStatus)
