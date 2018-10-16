@@ -23,8 +23,10 @@ read_inputs_file="{}"
 
 gcp_bucket = 'broad-gdr-encode-test'
 gcp_project = 'broad-gdr-encode-storage'
-gcp_project_2 = 'broad-gdr-dig'
 gcp_ingest = 'broad-gdr-encode-ingest-staging'
+s3_bucket = 'dig-analysis-data'
+s3_paths = []
+gcp_project_gdr = 'broad-gdr-dig'
 
 
 storagetransfer = googleapiclient.discovery.build('storagetransfer', 'v1')
@@ -43,6 +45,38 @@ dag = DAG(
   start_date=datetime.now(),
   schedule_interval='@once'
 )
+
+
+
+# Submits a request to the Storage Transfer Service to copy the contents of s3://dig-analysis-data into gs://broad-gdr-dig-storage
+# Uses a sensor to wait for the transfer job to finish
+
+class TransferS3toGCPSensor(BaseSensorOperator):
+    job = encode_transfer_gcp.Transfer(gcp_project).from_s3(s3_bucket, s3_paths, gcp_bucket, description="GDR refresh on {}".format(directory_date)) #overwrite_existing=False
+    job_name = job["name"] # what happens when this ^ fails?
+    pprint(job_name)
+    pprint(s3_bucket)
+    pprint(s3_paths)
+    pprint(gcp_bucket)
+
+    def poke(self, context):
+        status = encode_transfer_gcp.Transfer(gcp_project).get_transfer_status(self.job_name)
+        pprint(status)
+        if status == 'SUCCESS':
+            return True
+        if status == 'FAILED' or status == 'ABORTED':
+            raise ValueError('GCS Transfer job has failed or was canceled')
+        return False
+
+sensorTransferS3 = TransferS3toGCPSensor(
+  task_id = 'transfer_S3',
+  params={},
+  mode = 'reschedule',  # If reschedule, use first start date of current try
+  dag = dag)
+
+
+
+
 
 # Pull down files from ENCODE and store them locally in a directory TODO-- this will transfer directly to gcp
 taskEncodeDownload = BashOperator(
@@ -73,9 +107,9 @@ taskEncodeDownload.set_downstream(taskEncodeUpload)
 
 # Once the files are in gcp -- start a one-off transfer job to run immediately and copy the files from the urllist to GCS & poll until done
 
-class TransferSensor(BaseSensorOperator):
-    job = encode_transfer_gcp.Transfer(gcp_project).from_urllist(urllist, gcp_bucket, description="ENCODE refresh for {}".format(directory_date))
-    job_name = job["name"] # what happens when this ^ fails? 
+class TransferURLtoGCPSensor(BaseSensorOperator):
+    job = encode_transfer_gcp.Transfer(gcp_project).from_urllist(urllist, gcp_bucket, description="ENCODE refresh {}".format(directory_date))
+    job_name = job["name"] # what happens when this ^ fails?
 
     def poke(self, context):
         status = encode_transfer_gcp.Transfer(gcp_project).get_transfer_status(self.job_name)
@@ -86,8 +120,8 @@ class TransferSensor(BaseSensorOperator):
             raise ValueError('GCS Transfer job has failed or was canceled')
         return False
 
-sensorTransferStatus = TransferSensor(
-  task_id = 'transfer_status',
+sensorTransferURL = TransferURLtoGCPSensor(
+  task_id = 'transfer_URL',
   params={},
   mode = 'reschedule',  # If reschedule, use first start date of current try
   dag = dag)
