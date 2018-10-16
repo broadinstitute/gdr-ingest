@@ -50,6 +50,13 @@ taskEncodeDownload = BashOperator(
   bash_command = 'java -jar {{ params.encode_jar }} prep-ingest --output-dir {{ params.local_path }}/encode_files/'
   )
 
+taskEncodeTesting = BashOperator( # for testing only
+  task_id = 'encode_shorten',
+  dag = dag,
+  params={'encode_jar': encode_jar, 'local_path': local_path},
+  bash_command = "sed -i '' '10,$ d' {{ params.local_path }}/encode_files/sts-manifest.tsv"
+  )
+
 # Push now local files from sts_files directory into the broad-gdr-encode-ingest-staging bucket as a new directory w name based on date
 taskEncodeUpload = BashOperator(
     task_id = 'encode_upload',
