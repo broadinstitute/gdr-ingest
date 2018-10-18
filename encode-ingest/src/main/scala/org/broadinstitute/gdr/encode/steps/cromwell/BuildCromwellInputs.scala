@@ -38,7 +38,7 @@ class BuildCromwellInputs(fileMetadata: File, override protected val out: File)
 
           isBam.getOrElse(false)
         }
-        .segmentN(200)
+        .segmentN(100)
         .map { bamBatch =>
           val (_, inputBatch) = bamBatch
             .fold(Vector.empty[JsonObject]) { (acc, bam) =>
@@ -66,13 +66,13 @@ class BuildCromwellInputs(fileMetadata: File, override protected val out: File)
     for {
       accession <- bamJson(ShapeFileMetadata.FileAccessionField)
       href <- bamJson(DeriveActualUris.DownloadUriField)
-      size <- bamJson("file_size")
+      size <- bamJson("file_size").flatMap(_.as[Long].toOption)
       md5 <- bamJson("md5sum")
     } yield {
       JsonObject(
         "bam_accession" -> accession,
         "bam_href" -> href,
-        "bam_size" -> size,
+        "bam_size_gb" -> (size / BuildCromwellInputs.BytesPerGb).asJson,
         "bam_md5" -> md5
       )
     }
@@ -80,4 +80,5 @@ class BuildCromwellInputs(fileMetadata: File, override protected val out: File)
 
 object BuildCromwellInputs {
   val WorkflowName = "PreprocessEncodeBams"
+  val BytesPerGb = math.pow(2, 30)
 }

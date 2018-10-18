@@ -1,9 +1,14 @@
 FROM java:openjdk-8-alpine
 
-RUN apk --update add wget ca-certificates && update-ca-certificates
+RUN apk --update add \
+    bash \
+    ca-certificates \
+    libc6-compat \
+    wget && \
+  update-ca-certificates
 
 WORKDIR /app
 
-ENV PICARD_VERSION "2.18.14"
+ARG PICARD_VERSION
 
 RUN wget -O picard.jar https://github.com/broadinstitute/picard/releases/download/${PICARD_VERSION}/picard.jar

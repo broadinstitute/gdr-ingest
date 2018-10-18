@@ -4,7 +4,7 @@ struct EncodeBam {
   String bam_accession
   String bam_href
   String? bai_href
-  Int bam_size
+  Float bam_size_gb
   String bam_md5
 }
 
@@ -24,7 +24,7 @@ workflow PreprocessEncodeBams {
       bam_accession: bam_info.bam_accession,
       bam_href: SortAndIndexBam.sorted_bam,
       bai_href: SortAndIndexBam.sorted_bam_index,
-      bam_size: size(SortAndIndexBam.sorted_bam),
+      bam_size_gb: size(SortAndIndexBam.sorted_bam, "GB"),
       bam_md5: SortAndIndexBam.sorted_bam_md5
     }
   }
@@ -44,12 +44,11 @@ task SortAndIndexBam {
   String sorted_base = bam_base + ".sorted"
   String sorted_bam_name = sorted_base + ".bam"
 
-  Float bam_size_gb = bam_info.bam_size / 1073741824.0
   # Copied from the production germline single-sample pipeline...
   # We only store 300000 records in RAM because it's faster for our data, so SortSam ends up spilling a lot to disk.
   # The spillage is also in an uncompressed format, so we need to account for that with a larger multiplier.
   Float disk_multiplier = 3.25
-  Int disk_size = (ceil(disk_multiplier * bam_size_gb) + 20)
+  Int disk_size = (ceil(disk_multiplier * bam_info.bam_size_gb) + 20)
 
   Int vm_mem_mb = 5120
 
@@ -67,7 +66,7 @@ task SortAndIndexBam {
       --waitretry=60 \
       ~{bam_info.bam_href}
 
-    java -Dsamjdk.compression_level=2 -Xmx~{vm_mem_mb - 1024} \
+    java -Dsamjdk.compression_level=5 -Xmx~{vm_mem_mb - 1024}m \
       -jar /app/picard.jar \
       SortSam \
       INPUT=~{raw_bam_name} \
@@ -75,11 +74,12 @@ task SortAndIndexBam {
       SORT_ORDER=coordinate \
       CREATE_INDEX=true \
       CREATE_MD5_FILE=true \
-      MAX_RECORDS_IN_RAM=300000
+      MAX_RECORDS_IN_RAM=300000 \
+      VALIDATION_STRINGENCY=LENIENT
   >>>
 
   runtime {
-    docker: "us.gcr.io/broad-gdr-encode/picard-alpine:1-SNAPSHOT"
+    docker: "us.gcr.io/broad-gdr-encode/picard-alpine:2.18.14"
     disks: "local-disk " + disk_size + " HDD"
     cpu: 1
     memory: vm_mem_mb + " MB"
