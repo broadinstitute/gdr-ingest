@@ -12,7 +12,7 @@ from pprint import pprint
 from cromwell_tools import cromwell_tools
 import googleapiclient.discovery
 from googleapiclient import discovery
-import encode_transfer_gcp
+from encode_utils import transfer_to_gcp
 
 encode_jar = "/Users/aurora/Desktop/repositories/gdr-ingest/encode-ingest/target/scala-2.12/encode-ingest-assembly-0.1.0-SNAPSHOT.jar" # change me
 local_path = "/Users/aurora/Desktop/repositories/gdr-ingest/encode-ingest/src/main/airflow"  # change me
@@ -84,7 +84,7 @@ class TransferSensor(BaseSensorOperator):
     def poke(self, context):
         operation = self.params['operation']
         job_name = context['ti'].xcom_pull(operation)
-        status = encode_transfer_gcp.Transfer(gcp_project).get_transfer_status(job_name)
+        status = transfer_to_gcp.Transfer(gcp_project).get_transfer_status(job_name)
         if status == 'SUCCESS':
             return True
         if status == 'FAILED' or status == 'ABORTED':  #---should it try the transfer again?
@@ -92,7 +92,7 @@ class TransferSensor(BaseSensorOperator):
         return False
 
 def transfer_urllist_to_gcp(ds, **kwargs):
-    job = encode_transfer_gcp.Transfer(gcp_project).from_urllist(urllist, gcp_bucket, description="ENCODE refresh ON {}".format(directory_date))
+    job = transfer_to_gcp.Transfer(gcp_project).from_urllist(urllist, gcp_bucket, description="ENCODE refresh ON {}".format(directory_date))
     job_name = job["name"]
     return job_name
 
@@ -148,7 +148,7 @@ taskCromwellJob.set_downstream(sensorCromwellStatus)
 # Once the files are in gcp -- start a one-off transfer job to run immediately and copy the files from the urllist to GCS & poll until done
 
 def transfer_s3_to_gcp(ds, **kwargs):
-    job = encode_transfer_gcp.Transfer(gcp_project).from_s3(s3_bucket, s3_paths, gcp_bucket, description="GDR refresh on {}".format(directory_date)) #overwrite_existing=False
+    job = transfer_to_gcp.Transfer(gcp_project).from_s3(s3_bucket, s3_paths, gcp_bucket, description="GDR refresh on {}".format(directory_date)) #overwrite_existing=False
     job_name = job["name"]  # what happens when this ^ fails?
     return job_name
 
