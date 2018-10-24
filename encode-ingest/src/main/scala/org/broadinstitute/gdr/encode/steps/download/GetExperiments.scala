@@ -14,7 +14,7 @@ class GetExperiments(out: File)(implicit ec: ExecutionContext, s: Scheduler)
   override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =
     Stream
       .emits(GetExperiments.AssayTypesToPull)
-      .map(assay => List("assay_title" -> assay))
+      .map(assay => List("assay_title" -> assay, "status" -> "released"))
 }
 
 object GetExperiments {

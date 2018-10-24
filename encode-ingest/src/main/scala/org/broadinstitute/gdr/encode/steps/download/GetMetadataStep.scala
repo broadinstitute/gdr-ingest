@@ -29,9 +29,6 @@ abstract class GetMetadataStep(override protected val out: File)(
   /** String ID for the entity type this step will query. */
   def entityType: String
 
-  /** Whether or not queries should include a "status"="released" filter. */
-  def checkReleased: Boolean = true
-
   /**
     * Scope of metadata to retrieve from ENCODE.
     *
@@ -45,15 +42,8 @@ abstract class GetMetadataStep(override protected val out: File)(
 
   final private def pullMetadata[F[_]: Effect](
     client: EncodeClient[F]
-  ): Stream[F, JsonObject] = {
-    val commonParams = if (checkReleased) {
-      List("status" -> "released", "frame" -> searchFrame)
-    } else {
-      List("frame" -> searchFrame)
-    }
-
+  ): Stream[F, JsonObject] =
     searchParams.map { params =>
-      client.search(entityType, commonParams ::: params)
+      client.search(entityType, ("frame" -> searchFrame) :: params)
     }.join(EncodeClient.Parallelism)
-  }
 }

@@ -20,8 +20,15 @@ class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
 
   override def process[F[_]: Effect]: Stream[F, Unit] =
     fileGraph.flatMap { graph =>
-      IngestStep.readJsonArray(fileMetadata).map(addFields(graph))
-    }.unNone.map(_.filterKeys(RetainedFields.contains)).to(IngestStep.writeJsonArray(out))
+      IngestStep
+        .readJsonArray(fileMetadata)
+        .map(f => f("status").flatMap(_.asString).map(_ -> f))
+        .collect {
+          case Some(("released", f)) => addFields(graph)(f)
+        }
+    }.unNone
+      .map(_.filterKeys(RetainedFields.contains))
+      .to(IngestStep.writeJsonArray(out))
 
   private def fileGraph[F[_]: Sync]: Stream[F, FileGraph] =
     IngestStep
@@ -32,22 +39,22 @@ class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
           fileType <- file("file_format").flatMap(_.asString)
         } yield {
           val replicateRef = file("replicate").flatMap(_.asString)
-          val sourceFiles =
-            file("derived_from").flatMap(_.asArray.map(_.flatMap(_.asString)))
-
-          val fastqInfo = for {
-            readCount <- file("read_count").flatMap(_.asNumber.flatMap(_.toLong))
-            runType <- file("run_type").flatMap(_.asString)
-          } yield {
-            FastqInfo(readCount, runType == "paired-ended")
-          }
+          val sourceFiles = file("derived_from").flatMap(_.as[Set[String]].toOption)
 
           FileGraph(
             replicateRef.fold(Map.empty[String, String])(r => Map(id -> r)),
-            sourceFiles.fold(Map.empty[String, Set[String]])(s => Map(id -> s.toSet)),
-            fastqInfo
-              .filter(_ => fileType.equals("fastq"))
-              .fold(Map.empty[String, FastqInfo])(i => Map(id -> i)),
+            sourceFiles.fold(Map.empty[String, Set[String]])(s => Map(id -> s)),
+            if (fileType == "fastq") {
+              val readCount = file("read_count")
+                .flatMap(_.as[Long].toOption)
+                .getOrElse(0L)
+              val pairedRun = file("run_type")
+                .flatMap(_.asString)
+                .forall(_ == "paired-ended")
+              Map(id -> FastqInfo(readCount, pairedRun))
+            } else {
+              Map.empty
+            },
             Set(ShapeFileMetadata.extractFileId(id))
           )
         }
@@ -71,7 +78,7 @@ class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
         Set.empty
       )
       nonEmptyIds <- ensureReplicates(id, replicateIds)
-      fileType <- file("file_type").flatMap(_.asString)
+      fileFormat <- file("file_format").flatMap(_.asString)
       sourceFiles <- file("derived_from")
         .flatMap(_.as[Set[String]].toOption)
         .map(_.map(ShapeFileMetadata.extractFileId))
@@ -88,7 +95,7 @@ class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
         EncodeLinkField -> (EncodeClient.EncodeUri / accession).toString.asJson
       )
 
-      val typeSpecificFields = fileType match {
+      val typeSpecificFields = fileFormat match {
         case "bam"   => bamFields(file, fastqInfo)
         case "fastq" => Map(RunTypeField -> graph.fastqInfos(id).pairedReads.asJson)
         case _       => Map.empty
