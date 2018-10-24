@@ -11,4 +11,5 @@ class GetLabs(in: File, out: File)(implicit ec: ExecutionContext, s: Scheduler)
   final override val entityType = "Lab"
   final override val refField = "lab"
   final override val manyRefs = false
+  final override val checkReleased = false
 }

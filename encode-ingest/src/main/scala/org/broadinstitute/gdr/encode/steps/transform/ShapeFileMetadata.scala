@@ -204,8 +204,7 @@ object ShapeFileMetadata {
     ReadCountField,
     ReadLengthField,
     ReplicateFkField,
-    RunTypeField,
-    "status"
+    RunTypeField
   )
 
   private def extractFileId(fileRef: String): String =

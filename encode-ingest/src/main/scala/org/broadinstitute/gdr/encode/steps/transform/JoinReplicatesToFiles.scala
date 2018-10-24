@@ -43,11 +43,9 @@ class JoinReplicatesToFiles(
 
   private def shouldTransfer(file: JsonObject): Boolean = {
     val keepFile = for {
-      status <- file("status").flatMap(_.asString)
       format <- file("file_format").flatMap(_.asString)
       typ <- file("output_type").flatMap(_.asString)
     } yield {
-      status.equals("released") &&
       FormatTypeWhitelist.contains(format -> typ)
     }
 
