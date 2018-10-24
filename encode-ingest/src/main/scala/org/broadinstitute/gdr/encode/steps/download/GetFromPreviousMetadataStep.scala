@@ -29,13 +29,10 @@ abstract class GetFromPreviousMetadataStep(in: File, out: File)(
   final override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =
     IngestStep
       .readJsonArray(in)
-      .flatMap { obj =>
+      .map(_(refField))
+      .unNone
+      .flatMap { refJson =>
         val refs = for {
-          refJson <- obj(refField).toRight(
-            new IllegalStateException(
-              s"Expected field $refField not found in object $obj"
-            )
-          )
           refValues <- if (manyRefs) {
             refJson.as[Seq[String]].map(Stream.emits)
           } else {

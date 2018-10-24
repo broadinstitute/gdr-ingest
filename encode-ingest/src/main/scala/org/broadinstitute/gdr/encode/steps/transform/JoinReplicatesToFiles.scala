@@ -1,7 +1,7 @@
 package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
-import cats.effect.{Effect, Sync}
+import cats.effect.Effect
 import cats.implicits._
 import fs2.Stream
 import io.circe.JsonObject
@@ -38,7 +38,7 @@ class JoinReplicatesToFiles(
           }
       }
       .unNone
-      .evalMap(flattenSingletons[F])
+      .map(flattenSingletons)
       .to(IngestStep.writeJsonArray(out))
 
   private def shouldTransfer(file: JsonObject): Boolean = {
@@ -87,8 +87,8 @@ class JoinReplicatesToFiles(
     }
   }
 
-  private def flattenSingletons[F[_]: Sync](mergedFile: JsonObject): F[JsonObject] =
-    FieldsToFlatten.foldLeft(Sync[F].pure(mergedFile)) { (wrappedAcc, field) =>
+  private def flattenSingletons(mergedFile: JsonObject): JsonObject =
+    FieldsToFlatten.foldLeft(mergedFile) { (acc, field) =>
       val listField = s"$field$JoinedSuffix"
       val maybeFlattened = for {
         fieldJson <- mergedFile(listField)
@@ -98,17 +98,7 @@ class JoinReplicatesToFiles(
         field -> fieldArray.head
       }
 
-      for {
-        acc <- wrappedAcc
-        flattened <- Sync[F].fromOption(
-          maybeFlattened,
-          new IllegalStateException(
-            s"'$listField' is not a singleton array in $mergedFile"
-          )
-        )
-      } yield {
-        (flattened +: acc).remove(listField)
-      }
+      maybeFlattened.fold(acc)(_ +: acc).remove(listField)
     }
 }
 

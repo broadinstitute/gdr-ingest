@@ -51,7 +51,7 @@ class JoinReplicateMetadata(
           .readJsonArray(replicateMetadata)
           .map(_.filterKeys((ReplicateFields + EncodeIdField).contains))
 
-        transforms.foldLeft(replicates)(_.map(_).unNone)
+        transforms.foldLeft(replicates)(_.map(_))
       }
       .map(renameFields)
       .to(IngestStep.writeJsonArray(out))
@@ -64,7 +64,7 @@ class JoinReplicateMetadata(
     foreignKeyField: String,
     joinedFieldPrefix: String,
     fieldsToJoin: Set[String]
-  )(metadata: JsonObject): Option[JsonObject] = {
+  )(metadata: JsonObject): JsonObject = {
     val foreignMetadata = for {
       foreignKey <- metadata(foreignKeyField).flatMap(_.asString)
       foreignMetadata <- idToMetadata.get(foreignKey)
@@ -74,7 +74,7 @@ class JoinReplicateMetadata(
       }.toMap
     }
 
-    foreignMetadata.map { fm =>
+    foreignMetadata.fold(metadata) { fm =>
       JsonObject.fromMap(metadata.toMap ++ fm).remove(foreignKeyField)
     }
   }
@@ -93,7 +93,7 @@ object JoinReplicateMetadata {
   val ReplicateFields = Set("uuid", "experiment", "library")
 
   val ExperimentPrefix = "experiment"
-  val ExperimentFields = Set("accession", "assay_term_name", "target")
+  val ExperimentFields = Set("accession", "assay_title", "target")
 
   val TargetPrefix = "target"
   val TargetFields = Set("label")
@@ -125,7 +125,7 @@ object JoinReplicateMetadata {
   val SampleTypeField = "biosample_type"
 
   val FieldsToRename = Map(
-    joinedName("assay_term_name", ExperimentPrefix) -> AssayField,
+    joinedName("assay_title", ExperimentPrefix) -> AssayField,
     joinedName("biosample_term_id", BiosamplePrefix) -> SampleTermField,
     joinedName("biosample_term_name", BiosamplePrefix) -> CellTypeField,
     joinedName("biosample_type", BiosamplePrefix) -> SampleTypeField,

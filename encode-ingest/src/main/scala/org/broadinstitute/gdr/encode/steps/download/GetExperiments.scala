@@ -12,5 +12,23 @@ class GetExperiments(out: File)(implicit ec: ExecutionContext, s: Scheduler)
 
   override val entityType = "Experiment"
   override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =
-    Stream.emit(List("assay_term_name" -> "ChIP-seq", "status" -> "released"))
+    Stream
+      .emits(GetExperiments.AssayTypesToPull)
+      .map(assay => List("assay_title" -> assay))
+}
+
+object GetExperiments {
+
+  val AssayTypesToPull = List(
+    "ATAC-seq",
+    "ChIA-PET",
+    "ChIP-seq",
+    "DNase-seq",
+    "Hi-C",
+    "microRNA-seq",
+    "polyA RNA-seq",
+    "RRBS",
+    "total RNA-seq",
+    "WGBS"
+  )
 }
