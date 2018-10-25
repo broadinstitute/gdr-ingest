@@ -1,18 +1,15 @@
-package org.broadinstitute.gdr.encode.steps
+package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
 import cats.effect.Effect
 import cats.implicits._
 import fs2.{Scheduler, Stream}
-import org.broadinstitute.gdr.encode.steps.cromwell.BuildCromwellInputs
-import org.broadinstitute.gdr.encode.steps.download._
-import org.broadinstitute.gdr.encode.steps.google.BuildStsManifest
-import org.broadinstitute.gdr.encode.steps.transform._
+import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class PrepareIngest(override protected val out: File)(
+class PrepareMetadata(override protected val out: File)(
   implicit ec: ExecutionContext,
   s: Scheduler
 ) extends IngestStep {
@@ -43,20 +40,8 @@ class PrepareIngest(override protected val out: File)(
       val cleanedDonorsJson = out / "donors.cleaned.json"
 
       val filesWithUris = out / "files.with-uris.json"
-      val transferManifest = out / "sts-manifest.tsv"
 
       // FIXME: Implicit dependencies between steps would be better made explict.
-
-      // Download metadata:
-      val getExperiments = new GetExperiments(rawExperiments)
-      val getReplicates = new GetReplicates(rawExperiments, rawReplicates)
-      val getFiles = new GetFiles(rawExperiments, rawFiles)
-      val getAudits = new GetAudits(rawFiles, rawAudits)
-      val getTargets = new GetTargets(rawExperiments, rawTargets)
-      val getLibraries = new GetLibraries(rawReplicates, rawLibraries)
-      val getLabs = new GetLabs(rawLibraries, rawLabs)
-      val getSamples = new GetBiosamples(rawLibraries, rawSamples)
-      val getDonors = new GetDonors(rawSamples, rawDonors)
 
       // Transform & combine metadata:
       val extendReplicateMetadata = new JoinReplicateMetadata(
@@ -86,18 +71,9 @@ class PrepareIngest(override protected val out: File)(
 
       val deriveUris = new DeriveActualUris(fullJoinedFilesMetadata, filesWithUris)
 
-      val buildTransferManifest = new BuildStsManifest(filesWithUris, transferManifest)
-      val buildCromwellInputs = new BuildCromwellInputs(filesWithUris, out)
-
       import IngestStep.parallelize
 
       val run: F[Unit] = for {
-        // Download the universe of raw metadata:
-        _ <- getExperiments.build
-        _ <- parallelize(getReplicates, getFiles, getTargets)
-        _ <- parallelize(getAudits, getLibraries)
-        _ <- parallelize(getLabs, getSamples)
-        _ <- getDonors.build
         // Merge downloaded metadata into the expected schema:
         _ <- parallelize(shapeFileMetadata, extendReplicateMetadata)
         _ <- addFileAudits.build
@@ -105,8 +81,6 @@ class PrepareIngest(override protected val out: File)(
         _ <- cleanDonorMetadata.build
         // Find actual URIs for raw files:
         _ <- deriveUris.build
-        // Generate inputs to downstream ingest processes:
-        _ <- parallelize(buildTransferManifest, buildCromwellInputs)
       } yield {
         ()
       }

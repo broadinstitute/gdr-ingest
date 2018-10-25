@@ -8,9 +8,10 @@ import cats.effect.IO
 import cats.implicits._
 import com.monovore.decline.{Argument, CommandApp, Opts}
 import fs2.Scheduler
-import org.broadinstitute.gdr.encode.steps.PrepareIngest
+import org.broadinstitute.gdr.encode.steps.download.DownloadMetadata
 import org.broadinstitute.gdr.encode.steps.google.BuildBqJson
 import org.broadinstitute.gdr.encode.steps.rawls.BuildRawlsJsons
+import org.broadinstitute.gdr.encode.steps.transform.PrepareMetadata
 
 import scala.concurrent.ExecutionContext
 
@@ -35,17 +36,30 @@ object Encode
             Validated.catchNonFatal(File(string)).leftMap(_.getMessage).toValidatedNel
         }
 
-        val prepIngest = Opts.subcommand(
-          name = "prep-ingest",
-          help =
-            "Generate files which can be manually fed into BigQuery / STS to ingest ChIP-Seq data from ENCODE"
+        val downloadMetadata = Opts.subcommand(
+          name = "download-metadata",
+          help = "Download raw metadata from ENCODE for entities which should be ingested"
         ) {
           Opts
             .option[File](
               "output-dir",
-              help = "Directory into which generated files should be written"
+              help = "Directory into which downloaded JSON should be written"
             )
-            .map(new PrepareIngest(_))
+            .map(new DownloadMetadata(_))
+        }
+
+        val prepareMetadata = Opts.subcommand(
+          name = "prepare-metadata",
+          help =
+            "Transform raw metadata from ENCODE into files which can be fed to downstream processes"
+        ) {
+          Opts
+            .option[File](
+              "download-dir",
+              help =
+                "Directory containing downloaded metadata. Prepared metadata will be written to the same location"
+            )
+            .map(new PrepareMetadata(_))
         }
 
         val genBq = Opts.subcommand(
@@ -102,10 +116,11 @@ object Encode
           }
         }
 
-        prepIngest.orElse(genBq).orElse(genRawls).map { cmd =>
-          val res = cmd.build[IO].attempt.unsafeRunSync()
-          val _ = (ioExecutor.shutdownNow(), schedulerExecutor.shutdownNow())
-          res.valueOr(throw _)
+        downloadMetadata.orElse(prepareMetadata).orElse(genBq).orElse(genRawls).map {
+          cmd =>
+            val res = cmd.build[IO].attempt.unsafeRunSync()
+            val _ = (ioExecutor.shutdownNow(), schedulerExecutor.shutdownNow())
+            res.valueOr(throw _)
         }
       }
     )
