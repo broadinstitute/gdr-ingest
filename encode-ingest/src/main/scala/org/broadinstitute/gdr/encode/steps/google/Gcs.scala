@@ -5,7 +5,7 @@ import io.circe.syntax._
 import org.broadinstitute.gdr.encode.steps.transform.DeriveActualUris
 
 object Gcs {
-  val BlobPathField = "path"
+  val BlobPathField = "file_gs_path"
 
   private def expectedStsUri(stsTargetBucket: String, httpUri: String): String =
     httpUri.replaceFirst("^https?://", s"gs://$stsTargetBucket/")

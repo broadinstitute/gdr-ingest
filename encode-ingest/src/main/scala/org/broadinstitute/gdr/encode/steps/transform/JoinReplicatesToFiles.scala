@@ -6,7 +6,6 @@ import cats.implicits._
 import fs2.Stream
 import io.circe.JsonObject
 import io.circe.syntax._
-import org.broadinstitute.gdr.encode.EncodeFields
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.language.higherKinds
@@ -39,12 +38,13 @@ class JoinReplicatesToFiles(
       }
       .unNone
       .map(flattenSingletons)
+      .unNone
       .to(IngestStep.writeJsonArray(out))
 
   private def shouldTransfer(file: JsonObject): Boolean = {
     val keepFile = for {
-      format <- file("file_format").flatMap(_.asString)
-      typ <- file("output_type").flatMap(_.asString)
+      format <- file(ShapeFileMetadata.FileFormatField).flatMap(_.asString)
+      typ <- file(ShapeFileMetadata.OutputTypeField).flatMap(_.asString)
     } yield {
       FormatTypeWhitelist.contains(format -> typ)
     }
@@ -58,7 +58,7 @@ class JoinReplicatesToFiles(
     val replicateInfo =
       stripControls(replicateIds.flatMap(replicateTable.get)).foldMap {
         _.toIterable.map {
-          case (k, v) => s"$k$JoinedSuffix" -> Set(v)
+          case (k, v) => k -> Set(v)
         }.toMap
       }
 
@@ -85,25 +85,26 @@ class JoinReplicatesToFiles(
     }
   }
 
-  private def flattenSingletons(mergedFile: JsonObject): JsonObject =
-    FieldsToFlatten.foldLeft(mergedFile) { (acc, field) =>
-      val listField = s"$field$JoinedSuffix"
-      val maybeFlattened = for {
-        fieldJson <- mergedFile(listField)
-        fieldArray <- fieldJson.asArray
-        if fieldArray.length == 1
-      } yield {
-        field -> fieldArray.head
-      }
+  private def flattenSingletons(mergedFile: JsonObject): Option[JsonObject] = {
+    FieldsToFlatten.foldLeft(Option(mergedFile)) { (wrappedAcc, field) =>
+      wrappedAcc.flatMap { acc =>
+        mergedFile(field).fold(wrappedAcc) { fieldJson =>
+          val maybeFlattened = for {
+            fieldArray <- fieldJson.asArray
+            if fieldArray.length == 1
+          } yield {
+            field -> fieldArray.head
+          }
 
-      maybeFlattened.fold(acc)(_ +: acc).remove(listField)
+          maybeFlattened.map(_ +: acc)
+        }
+      }
     }
+  }
 }
 
 object JoinReplicatesToFiles {
   import JoinReplicateMetadata._
-
-  val JoinedSuffix = "_list"
 
   val FormatTypeWhitelist = Set(
     "bam" -> "unfiltered alignments",
@@ -111,7 +112,7 @@ object JoinReplicatesToFiles {
     "bigWig" -> "fold change over control"
   )
 
-  val FileAvailableField = "gcs_file_available"
+  val FileAvailableField = "file_available_in_gcs"
 
   val FieldsToFlatten = Set(
     AssayField,
@@ -120,6 +121,4 @@ object JoinReplicatesToFiles {
     SampleTypeField,
     TargetLabelField
   )
-
-  val DonorFkField = s"${EncodeFields.joinedName(DonorIdField, DonorPrefix)}$JoinedSuffix"
 }

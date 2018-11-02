@@ -9,7 +9,8 @@ import org.apache.commons.codec.binary.{Base64, Hex}
 import org.broadinstitute.gdr.encode.steps.IngestStep
 import org.broadinstitute.gdr.encode.steps.transform.{
   DeriveActualUris,
-  JoinReplicatesToFiles
+  JoinReplicatesToFiles,
+  ShapeFileMetadata
 }
 
 import scala.language.higherKinds
@@ -37,8 +38,10 @@ class BuildStsManifest(fileMetadata: File, override protected val out: File)
   private def buildFileRow[F[_]: Sync](metadata: JsonObject): F[String] = {
     val fileRow = for {
       downloadEndpoint <- metadata(DeriveActualUris.DownloadUriField).flatMap(_.asString)
-      size <- metadata("file_size").flatMap(_.asNumber).flatMap(_.toLong)
-      hexMd5 <- metadata("md5sum").flatMap(_.asString)
+      size <- metadata(ShapeFileMetadata.FileSizeField)
+        .flatMap(_.asNumber)
+        .flatMap(_.toLong)
+      hexMd5 <- metadata(ShapeFileMetadata.FileMd5Field).flatMap(_.asString)
       md5Bytes <- Either.catchNonFatal(Hex.decodeHex(hexMd5)).toOption
     } yield {
       s"$downloadEndpoint\t$size\t${Base64.encodeBase64String(md5Bytes)}"

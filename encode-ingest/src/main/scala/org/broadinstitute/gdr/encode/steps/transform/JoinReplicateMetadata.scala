@@ -44,7 +44,11 @@ class JoinReplicateMetadata(
             BiosampleFields
           ),
           join(joinedName(LabPrefix, LibraryPrefix), LabPrefix, LabFields),
-          join(joinedName(DonorPrefix, BiosamplePrefix), DonorPrefix, Set(DonorIdField))
+          join(
+            joinedName(DonorPrefix, BiosamplePrefix),
+            DonorPrefix,
+            Set(DonorAccessionField)
+          )
         )
 
         val replicates = IngestStep
@@ -53,7 +57,7 @@ class JoinReplicateMetadata(
 
         transforms.foldLeft(replicates)(_.map(_))
       }
-      .map(renameFields)
+      .through(IngestStep.renameFields(FieldsToRename))
       .to(IngestStep.writeJsonArray(out))
 
   /**
@@ -74,16 +78,10 @@ class JoinReplicateMetadata(
       }.toMap
     }
 
-    foreignMetadata.fold(metadata) { fm =>
-      JsonObject.fromMap(metadata.toMap ++ fm).remove(foreignKeyField)
-    }
+    foreignMetadata
+      .fold(metadata)(fm => JsonObject.fromMap(metadata.toMap ++ fm))
+      .remove(foreignKeyField)
   }
-
-  private def renameFields(joinedMetadata: JsonObject): JsonObject =
-    FieldsToRename.foldLeft(joinedMetadata) {
-      case (acc, (oldName, newName)) =>
-        acc(oldName).fold(acc)(v => acc.add(newName, v).remove(oldName))
-    }
 }
 
 object JoinReplicateMetadata {
@@ -115,21 +113,26 @@ object JoinReplicateMetadata {
   )
 
   val DonorPrefix = "donor"
-  val DonorIdField = "accession"
+  val DonorAccessionField = "accession"
 
-  val AssayField = "assay_term_name"
+  val AssayField = "assay_type"
   val CellTypeField = "cell_type"
-  val TargetLabelField = "target"
-  val ReplicateIdField = joinedName("uuid", ReplicatePrefix)
+  val DonorIdField = "donor_ids"
   val SampleTermField = "biosample_term_id"
   val SampleTypeField = "biosample_type"
+  val TargetLabelField = "target_of_assay"
 
   val FieldsToRename = Map(
+    joinedName("accession", BiosamplePrefix) -> "biosamples",
+    joinedName("accession", DonorPrefix) -> DonorIdField,
+    joinedName("accession", ExperimentPrefix) -> "experiments",
+    joinedName("accession", LibraryPrefix) -> "DNA_library_ids",
     joinedName("assay_title", ExperimentPrefix) -> AssayField,
     joinedName("biosample_term_id", BiosamplePrefix) -> SampleTermField,
     joinedName("biosample_term_name", BiosamplePrefix) -> CellTypeField,
     joinedName("biosample_type", BiosamplePrefix) -> SampleTypeField,
     joinedName("label", TargetPrefix) -> TargetLabelField,
-    "uuid" -> ReplicateIdField
+    joinedName("name", LabPrefix) -> "labs_generating_data",
+    "uuid" -> "replicate_id"
   )
 }

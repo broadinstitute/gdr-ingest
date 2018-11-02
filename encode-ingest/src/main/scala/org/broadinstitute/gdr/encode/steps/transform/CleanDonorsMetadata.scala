@@ -21,15 +21,24 @@ class CleanDonorsMetadata(
       IngestStep
         .readJsonArray(donorMetadata)
         .map { donor =>
-          donor(JoinReplicateMetadata.DonorIdField).flatMap(_.asString).map(_ -> donor)
+          donor(JoinReplicateMetadata.DonorAccessionField)
+            .flatMap(_.asString)
+            .map(_ -> donor)
         }
         .unNone
         .collect {
           case (id, donor) if accessionsToKeep.contains(id) =>
             donor
               .filterKeys(CleanDonorsMetadata.RetainedFields.contains)
-              .add("url", (EncodeClient.EncodeUri / id).toString.asJson)
+              .add("more_info", (EncodeClient.EncodeUri / id).toString.asJson)
         }
+        .through(
+          IngestStep.renameFields(
+            Map(
+              JoinReplicateMetadata.DonorAccessionField -> CleanDonorsMetadata.DonorIdField
+            )
+          )
+        )
         .to(IngestStep.writeJsonArray(out))
     }
 
@@ -38,7 +47,7 @@ class CleanDonorsMetadata(
       .readJsonArray(joinedFileMetadata)
       .map { file =>
         for {
-          donorJson <- file(JoinReplicatesToFiles.DonorFkField)
+          donorJson <- file(JoinReplicateMetadata.DonorIdField)
           accessions <- donorJson.as[Set[String]].toOption
         } yield accessions
       }
@@ -48,6 +57,14 @@ class CleanDonorsMetadata(
 
 object CleanDonorsMetadata {
 
+  val DonorIdField = "donor_id"
+
   val RetainedFields =
-    Set(JoinReplicateMetadata.DonorIdField, "age", "age_units", "health_status", "sex")
+    Set(
+      JoinReplicateMetadata.DonorAccessionField,
+      "age",
+      "age_units",
+      "health_status",
+      "sex"
+    )
 }

@@ -62,8 +62,8 @@ class JoinAuditsToFiles(
 
 object JoinAuditsToFiles {
 
-  val AuditColorField = "audit_color"
-  val AuditWarningsField = "warning_summary"
+  val AuditColorField = "data_quality_category"
+  val AuditWarningsField = "data_review_summary"
 
   private case class Audit(level: Int, category: String, path: String)
 

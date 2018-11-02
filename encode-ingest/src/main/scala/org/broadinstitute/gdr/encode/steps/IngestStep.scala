@@ -3,7 +3,7 @@ package org.broadinstitute.gdr.encode.steps
 import better.files.File
 import cats.effect.{Effect, Sync}
 import cats.implicits._
-import fs2.{Sink, Stream}
+import fs2.{Pipe, Pure, Sink, Stream}
 import io.circe.syntax._
 import io.circe.JsonObject
 import org.broadinstitute.gdr.encode.EncodeFields
@@ -90,6 +90,14 @@ object IngestStep {
     _.intersperse("\n")
       .flatMap(str => Stream.emits(str.getBytes))
       .to(fs2.io.file.writeAll(out.path))
+
+  def renameFields(renameMap: Map[String, String]): Pipe[Pure, JsonObject, JsonObject] =
+    _.map { obj =>
+      renameMap.foldLeft(obj) {
+        case (acc, (oldName, newName)) =>
+          acc(oldName).fold(acc)(v => acc.add(newName, v).remove(oldName))
+      }
+    }
 
   def parallelize[F[_]: Effect](steps: IngestStep*)(
     implicit ec: ExecutionContext

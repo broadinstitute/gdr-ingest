@@ -39,8 +39,10 @@ class DeriveActualUris(in: File, override protected val out: File)(
     } else {
       Effect[F]
         .fromOption(
-          file("href").flatMap(_.asString),
-          new IllegalStateException(s"File metadata $file has no href field")
+          file(ShapeFileMetadata.FileHrefField).flatMap(_.asString),
+          new IllegalStateException(
+            s"File metadata $file has no ${ShapeFileMetadata.FileHrefField} field"
+          )
         )
         .flatMap(client.deriveDownloadUri)
         .map { uri =>
@@ -49,7 +51,7 @@ class DeriveActualUris(in: File, override protected val out: File)(
         }
     }
 
-    withDerived.map(_.remove("href"))
+    withDerived.map(_.remove(ShapeFileMetadata.FileHrefField))
   }
 }
 

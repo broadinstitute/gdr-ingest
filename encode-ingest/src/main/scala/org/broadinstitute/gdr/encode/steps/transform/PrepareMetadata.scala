@@ -5,6 +5,8 @@ import cats.effect.Effect
 import cats.implicits._
 import fs2.{Scheduler, Stream}
 import org.broadinstitute.gdr.encode.steps.IngestStep
+import org.broadinstitute.gdr.encode.steps.google.BuildStsManifest
+import org.broadinstitute.gdr.encode.steps.rawls.BuildRawlsJsons
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -38,8 +40,10 @@ class PrepareMetadata(override protected val out: File)(
       val fullJoinedFilesMetadata = out / "files.joined.json"
 
       val cleanedDonorsJson = out / "donors.cleaned.json"
-
       val filesWithUris = out / "files.with-uris.json"
+
+      val stsManifest = out / "sts-manifest.tsv"
+      val rawlsOut = out / "rawls-inputs"
 
       // FIXME: Implicit dependencies between steps would be better made explict.
 
@@ -71,6 +75,14 @@ class PrepareMetadata(override protected val out: File)(
 
       val deriveUris = new DeriveActualUris(fullJoinedFilesMetadata, filesWithUris)
 
+      val buildManifest = new BuildStsManifest(filesWithUris, stsManifest)
+      val buildRawlsJsons = new BuildRawlsJsons(
+        filesWithUris,
+        cleanedDonorsJson,
+        "broad-gdr-encode-storage",
+        rawlsOut
+      )
+
       import IngestStep.parallelize
 
       val run: F[Unit] = for {
@@ -81,6 +93,8 @@ class PrepareMetadata(override protected val out: File)(
         _ <- cleanDonorMetadata.build
         // Find actual URIs for raw files:
         _ <- deriveUris.build
+        // Prep inputs to downstream:
+        _ <- parallelize(buildManifest, buildRawlsJsons)
       } yield {
         ()
       }

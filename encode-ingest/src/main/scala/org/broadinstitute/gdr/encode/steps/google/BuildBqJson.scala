@@ -7,10 +7,7 @@ import fs2.Stream
 import io.circe.{Json, JsonObject}
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.steps.IngestStep
-import org.broadinstitute.gdr.encode.steps.transform.{
-  JoinReplicateMetadata,
-  JoinReplicatesToFiles
-}
+import org.broadinstitute.gdr.encode.steps.transform.JoinReplicateMetadata
 
 import scala.language.higherKinds
 
@@ -26,12 +23,12 @@ class BuildBqJson(
       .eval(buildFileCache[F])
       .flatMap { filesPerDonor =>
         IngestStep.readJsonArray(donorsMetadata).map { donor =>
-          donor(JoinReplicateMetadata.DonorIdField).map { id =>
+          donor(JoinReplicateMetadata.DonorAccessionField).map { id =>
             // "samples" because the Data Explorer special-cases it.
             donor
               .add("donor_accession", id)
               .add("samples", filesPerDonor.getOrElse(id, Vector.empty).asJson)
-              .remove(JoinReplicateMetadata.DonorIdField)
+              .remove(JoinReplicateMetadata.DonorAccessionField)
           }
         }
       }
@@ -45,9 +42,9 @@ class BuildBqJson(
       .flatMap { file =>
         val fileRecord = Gcs
           .swapUriFields(storageBucket)(file)
-          .remove(JoinReplicatesToFiles.DonorFkField)
+          .remove(JoinReplicateMetadata.DonorIdField)
 
-        file(JoinReplicatesToFiles.DonorFkField)
+        file(JoinReplicateMetadata.DonorIdField)
           .flatMap(_.asArray)
           .fold(Stream.empty.covaryOutput[Json])(Stream.emits)
           .foldMap(id => Map(id -> Vector(fileRecord)))

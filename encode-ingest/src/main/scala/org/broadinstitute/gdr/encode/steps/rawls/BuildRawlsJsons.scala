@@ -6,10 +6,10 @@ import fs2.Stream
 import io.circe.{Json, JsonObject}
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.steps.IngestStep
+import org.broadinstitute.gdr.encode.steps.transform.CleanDonorsMetadata
 import org.broadinstitute.gdr.encode.steps.google.Gcs
 import org.broadinstitute.gdr.encode.steps.transform.{
   JoinReplicateMetadata,
-  JoinReplicatesToFiles,
   ShapeFileMetadata
 }
 
@@ -32,17 +32,18 @@ class BuildRawlsJsons(
         )
       )
     } else {
+      val _ = (filesMetadata, storageBucket)
       Stream(
         writeRawlsUpserts(
           donorsMetadata,
           "participant",
-          JoinReplicateMetadata.DonorIdField
+          CleanDonorsMetadata.DonorIdField
         ),
         writeRawlsUpserts(
           filesMetadata,
           "sample",
-          ShapeFileMetadata.FileAccessionField,
-          Gcs.swapUriFields(storageBucket)
+          ShapeFileMetadata.FileIdField,
+          swapFileFields
         )
       ).joinUnbounded
     }
@@ -86,32 +87,44 @@ class BuildRawlsJsons(
       )
     }
 
+  private def swapFileFields(fileObj: JsonObject): JsonObject = {
+    val uriSwapped = Gcs.swapUriFields(storageBucket)(fileObj)
+    val maybeSizeMb = uriSwapped(ShapeFileMetadata.FileSizeField)
+      .flatMap(_.as[Long].toOption)
+      .map(_ / BuildRawlsJsons.BytesPerMb)
+      .map(_.asJson)
+
+    maybeSizeMb
+      .fold(uriSwapped)(uriSwapped.add("file_size_MB", _))
+      .remove(ShapeFileMetadata.FileSizeField)
+  }
+
   private def rawlsOperations(key: String, value: Json): Iterable[Json] = {
     import BuildRawlsJsons._
 
     val jsonKey = key.asJson
     if (value.isArray) {
-      val donorReference = key == JoinReplicatesToFiles.DonorFkField
-      val (createListKey, createListOp) = if (donorReference) {
-        ("attributeListName", CreateReferenceListOp)
+      val donorReference = key == JoinReplicateMetadata.DonorIdField
+      val (createListKey, createListOp, fieldKey) = if (donorReference) {
+        ("attributeListName", CreateReferenceListOp, ParticipantIdKey)
       } else {
-        ("attributeName", CreateValueListOp)
+        ("attributeName", CreateValueListOp, jsonKey)
       }
 
       value.asArray.toIterable.flatMap { values =>
         Vector(
-          Json.obj("op" -> RemoveFieldOp, "attributeName" -> jsonKey),
-          Json.obj("op" -> createListOp.asJson, createListKey -> jsonKey)
+          Json.obj("op" -> RemoveFieldOp, "attributeName" -> fieldKey),
+          Json.obj("op" -> createListOp.asJson, createListKey -> fieldKey)
         ) ++ values.map { v =>
           val vJson = if (donorReference) {
-            Json.obj("entityType" -> "participant".asJson, "entityName" -> v.asJson)
+            Json.obj("entityType" -> ParticipantType, "entityName" -> v.asJson)
           } else {
             v.asJson
           }
 
           Json.obj(
             "op" -> AddListMemberOp,
-            "attributeListName" -> jsonKey,
+            "attributeListName" -> fieldKey,
             "newMember" -> vJson
           )
         }
@@ -129,9 +142,14 @@ class BuildRawlsJsons(
 }
 
 object BuildRawlsJsons {
+  val BytesPerMb = math.pow(10, 6)
+
   val AddListMemberOp = "AddListMember".asJson
   val UpsertScalarOp = "AddUpdateAttribute".asJson
   val CreateReferenceListOp = "CreateAttributeEntityReferenceList".asJson
   val CreateValueListOp = "CreateAttributeValueList".asJson
   val RemoveFieldOp = "RemoveAttribute".asJson
+
+  val ParticipantIdKey = "participant_ids".asJson
+  val ParticipantType = "participant".asJson
 }
