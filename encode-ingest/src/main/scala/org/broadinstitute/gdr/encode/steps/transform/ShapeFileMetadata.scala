@@ -192,6 +192,7 @@ object ShapeFileMetadata {
   val FileMd5Field = "md5sum"
   val FileSizeField = "file_size"
   val FileTypeField = "file_format_subtype"
+  val FileUnavailableField = "no_file_available"
   val OutputTypeField = "data_type"
   val PercentDupsField = "percent_duplicated_reads"
   val PercentAlignedField = "percent_aligned_reads"
@@ -222,6 +223,7 @@ object ShapeFileMetadata {
     FileFormatField,
     FileSizeField,
     FileMd5Field,
+    FileUnavailableField,
     PercentAlignedField,
     PercentDupsField,
     ReadCountField,

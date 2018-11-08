@@ -58,6 +58,7 @@ class JoinReplicateMetadata(
         transforms.foldLeft(replicates)(_.map(_))
       }
       .through(IngestStep.renameFields(FieldsToRename))
+      .filter(_.contains(DonorIdField))
       .to(IngestStep.writeJsonArray(out))
 
   /**
@@ -124,7 +125,7 @@ object JoinReplicateMetadata {
 
   val FieldsToRename = Map(
     joinedName("accession", BiosamplePrefix) -> "biosamples",
-    joinedName("accession", DonorPrefix) -> DonorIdField,
+    joinedName(DonorAccessionField, DonorPrefix) -> DonorIdField,
     joinedName("accession", ExperimentPrefix) -> "experiments",
     joinedName("accession", LibraryPrefix) -> "DNA_library_ids",
     joinedName("assay_title", ExperimentPrefix) -> AssayField,

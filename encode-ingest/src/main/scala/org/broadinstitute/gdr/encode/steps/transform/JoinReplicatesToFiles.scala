@@ -32,7 +32,9 @@ class JoinReplicatesToFiles(
                 replicateIds
               )
             } yield {
-              joinedJson.add(FileAvailableField, shouldTransfer(joinedJson).asJson)
+              joinedJson
+                .add(FileAvailableField, shouldTransfer(joinedJson).asJson)
+                .remove(ShapeFileMetadata.FileUnavailableField)
             }
           }
       }
@@ -43,10 +45,11 @@ class JoinReplicatesToFiles(
 
   private def shouldTransfer(file: JsonObject): Boolean = {
     val keepFile = for {
+      fileUnavailable <- file(ShapeFileMetadata.FileUnavailableField).flatMap(_.asBoolean)
       format <- file(ShapeFileMetadata.FileFormatField).flatMap(_.asString)
       typ <- file(ShapeFileMetadata.OutputTypeField).flatMap(_.asString)
     } yield {
-      FormatTypeWhitelist.contains(format -> typ)
+      !fileUnavailable && FormatTypeWhitelist.contains(format -> typ)
     }
 
     keepFile.getOrElse(false)
@@ -107,7 +110,7 @@ object JoinReplicatesToFiles {
   import JoinReplicateMetadata._
 
   val FormatTypeWhitelist = Set(
-    "bam" -> "unfiltered alignments",
+    "bam" -> "alignments",
     "bigBed" -> "peaks",
     "bigWig" -> "fold change over control"
   )
