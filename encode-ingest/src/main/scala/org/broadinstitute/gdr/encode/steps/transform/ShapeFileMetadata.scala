@@ -1,7 +1,7 @@
 package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
-import cats.effect.{Effect, Sync}
+import cats.effect._
 import cats.implicits._
 import cats.kernel.Monoid
 import fs2.Stream
@@ -11,17 +11,23 @@ import org.broadinstitute.gdr.encode.EncodeFields
 import org.broadinstitute.gdr.encode.client.EncodeClient
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
-    extends IngestStep {
+class ShapeFileMetadata(
+  fileMetadata: File,
+  override protected val out: File,
+  ec: ExecutionContext
+) extends IngestStep {
   import org.broadinstitute.gdr.encode.EncodeFields._
   import ShapeFileMetadata._
 
-  override def process[F[_]: Effect]: Stream[F, Unit] =
+  override protected def process[
+    F[_]: ConcurrentEffect: Timer: ContextShift
+  ]: Stream[F, Unit] =
     fileGraph.flatMap { graph =>
       IngestStep
-        .readJsonArray(fileMetadata)
+        .readJsonArray(ec)(fileMetadata)
         .map(f => f("status").flatMap(_.asString).map(_ -> f))
         .collect {
           case Some(("released", f)) => addFields(graph)(f)
@@ -29,11 +35,11 @@ class ShapeFileMetadata(fileMetadata: File, override protected val out: File)
     }.unNone
       .through(IngestStep.renameFields(FieldsToRename))
       .map(_.filterKeys(RetainedFields.contains))
-      .to(IngestStep.writeJsonArray(out))
+      .to(IngestStep.writeJsonArray(ec)(out))
 
-  private def fileGraph[F[_]: Sync]: Stream[F, FileGraph] =
+  private def fileGraph[F[_]: Sync: ContextShift]: Stream[F, FileGraph] =
     IngestStep
-      .readJsonArray(fileMetadata)
+      .readJsonArray(ec)(fileMetadata)
       .evalMap { file =>
         val newInfo = for {
           id <- file(EncodeIdField).flatMap(_.asString)

@@ -1,12 +1,13 @@
 package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
-import cats.effect.Effect
+import cats.effect.{ConcurrentEffect, ContextShift, Timer}
 import fs2.Stream
 import io.circe.JsonObject
 import org.broadinstitute.gdr.encode.EncodeFields
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 class JoinReplicateMetadata(
@@ -17,12 +18,15 @@ class JoinReplicateMetadata(
   labMetadata: File,
   sampleMetadata: File,
   donorMetadata: File,
-  override protected val out: File
+  override protected val out: File,
+  ec: ExecutionContext
 ) extends IngestStep {
   import EncodeFields._
   import JoinReplicateMetadata._
 
-  override protected def process[F[_]: Effect]: Stream[F, Unit] =
+  override protected def process[
+    F[_]: ConcurrentEffect: Timer: ContextShift
+  ]: Stream[F, Unit] =
     Stream(
       experimentMetadata,
       targetMetadata,
@@ -30,7 +34,7 @@ class JoinReplicateMetadata(
       labMetadata,
       sampleMetadata,
       donorMetadata
-    ).evalMap(IngestStep.readLookupTable[F](_))
+    ).evalMap(IngestStep.readLookupTable[F](ec)(_))
       .fold(Map.empty[String, JsonObject])(_ ++ _)
       .map(extendMetadata)
       .flatMap { join =>
@@ -52,14 +56,14 @@ class JoinReplicateMetadata(
         )
 
         val replicates = IngestStep
-          .readJsonArray(replicateMetadata)
+          .readJsonArray(ec)(replicateMetadata)
           .map(_.filterKeys((ReplicateFields + EncodeIdField).contains))
 
         transforms.foldLeft(replicates)(_.map(_))
       }
       .through(IngestStep.renameFields(FieldsToRename))
       .filter(_.contains(DonorIdField))
-      .to(IngestStep.writeJsonArray(out))
+      .to(IngestStep.writeJsonArray(ec)(out))
 
   /**
     * Extend JSON metadata by replacing a foreign-key field with a set of fields

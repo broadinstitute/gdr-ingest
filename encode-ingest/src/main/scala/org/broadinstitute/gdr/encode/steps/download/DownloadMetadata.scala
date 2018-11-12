@@ -1,20 +1,20 @@
 package org.broadinstitute.gdr.encode.steps.download
 
 import better.files.File
-import cats.effect.Effect
-import cats.implicits._
-import fs2.{Scheduler, Stream}
+import cats.effect.{ConcurrentEffect, ContextShift, Timer}
+import cats.syntax.all._
+import fs2.Stream
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class DownloadMetadata(override protected val out: File)(
-  implicit ec: ExecutionContext,
-  s: Scheduler
-) extends IngestStep {
+class DownloadMetadata(override protected val out: File, ec: ExecutionContext)
+    extends IngestStep {
 
-  override protected def process[F[_]: Effect]: Stream[F, Unit] =
+  override protected def process[
+    F[_]: ConcurrentEffect: Timer: ContextShift
+  ]: Stream[F, Unit] =
     if (!out.isDirectory) {
       Stream.raiseError(
         new IllegalArgumentException(
@@ -34,15 +34,15 @@ class DownloadMetadata(override protected val out: File)(
 
       // FIXME: Implicit dependencies between steps would be better made explict.
 
-      val getExperiments = new GetExperiments(rawExperiments)
-      val getReplicates = new GetReplicates(rawExperiments, rawReplicates)
-      val getFiles = new GetFiles(rawExperiments, rawFiles)
-      val getAudits = new GetAudits(rawFiles, rawAudits)
-      val getTargets = new GetTargets(rawExperiments, rawTargets)
-      val getLibraries = new GetLibraries(rawReplicates, rawLibraries)
-      val getLabs = new GetLabs(rawLibraries, rawLabs)
-      val getSamples = new GetBiosamples(rawLibraries, rawSamples)
-      val getDonors = new GetDonors(rawSamples, rawDonors)
+      val getExperiments = new GetExperiments(rawExperiments, ec)
+      val getReplicates = new GetReplicates(rawExperiments, rawReplicates, ec)
+      val getFiles = new GetFiles(rawExperiments, rawFiles, ec)
+      val getAudits = new GetAudits(rawFiles, rawAudits, ec)
+      val getTargets = new GetTargets(rawExperiments, rawTargets, ec)
+      val getLibraries = new GetLibraries(rawReplicates, rawLibraries, ec)
+      val getLabs = new GetLabs(rawLibraries, rawLabs, ec)
+      val getSamples = new GetBiosamples(rawLibraries, rawSamples, ec)
+      val getDonors = new GetDonors(rawSamples, rawDonors, ec)
 
       import IngestStep.parallelize
 

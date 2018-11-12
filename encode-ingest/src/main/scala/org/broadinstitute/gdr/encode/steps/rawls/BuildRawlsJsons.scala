@@ -1,7 +1,7 @@
 package org.broadinstitute.gdr.encode.steps.rawls
 
 import better.files.File
-import cats.effect.{Effect, Sync}
+import cats.effect._
 import fs2.Stream
 import io.circe.{Json, JsonObject}
 import io.circe.syntax._
@@ -20,11 +20,13 @@ class BuildRawlsJsons(
   filesMetadata: File,
   donorsMetadata: File,
   storageBucket: String,
-  override protected val out: File
-)(implicit ec: ExecutionContext)
-    extends IngestStep {
+  override protected val out: File,
+  ec: ExecutionContext
+) extends IngestStep {
 
-  override protected def process[F[_]: Effect]: Stream[F, Unit] =
+  override protected def process[
+    F[_]: ConcurrentEffect: Timer: ContextShift
+  ]: Stream[F, Unit] =
     if (!out.isDirectory) {
       Stream.raiseError(
         new IllegalArgumentException(
@@ -45,28 +47,28 @@ class BuildRawlsJsons(
           ShapeFileMetadata.FileIdField,
           swapFileFields
         )
-      ).joinUnbounded
+      ).parJoinUnbounded
     }
 
-  private def writeRawlsUpserts[F[_]: Sync](
+  private def writeRawlsUpserts[F[_]: Sync: ContextShift](
     metadataFile: File,
     entityType: String,
     idField: String,
     transform: JsonObject => JsonObject = identity
   ): Stream[F, Unit] =
     IngestStep
-      .readJsonArray(metadataFile)
+      .readJsonArray(ec)(metadataFile)
       .map(transform)
       .map(rawlsUpsert(entityType, idField))
       .unNone
-      .segmentN(200)
+      .chunkN(200)
       .zipWithIndex
       .flatMap {
         case (batch, i) =>
           Stream
-            .segment(batch)
+            .chunk(batch)
             .covary[F]
-            .to(IngestStep.writeJsonArray(out / s"rawls.$entityType.$i.json"))
+            .to(IngestStep.writeJsonArray(ec)(out / s"rawls.$entityType.$i.json"))
       }
       .drain
 

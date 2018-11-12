@@ -1,25 +1,29 @@
 package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
-import cats.effect.{Effect, Sync}
+import cats.effect._
 import cats.implicits._
 import fs2.Stream
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.client.EncodeClient
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 class CleanDonorsMetadata(
   donorMetadata: File,
   joinedFileMetadata: File,
-  override protected val out: File
+  override protected val out: File,
+  ec: ExecutionContext
 ) extends IngestStep {
 
-  override def process[F[_]: Effect]: Stream[F, Unit] =
+  override protected def process[
+    F[_]: ConcurrentEffect: Timer: ContextShift
+  ]: Stream[F, Unit] =
     donorAccessions[F].flatMap { accessionsToKeep =>
       IngestStep
-        .readJsonArray(donorMetadata)
+        .readJsonArray(ec)(donorMetadata)
         .map { donor =>
           donor(JoinReplicateMetadata.DonorAccessionField)
             .flatMap(_.asString)
@@ -39,12 +43,12 @@ class CleanDonorsMetadata(
             )
           )
         )
-        .to(IngestStep.writeJsonArray(out))
+        .to(IngestStep.writeJsonArray(ec)(out))
     }
 
-  private def donorAccessions[F[_]: Sync]: Stream[F, Set[String]] =
+  private def donorAccessions[F[_]: Sync: ContextShift]: Stream[F, Set[String]] =
     IngestStep
-      .readJsonArray(joinedFileMetadata)
+      .readJsonArray(ec)(joinedFileMetadata)
       .map { file =>
         for {
           donorJson <- file(JoinReplicateMetadata.DonorIdField)

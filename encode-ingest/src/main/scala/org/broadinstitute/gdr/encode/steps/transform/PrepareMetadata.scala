@@ -1,9 +1,9 @@
 package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
-import cats.effect.Effect
-import cats.implicits._
-import fs2.{Scheduler, Stream}
+import cats.effect.{ConcurrentEffect, ContextShift, Timer}
+import cats.syntax.all._
+import fs2.Stream
 import org.broadinstitute.gdr.encode.steps.IngestStep
 import org.broadinstitute.gdr.encode.steps.google.BuildStsManifest
 import org.broadinstitute.gdr.encode.steps.rawls.BuildRawlsJsons
@@ -11,11 +11,11 @@ import org.broadinstitute.gdr.encode.steps.rawls.BuildRawlsJsons
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class PrepareMetadata(override protected val out: File)(
-  implicit ec: ExecutionContext,
-  s: Scheduler
-) extends IngestStep {
-  override def process[F[_]: Effect]: Stream[F, Unit] = {
+class PrepareMetadata(override protected val out: File, ec: ExecutionContext)
+    extends IngestStep {
+  override protected def process[
+    F[_]: ConcurrentEffect: Timer: ContextShift
+  ]: Stream[F, Unit] = {
     if (!out.isDirectory) {
       Stream.raiseError(
         new IllegalArgumentException(
@@ -56,31 +56,35 @@ class PrepareMetadata(override protected val out: File)(
         labMetadata = rawLabs,
         sampleMetadata = rawSamples,
         donorMetadata = rawDonors,
-        out = joinedReplicates
+        out = joinedReplicates,
+        ec
       )
-      val shapeFileMetadata = new ShapeFileMetadata(rawFiles, shapedFiles)
+      val shapeFileMetadata = new ShapeFileMetadata(rawFiles, shapedFiles, ec)
       val addFileAudits =
-        new JoinAuditsToFiles(rawAudits, shapedFiles, shapedFilesWithAudits)
+        new JoinAuditsToFiles(rawAudits, shapedFiles, shapedFilesWithAudits, ec)
 
       val joinReplicatesToFiles = new JoinReplicatesToFiles(
         extendedFileMetadata = shapedFilesWithAudits,
         extendedReplicateMetadata = joinedReplicates,
-        out = fullJoinedFilesMetadata
+        out = fullJoinedFilesMetadata,
+        ec
       )
       val cleanDonorMetadata = new CleanDonorsMetadata(
         donorMetadata = rawDonors,
         joinedFileMetadata = fullJoinedFilesMetadata,
-        out = cleanedDonorsJson
+        out = cleanedDonorsJson,
+        ec
       )
 
-      val deriveUris = new DeriveActualUris(fullJoinedFilesMetadata, filesWithUris)
+      val deriveUris = new DeriveActualUris(fullJoinedFilesMetadata, filesWithUris, ec)
 
-      val buildManifest = new BuildStsManifest(filesWithUris, stsManifest)
+      val buildManifest = new BuildStsManifest(filesWithUris, stsManifest, ec)
       val buildRawlsJsons = new BuildRawlsJsons(
         filesWithUris,
         cleanedDonorsJson,
         "broad-gdr-encode-storage",
-        rawlsOut
+        rawlsOut,
+        ec
       )
 
       import IngestStep.parallelize

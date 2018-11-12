@@ -1,28 +1,32 @@
 package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
-import cats.effect.Effect
+import cats.effect.{ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
 import fs2.Stream
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 class JoinReplicatesToFiles(
   extendedFileMetadata: File,
   extendedReplicateMetadata: File,
-  override protected val out: File
+  override protected val out: File,
+  ec: ExecutionContext
 ) extends IngestStep {
   import JoinReplicatesToFiles._
 
-  override def process[F[_]: Effect]: Stream[F, Unit] =
+  override protected def process[
+    F[_]: ConcurrentEffect: Timer: ContextShift
+  ]: Stream[F, Unit] =
     Stream
-      .eval(IngestStep.readLookupTable(extendedReplicateMetadata))
+      .eval(IngestStep.readLookupTable(ec)(extendedReplicateMetadata))
       .flatMap { replicateTable =>
         IngestStep
-          .readJsonArray(extendedFileMetadata)
+          .readJsonArray(ec)(extendedFileMetadata)
           .map { fileRecord =>
             for {
               replicateIds <- fileRecord(ShapeFileMetadata.ReplicateFkField)
@@ -41,7 +45,7 @@ class JoinReplicatesToFiles(
       .unNone
       .map(flattenSingletons)
       .unNone
-      .to(IngestStep.writeJsonArray(out))
+      .to(IngestStep.writeJsonArray(ec)(out))
 
   private def shouldTransfer(file: JsonObject): Boolean = {
     val keepFile = for {

@@ -1,126 +1,56 @@
 package org.broadinstitute.gdr.encode.clp
 
-import java.util.concurrent.Executors
-
 import better.files.File
-import cats.data.{Validated, ValidatedNel}
-import cats.effect.IO
-import cats.implicits._
-import com.monovore.decline.{Argument, CommandApp, Opts}
-import fs2.Scheduler
-import org.broadinstitute.gdr.encode.steps.download.DownloadMetadata
-import org.broadinstitute.gdr.encode.steps.google.BuildBqJson
-import org.broadinstitute.gdr.encode.steps.rawls.BuildRawlsJsons
-import org.broadinstitute.gdr.encode.steps.transform.PrepareMetadata
-
-import scala.concurrent.ExecutionContext
+import caseapp.core.argparser.{ArgParser, SimpleArgParser}
+import caseapp.core.commandparser.CommandParser
+import caseapp.core.help.WithHelp
+import cats.effect._
+import cats.syntax.all._
+import org.broadinstitute.gdr.encode.steps.IngestStep
 
 /**
   * Lightweight CLI wrapper for demo ENCODE ingest logic.
   */
-object Encode
-    extends CommandApp(
-      name = "encode-ingest",
-      header = "Mirrors data from ENCODE into a Broad repository",
-      main = {
-        val ioExecutor = Executors.newCachedThreadPool()
-        val schedulerExecutor = Executors.newScheduledThreadPool(1)
+object Encode extends IOApp {
 
-        implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(ioExecutor)
-        implicit val s: Scheduler =
-          Scheduler.fromScheduledExecutorService(schedulerExecutor)
+  implicit val fileParser: ArgParser[File] =
+    SimpleArgParser.from("path")(s => Right(File(s)))
 
-        implicit val fileArg: Argument[File] = new Argument[File] {
-          override def defaultMetavar: String = "path"
-          override def read(string: String): ValidatedNel[String, File] =
-            Validated.catchNonFatal(File(string)).leftMap(_.getMessage).toValidatedNel
+  private val parser: CommandParser[WithHelp[IngestCommand]] =
+    CommandParser[IngestCommand].withHelp
+
+  override def run(args: List[String]): IO[ExitCode] =
+    parser.parse[None.type](args) match {
+      case Left(err) => printErr(err.message)
+      case Right((_, stuff, _)) if stuff.nonEmpty =>
+        printErr(s"Unknown arguments: ${stuff.mkString(", ")}")
+      case Right((_, _, maybeCmd)) =>
+        maybeCmd match {
+          case Some(cmdParse) =>
+            cmdParse match {
+              case Left(err) => printErr(err.message)
+              case Right((_, _, stuff)) if stuff.nonEmpty =>
+                printErr(s"Unknown arguments: ${stuff.mkString(", ")}")
+              case Right((_, cmdOrHelp, _)) =>
+                if (cmdOrHelp.help) {
+                  IO(System.err.println("You asked for help")).as(ExitCode.Success)
+                } else if (cmdOrHelp.usage) {
+                  IO(System.err.println("You asked for usage")).as(ExitCode.Success)
+                } else {
+                  cmdOrHelp.baseOrError match {
+                    case Left(err) => printErr(err.message)
+                    case Right(cmd) =>
+                      IngestStep
+                        .blockingContext[IO]
+                        .use(cmd.step(_).build[IO])
+                        .as(ExitCode.Success)
+                  }
+                }
+            }
+          case None => printErr("No command given")
         }
+    }
 
-        val downloadMetadata = Opts.subcommand(
-          name = "download-metadata",
-          help = "Download raw metadata from ENCODE for entities which should be ingested"
-        ) {
-          Opts
-            .option[File](
-              "output-dir",
-              help = "Directory into which downloaded JSON should be written"
-            )
-            .map(new DownloadMetadata(_))
-        }
-
-        val prepareMetadata = Opts.subcommand(
-          name = "prepare-metadata",
-          help =
-            "Transform raw metadata from ENCODE into files which can be fed to downstream processes"
-        ) {
-          Opts
-            .option[File](
-              "download-dir",
-              help =
-                "Directory containing downloaded metadata. Prepared metadata will be written to the same location"
-            )
-            .map(new PrepareMetadata(_))
-        }
-
-        val genBq = Opts.subcommand(
-          name = "generate-bigquery-json",
-          help = "Generate JSON for upload to BigQuery from prepared ENCODE metadata"
-        ) {
-          val filesOpt = Opts.option[File](
-            "files-json",
-            help = "Final files JSON produced by the 'prep-ingest' step"
-          )
-          val donorsOpt = Opts.option[File](
-            "donors-json",
-            help = "Final donors JSON produced by the 'prep-ingest' step"
-          )
-          val bucketOpt = Opts.option[String](
-            "transfer-bucket",
-            help = "Bucket containing raw ENCODE data from a run of Google's STS"
-          )
-          val outOpt = Opts.option[File](
-            "output",
-            help = "Path to where JSON output should be written"
-          )
-
-          (filesOpt, donorsOpt, bucketOpt, outOpt).mapN {
-            case (files, donors, bucket, out) =>
-              new BuildBqJson(files, donors, bucket, out)
-          }
-        }
-
-        val genRawls = Opts.subcommand(
-          name = "generate-rawls-json",
-          help = "Generate JSON for upload to Rawls from prepared ENCODE metadata"
-        ) {
-          val filesOpt = Opts.option[File](
-            "files-json",
-            help = "Final files JSON produced by the 'prep-ingest' step"
-          )
-          val donorsOpt = Opts.option[File](
-            "donors-json",
-            help = "Final donors JSON produced by the 'prep-ingest' step"
-          )
-          val bucketOpt = Opts.option[String](
-            "transfer-bucket",
-            help = "Bucket containing raw ENCODE data from a run of Google's STS"
-          )
-          val outOpt = Opts.option[File](
-            "output-dir",
-            help = "Directory into which generated files should be written"
-          )
-
-          (filesOpt, donorsOpt, bucketOpt, outOpt).mapN {
-            case (files, donors, bucket, out) =>
-              new BuildRawlsJsons(files, donors, bucket, out)
-          }
-        }
-
-        downloadMetadata.orElse(prepareMetadata).orElse(genBq).orElse(genRawls).map {
-          cmd =>
-            val res = cmd.build[IO].attempt.unsafeRunSync()
-            val _ = (ioExecutor.shutdownNow(), schedulerExecutor.shutdownNow())
-            res.valueOr(throw _)
-        }
-      }
-    )
+  private def printErr(message: String): IO[ExitCode] =
+    IO(System.err.println(message)).as(ExitCode.Error)
+}

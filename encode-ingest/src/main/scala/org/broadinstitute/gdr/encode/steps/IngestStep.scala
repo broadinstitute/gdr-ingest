@@ -1,7 +1,9 @@
 package org.broadinstitute.gdr.encode.steps
 
+import java.util.concurrent.Executors
+
 import better.files.File
-import cats.effect.{Effect, Sync}
+import cats.effect._
 import cats.implicits._
 import fs2.{Pipe, Pure, Sink, Stream}
 import io.circe.syntax._
@@ -25,14 +27,14 @@ trait IngestStep {
     *
     * Steps are responsible for persisting their own outputs as an effect (i.e. writing them to disk).
     */
-  protected def process[F[_]: Effect]: Stream[F, Unit]
+  protected def process[F[_]: ConcurrentEffect: Timer: ContextShift]: Stream[F, Unit]
 
   /**
     * Convenience wrapper for packaging up custom stream logic into a runnable effect.
     *
     * Does some hacky caching that should probably get ripped out sooner rather than later.
     */
-  final def build[F[_]: Effect]: F[Unit] =
+  final def build[F[_]: ConcurrentEffect: Timer: ContextShift]: F[Unit] =
     Effect[F].delay(out.isRegularFile).flatMap { outputExists =>
       if (outputExists) {
         Effect[F].delay(
@@ -49,20 +51,29 @@ trait IngestStep {
 
 object IngestStep {
 
-  def readJsonArray[F[_]: Sync](in: File): Stream[F, JsonObject] =
+  def blockingContext[F[_]](implicit F: Sync[F]): Resource[F, ExecutionContext] =
+    Resource[F, ExecutionContext](F.delay {
+      val executor = Executors.newCachedThreadPool()
+      val ec = ExecutionContext.fromExecutor(executor)
+      (ec, F.delay(executor.shutdown()))
+    })
+
+  def readJsonArray[F[_]: Sync: ContextShift](blockingEc: ExecutionContext)(
+    in: File
+  ): Stream[F, JsonObject] =
     fs2.io.file
-      .readAll(in.path, 8192)
+      .readAll(in.path, blockingEc, 8192)
       .through(io.circe.fs2.byteArrayParser)
       .map(_.as[JsonObject])
       .rethrow
 
   /** Slurp a JSON array of metadata into an in-memory map from ID -> fields. */
-  def readLookupTable[F[_]: Sync](
+  def readLookupTable[F[_]: Sync: ContextShift](blockingEc: ExecutionContext)(
     metadata: File,
     idField: String = EncodeFields.EncodeIdField
   ): F[Map[String, JsonObject]] =
     IngestStep
-      .readJsonArray(metadata)
+      .readJsonArray(blockingEc)(metadata)
       .map { js =>
         js(idField)
           .flatMap(_.asString)
@@ -72,7 +83,9 @@ object IngestStep {
       .compile
       .fold(Map.empty[String, JsonObject])(_ + _)
 
-  def writeJsonArray[F[_]: Sync](out: File): Sink[F, JsonObject] = jsons => {
+  def writeJsonArray[F[_]: Sync: ContextShift](
+    blockingEc: ExecutionContext
+  )(out: File): Sink[F, JsonObject] = jsons => {
     val byteStream =
       jsons
         .map(_.asJson.noSpaces)
@@ -83,13 +96,15 @@ object IngestStep {
       .emit('['.toByte)
       .append(byteStream)
       .append(Stream.emit(']'.toByte))
-      .to(fs2.io.file.writeAll(out.path))
+      .to(fs2.io.file.writeAll(out.path, blockingEc))
   }
 
-  def writeLines[F[_]: Sync](out: File): Sink[F, String] =
+  def writeLines[F[_]: Sync: ContextShift](
+    blockingEc: ExecutionContext
+  )(out: File): Sink[F, String] =
     _.intersperse("\n")
       .flatMap(str => Stream.emits(str.getBytes))
-      .to(fs2.io.file.writeAll(out.path))
+      .to(fs2.io.file.writeAll(out.path, blockingEc))
 
   def renameFields(renameMap: Map[String, String]): Pipe[Pure, JsonObject, JsonObject] =
     _.map { obj =>
@@ -99,14 +114,14 @@ object IngestStep {
       }
     }
 
-  def parallelize[F[_]: Effect](steps: IngestStep*)(
-    implicit ec: ExecutionContext
+  def parallelize[F[_]: ConcurrentEffect: Timer: ContextShift](
+    steps: IngestStep*
   ): F[Unit] =
     Stream
       .emits(steps)
       .map(_.build[F])
       .map(Stream.eval)
-      .joinUnbounded
+      .parJoinUnbounded
       .compile
       .drain
 }

@@ -1,7 +1,7 @@
 package org.broadinstitute.gdr.encode.steps.google
 
 import better.files.File
-import cats.effect.{Effect, Sync}
+import cats.effect._
 import cats.implicits._
 import fs2.Stream
 import io.circe.JsonObject
@@ -13,15 +13,21 @@ import org.broadinstitute.gdr.encode.steps.transform.{
   ShapeFileMetadata
 }
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-class BuildStsManifest(fileMetadata: File, override protected val out: File)
-    extends IngestStep {
+class BuildStsManifest(
+  fileMetadata: File,
+  override protected val out: File,
+  ec: ExecutionContext
+) extends IngestStep {
 
-  override def process[F[_]: Effect]: Stream[F, Unit] = {
+  override protected def process[
+    F[_]: ConcurrentEffect: Timer: ContextShift
+  ]: Stream[F, Unit] = {
 
     val manifestRows = IngestStep
-      .readJsonArray(fileMetadata)
+      .readJsonArray(ec)(fileMetadata)
       .filter { file =>
         file(JoinReplicatesToFiles.FileAvailableField)
           .flatMap(_.asBoolean)
@@ -32,7 +38,7 @@ class BuildStsManifest(fileMetadata: File, override protected val out: File)
     Stream
       .emit("TsvHttpData-1.0")
       .append(manifestRows)
-      .to(IngestStep.writeLines(out))
+      .to(IngestStep.writeLines(ec)(out))
   }
 
   private def buildFileRow[F[_]: Sync](metadata: JsonObject): F[String] = {

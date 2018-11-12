@@ -1,16 +1,13 @@
 package org.broadinstitute.gdr.encode.steps.download
 
 import better.files.File
-import fs2.Scheduler
 import io.circe.JsonObject
 import org.broadinstitute.gdr.encode.EncodeFields
 
 import scala.concurrent.ExecutionContext
 
-class GetAudits(fileMetadata: File, out: File)(
-  implicit ec: ExecutionContext,
-  s: Scheduler
-) extends GetFromPreviousMetadataStep(fileMetadata, out) {
+class GetAudits(fileMetadata: File, out: File, ec: ExecutionContext)
+    extends GetFromPreviousMetadataStep(fileMetadata, out, ec) {
 
   final override val entityType = "File"
   final override val refField = EncodeFields.EncodeIdField

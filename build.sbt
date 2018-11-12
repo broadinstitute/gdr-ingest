@@ -35,13 +35,13 @@ inThisBuild(
 
 val betterFilesVersion = "3.6.0"
 val betterMonadicForVersion = "0.2.4"
-val circeVersion = "0.9.3"
-val circeDerivationVersion = "0.9.0-M5"
-val circeFs2Version = "0.9.0"
+val caseAppVersion = "2.0.0-M5"
+val circeVersion = "0.10.1"
+val circeDerivationVersion = "0.10.0-M1"
+val circeFs2Version = "0.10.0"
 val commonsCodecVersion = "1.11"
-val declineVersion = "0.5.0"
-val fs2Version = "0.10.5"
-val http4sVersion = "0.18.17"
+val fs2Version = "1.0.0"
+val http4sVersion = "0.20.0-M2"
 val logbackVersion = "1.2.3"
 
 lazy val `gdr-ingest` = project
@@ -54,8 +54,8 @@ lazy val `encode-ingest` = project
     libraryDependencies ++= Seq(
       "ch.qos.logback" % "logback-classic" % logbackVersion,
       "co.fs2" %% "fs2-io" % fs2Version,
+      "com.github.alexarchambault" %% "case-app" % caseAppVersion,
       "com.github.pathikrit" %% "better-files" % betterFilesVersion,
-      "com.monovore" %% "decline" % declineVersion,
       "commons-codec" % "commons-codec" % commonsCodecVersion,
       "io.circe" %% "circe-derivation" % circeDerivationVersion % Provided,
       "io.circe" %% "circe-fs2" % circeFs2Version,

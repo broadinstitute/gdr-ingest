@@ -1,12 +1,14 @@
 package org.broadinstitute.gdr.encode.client
 
-import cats.effect.Effect
-import cats.implicits._
-import fs2.{Scheduler, Stream}
+import java.util.concurrent.Executors
+
+import cats.effect._
+import cats.syntax.all._
+import fs2.Stream
 import io.circe.{Json, JsonObject}
 import org.http4s.{Method, Query, Request, Status, Uri}
 import org.http4s.client.{Client, UnexpectedStatus}
-import org.http4s.client.blaze.{BlazeClientConfig, Http1Client}
+import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.middleware.{Logger, Retry, RetryPolicy}
 import org.http4s.headers.Location
 
@@ -60,7 +62,7 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
         res.hcursor
           .downField("@graph")
           .as[Seq[JsonObject]]
-          .fold(Stream.raiseError[JsonObject], jss => Stream.emits(jss))
+          .fold(Stream.raiseError[F], jss => Stream.emits(jss))
       }
       .recoverWith {
         case EncodeClient.NoResultsFound => Stream.empty
@@ -81,8 +83,8 @@ class EncodeClient[F[_]: Effect] private (client: Client[F]) {
     client.fetch(request) { response =>
       response.headers
         .get(Location)
-        .fold(
-          E.raiseError[Uri](
+        .fold[F[Uri]](
+          E.raiseError(
             new IllegalStateException(
               s"HEAD of $downloadEndpoint returned no redirect URI"
             )
@@ -108,18 +110,23 @@ object EncodeClient {
 
   val EncodeUri: Uri = Uri.unsafeFromString("https://www.encodeproject.org")
 
-  def stream[F[_]: Effect](
-    implicit ec: ExecutionContext,
-    s: Scheduler
-  ): Stream[F, EncodeClient[F]] =
-    Http1Client
-      .stream(BlazeClientConfig.defaultConfig.copy(executionContext = ec))
-      .map { blaze =>
-        val retryPolicy = RetryPolicy[F](RetryPolicy.exponentialBackoff(1.second, 5))
-        val wrappedBlaze =
-          Retry(retryPolicy)(Logger(logHeaders = true, logBody = false)(blaze))
-        new EncodeClient[F](wrappedBlaze)
-      }
+  def stream[F[_]: ConcurrentEffect: Timer]: Stream[F, EncodeClient[F]] =
+    for {
+      ec <- Stream.resource(schedulerContext[F])
+      blaze <- BlazeClientBuilder[F](ec).stream
+    } yield {
+      val retryPolicy = RetryPolicy[F](RetryPolicy.exponentialBackoff(1.second, 5))
+      val wrappedBlaze =
+        Retry(retryPolicy)(Logger(logHeaders = true, logBody = false)(blaze))
+      new EncodeClient[F](wrappedBlaze)
+    }
+
+  private def schedulerContext[F[_]](implicit F: Sync[F]) =
+    Resource[F, ExecutionContext](F.delay {
+      val executor = Executors.newFixedThreadPool(1)
+      val ec = ExecutionContext.fromExecutor(executor)
+      (ec, F.delay(executor.shutdown()))
+    })
 
   private object NoResultsFound extends Throwable
 }

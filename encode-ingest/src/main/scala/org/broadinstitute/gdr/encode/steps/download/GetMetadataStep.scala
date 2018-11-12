@@ -1,8 +1,8 @@
 package org.broadinstitute.gdr.encode.steps.download
 
 import better.files.File
-import cats.effect.{Effect, Sync}
-import fs2.{Scheduler, Stream}
+import cats.effect._
+import fs2.Stream
 import io.circe.JsonObject
 import org.broadinstitute.gdr.encode.client.EncodeClient
 import org.broadinstitute.gdr.encode.steps.IngestStep
@@ -11,17 +11,19 @@ import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 /** Ingest step responsible for pulling raw metadata for a specific entity type from the ENCODE API. */
-abstract class GetMetadataStep(override protected val out: File)(
-  implicit ec: ExecutionContext,
-  s: Scheduler
+abstract class GetMetadataStep(
+  override protected val out: File,
+  protected val blockingEc: ExecutionContext
 ) extends IngestStep {
 
-  final override def process[F[_]: Effect]: Stream[F, Unit] =
+  final override def process[
+    F[_]: ConcurrentEffect: Timer: ContextShift
+  ]: Stream[F, Unit] =
     EncodeClient
       .stream[F]
       .flatMap(pullMetadata[F])
       .map(transformMetadata)
-      .to(IngestStep.writeJsonArray(out))
+      .to(IngestStep.writeJsonArray(blockingEc)(out))
 
   /** Transform a downloaded entity before it is written to disk. */
   def transformMetadata(metadata: JsonObject): JsonObject = metadata
@@ -38,12 +40,12 @@ abstract class GetMetadataStep(override protected val out: File)(
   def searchFrame: String = "object"
 
   /** Query parameters to pass in the call to the ENCODE search API. */
-  def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]]
+  def searchParams[F[_]: Sync: ContextShift]: Stream[F, List[(String, String)]]
 
-  final private def pullMetadata[F[_]: Effect](
+  final private def pullMetadata[F[_]: Concurrent: ContextShift](
     client: EncodeClient[F]
   ): Stream[F, JsonObject] =
     searchParams.map { params =>
       client.search(entityType, ("frame" -> searchFrame) :: params)
-    }.join(EncodeClient.Parallelism)
+    }.parJoin(EncodeClient.Parallelism)
 }

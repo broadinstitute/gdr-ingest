@@ -1,9 +1,9 @@
 package org.broadinstitute.gdr.encode.steps.download
 
 import better.files.File
-import cats.effect.Sync
-import cats.implicits._
-import fs2.{Pipe, Pure, Scheduler, Stream}
+import cats.effect.{ContextShift, Sync}
+import cats.syntax.all._
+import fs2.{Pipe, Pure, Stream}
 import org.broadinstitute.gdr.encode.EncodeFields
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
@@ -15,10 +15,8 @@ import scala.language.higherKinds
   *
   * @param in path to a JSON array of metadata previously downloaded from ENCODE
   */
-abstract class GetFromPreviousMetadataStep(in: File, out: File)(
-  implicit ec: ExecutionContext,
-  s: Scheduler
-) extends GetMetadataStep(out) {
+abstract class GetFromPreviousMetadataStep(in: File, out: File, ec: ExecutionContext)
+    extends GetMetadataStep(out, ec) {
 
   /** Field containing ref values to query in the objects read from `in`. */
   def refField: String
@@ -26,9 +24,11 @@ abstract class GetFromPreviousMetadataStep(in: File, out: File)(
   /** If `true`, expect `refField` to point to an array of references instead of a single reference. */
   def manyRefs: Boolean
 
-  final override def searchParams[F[_]: Sync]: Stream[F, List[(String, String)]] =
+  final override def searchParams[
+    F[_]: Sync: ContextShift
+  ]: Stream[F, List[(String, String)]] =
     IngestStep
-      .readJsonArray(in)
+      .readJsonArray(blockingEc)(in)
       .map(_(refField))
       .unNone
       .flatMap { refJson =>
@@ -42,16 +42,16 @@ abstract class GetFromPreviousMetadataStep(in: File, out: File)(
           refValues
         }
 
-        refs.valueOr(Stream.raiseError).covary[F]
+        refs.valueOr(Stream.raiseError[F])
       }
       .through(filterRefs)
       // Batch into groups of 100 based on guess-and-check.
       // Sending much larger of a batch size sometimes causes "URI too long" errors.
-      .segmentN(100)
+      .chunkN(100)
       .map {
-        _.fold(List.empty[(String, String)]) { (acc, ref) =>
+        _.foldLeft(List.empty[(String, String)]) { (acc, ref) =>
           (EncodeFields.EncodeIdField -> ref) :: acc
-        }.force.run._2
+        }
       }
 
   /**

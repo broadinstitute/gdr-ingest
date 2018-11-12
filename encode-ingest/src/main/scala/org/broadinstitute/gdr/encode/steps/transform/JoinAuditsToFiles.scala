@@ -1,7 +1,7 @@
 package org.broadinstitute.gdr.encode.steps.transform
 
 import better.files.File
-import cats.effect.{Effect, Sync}
+import cats.effect._
 import cats.implicits._
 import cats.kernel.Monoid
 import fs2.Stream
@@ -10,25 +10,29 @@ import io.circe.syntax._
 import org.broadinstitute.gdr.encode.EncodeFields
 import org.broadinstitute.gdr.encode.steps.IngestStep
 
+import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
 class JoinAuditsToFiles(
   auditMetadata: File,
   fileMetadata: File,
-  override protected val out: File
+  override protected val out: File,
+  ec: ExecutionContext
 ) extends IngestStep {
   import JoinAuditsToFiles._
 
-  override protected def process[F[_]: Effect]: Stream[F, Unit] =
+  override protected def process[
+    F[_]: ConcurrentEffect: Timer: ContextShift
+  ]: Stream[F, Unit] =
     Stream
       .eval(idsToAuditInfo[F])
       .flatMap { infoTable =>
-        IngestStep.readJsonArray(fileMetadata).map(joinAuditInfo(infoTable))
+        IngestStep.readJsonArray(ec)(fileMetadata).map(joinAuditInfo(infoTable))
       }
-      .to(IngestStep.writeJsonArray(out))
+      .to(IngestStep.writeJsonArray(ec)(out))
 
-  private def idsToAuditInfo[F[_]: Sync]: F[Map[String, AuditInfo]] =
-    IngestStep.readLookupTable(auditMetadata).map { idsToAudits =>
+  private def idsToAuditInfo[F[_]: Sync: ContextShift]: F[Map[String, AuditInfo]] =
+    IngestStep.readLookupTable(ec)(auditMetadata).map { idsToAudits =>
       idsToAudits.mapValues { js =>
         js(EncodeFields.EncodeAuditField).flatMap(_.asObject).map { auditObj =>
           val audits =
