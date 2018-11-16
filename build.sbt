@@ -49,6 +49,7 @@ lazy val `gdr-ingest` = project
   .aggregate(`encode-ingest`)
 
 lazy val `encode-ingest` = project
+  .in(file("encode/ingest"))
   .settings(
     addCompilerPlugin("com.olegpy" %% "better-monadic-for" % betterMonadicForVersion),
     libraryDependencies ++= Seq(
