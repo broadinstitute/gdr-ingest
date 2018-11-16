@@ -41,7 +41,7 @@ val circeDerivationVersion = "0.10.0-M1"
 val circeFs2Version = "0.10.0"
 val commonsCodecVersion = "1.11"
 val fs2Version = "1.0.0"
-val http4sVersion = "0.20.0-M2"
+val http4sVersion = "0.20.0-M3"
 val logbackVersion = "1.2.3"
 
 lazy val `gdr-ingest` = project
