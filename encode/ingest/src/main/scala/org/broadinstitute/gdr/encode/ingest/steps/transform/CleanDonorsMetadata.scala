@@ -4,6 +4,7 @@ import better.files.File
 import cats.effect._
 import cats.implicits._
 import fs2.Stream
+import io.circe.JsonObject
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.ingest.client.EncodeClient
 import org.broadinstitute.gdr.encode.ingest.steps.IngestStep
@@ -32,9 +33,11 @@ class CleanDonorsMetadata(
         .unNone
         .collect {
           case (id, donor) if accessionsToKeep.contains(id) =>
-            donor
-              .filterKeys(CleanDonorsMetadata.RetainedFields.contains)
-              .add("more_info", (EncodeClient.EncodeUri / id).toString.asJson)
+            removeUnknowns(
+              donor
+                .filterKeys(CleanDonorsMetadata.RetainedFields.contains)
+                .add("more_info", (EncodeClient.EncodeUri / id).toString.asJson)
+            )
         }
         .through(
           IngestStep.renameFields(
@@ -57,6 +60,9 @@ class CleanDonorsMetadata(
       }
       .unNone
       .foldMonoid
+
+  private def removeUnknowns(js: JsonObject): JsonObject =
+    js.filter { case (_, value) => value != "unknown".asJson }
 }
 
 object CleanDonorsMetadata {

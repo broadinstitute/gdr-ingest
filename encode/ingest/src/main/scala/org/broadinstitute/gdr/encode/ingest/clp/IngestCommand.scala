@@ -6,6 +6,7 @@ import org.broadinstitute.gdr.encode.ingest.steps.download.{
   DownloadMetadata => DownloadStep
 }
 import org.broadinstitute.gdr.encode.ingest.steps.rawls.BuildRawlsJsons
+import org.broadinstitute.gdr.encode.ingest.steps.sql.BuildSqlSnapshot
 import org.broadinstitute.gdr.encode.ingest.steps.transform.{
   PrepareMetadata => PrepareStep
 }
@@ -33,5 +34,14 @@ object IngestCommand {
   ) extends IngestCommand {
     override def step(blockingEc: ExecutionContext) =
       new BuildRawlsJsons(filesJson, donorsJson, transferBucket, outputDir, blockingEc)
+  }
+  case class GenerateSqlSnapshot(
+    filesJson: File,
+    donorsJson: File,
+    transferBucket: String,
+    sqlOutput: File
+  ) extends IngestCommand {
+    override def step(blockingEc: ExecutionContext): IngestStep =
+      new BuildSqlSnapshot(filesJson, donorsJson, transferBucket, sqlOutput, blockingEc)
   }
 }

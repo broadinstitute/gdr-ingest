@@ -138,6 +138,6 @@ object JoinReplicateMetadata {
     joinedName("biosample_type", BiosamplePrefix) -> SampleTypeField,
     joinedName("label", TargetPrefix) -> TargetLabelField,
     joinedName("name", LabPrefix) -> "labs_generating_data",
-    "uuid" -> "replicate_id"
+    "uuid" -> "replicate_ids"
   )
 }
