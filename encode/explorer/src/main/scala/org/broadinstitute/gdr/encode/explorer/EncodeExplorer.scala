@@ -23,14 +23,14 @@ object EncodeExplorer extends IOApp {
 
   private def run(config: ExplorerConfig): IO[Unit] =
     DbClient.resource[IO](config.db).use { db =>
-      val facetsController = new FacetsController[IO](config.fields, db)
+      val facetsController = new FacetsController[IO, IO.Par](config.fields, db)
       runServer(config.port, DatasetController.default, facetsController)
     }
 
   private def runServer(
     port: Int,
     datasetController: DatasetController,
-    facetsController: FacetsController[IO]
+    facetsController: FacetsController[IO, IO.Par]
   ): IO[Unit] = {
     val routes = HttpRoutes
       .of[IO] {
