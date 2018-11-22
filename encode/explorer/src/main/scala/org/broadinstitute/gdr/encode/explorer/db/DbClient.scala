@@ -13,9 +13,16 @@ import scala.language.higherKinds
 
 class DbClient[F[_]: Monad] private[db] (transactor: Transactor[F]) {
 
+  def count(table: String): F[Long] =
+    Query0[Long](s"select count(*) from $table").unique.transact(transactor)
+
   def countsByValue(table: String, column: String): Stream[F, (String, Long)] =
-    Query0[(String, Long)](s"select $column, count(*) from $table group by $column").stream
-      .transact(transactor)
+    Query0[(String, Long)](
+      s"""select $column, count(*)
+         |from $table
+         |where $column is not null
+         |group by $column""".stripMargin
+    ).stream.transact(transactor)
 }
 
 object DbClient {

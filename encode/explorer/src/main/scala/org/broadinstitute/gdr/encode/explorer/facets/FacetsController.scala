@@ -13,11 +13,12 @@ class FacetsController[F[_]: Sync](
 ) {
 
   def getFacets: F[FacetsResponse] = {
+    val donorCount = dbClient.count("donors")
     val donorFields = getFacets("donors", fields.donorFields)
     val fileFields = getFacets("files", fields.fileFields)
-    (donorFields, fileFields).mapN {
-      case (donors, files) =>
-        FacetsResponse(donors ::: files, donors.flatMap(_.values).foldMap(_.count))
+    (donorCount, donorFields, fileFields).mapN {
+      case (count, donors, files) =>
+        FacetsResponse(donors ::: files, count)
     }
   }
 
