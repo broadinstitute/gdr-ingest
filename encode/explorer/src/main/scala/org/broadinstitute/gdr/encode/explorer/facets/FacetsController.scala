@@ -4,7 +4,11 @@ import cats.Parallel
 import cats.effect.Sync
 import cats.implicits._
 import org.broadinstitute.gdr.encode.explorer.db.DbClient
-import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldsConfig}
+import org.broadinstitute.gdr.encode.explorer.fields.{
+  FieldConfig,
+  FieldType,
+  FieldsConfig
+}
 
 import scala.language.higherKinds
 
@@ -25,11 +29,13 @@ class FacetsController[M[_]: Sync, F[_]](
 
   private def getFacets(table: String, fields: List[FieldConfig]): M[List[Facet]] =
     fields.parTraverse { f =>
-      dbClient
-        .countsByValue(table, f.column)
-        .map { case (value, count) => FacetValue(value, count) }
-        .compile
-        .toList
+      val counts = f.fieldType match {
+        case FieldType.Array   => dbClient.countsByNestedValue(table, f.column)
+        case FieldType.Keyword => dbClient.countsByValue(table, f.column)
+        case FieldType.Number  => dbClient.countsByRange(table, f.column)
+      }
+
+      counts.map { case (value, count) => FacetValue(value, count) }.compile.toList
         .map(Facet(f.displayName, None, s"$table.${f.column}", _))
     }
 }

@@ -23,6 +23,60 @@ class DbClient[F[_]: Monad] private[db] (transactor: Transactor[F]) {
          |where $column is not null
          |group by $column""".stripMargin
     ).stream.transact(transactor)
+
+  def countsByNestedValue(table: String, column: String): Stream[F, (String, Long)] =
+    Query0[(String, Long)](
+      s"""select v, count(*)
+         |from (
+         |  select unnest($column) as v
+         |  from $table
+         |  where $column is not null
+         |  order by v
+         |) as v
+         |group by v
+       """.stripMargin
+    ).stream.transact(transactor)
+
+  def countsByRange(table: String, column: String): Stream[F, (String, Long)] = {
+    Query0[(Double, Double, Long)](
+      s"""with
+         |  source as (select $column from $table where $column is not null),
+         |  stats as (select min($column) as min, max($column) as max, count($column) as n from source),
+         |  histogram as (
+         |    select case
+         |        when stats.min = stats.max then 1
+         |        else width_bucket($column, stats.min, stats.max, least(10, stats.n)::int)
+         |      end as bucket,
+         |      min($column) as low,
+         |      max($column) as high,
+         |      count($column) as freq
+         |    from source, stats
+         |    group by bucket
+         |    order by bucket
+         |  )
+         |  select low, high, freq::bigint
+         |  from histogram
+     """.stripMargin
+    ).stream.transact(transactor).map {
+      case (low, high, count) =>
+        val diff = high - low
+        val range = if (diff == 0) {
+          formatRangeEnd(low)
+        } else {
+          s"${formatRangeEnd(low)}-${formatRangeEnd(high)}"
+        }
+        range -> count
+    }
+  }
+
+  private def formatRangeEnd(n: Double): String =
+    if (n == 0) {
+      "0"
+    } else if (n < 1) {
+      n.formatted("%.5f")
+    } else {
+      n.round.toString
+    }
 }
 
 object DbClient {

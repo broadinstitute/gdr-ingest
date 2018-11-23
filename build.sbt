@@ -41,6 +41,7 @@ val circeDerivationVersion = "0.10.0-M1"
 val circeFs2Version = "0.10.0"
 val commonsCodecVersion = "1.11"
 val doobieVersion = "0.6.0"
+val enumeratumVersion = "1.5.13"
 val fs2Version = "1.0.0"
 val http4sVersion = "0.20.0-M3"
 val logbackVersion = "1.2.3"
@@ -90,8 +91,10 @@ lazy val `encode-explorer` = project
   .settings(
     libraryDependencies ++= Seq(
       "ch.qos.logback" % "logback-classic" % logbackVersion,
+      "com.beachape" %% "enumeratum" % enumeratumVersion,
       "com.github.pureconfig" %% "pureconfig" % pureConfigVersion,
       "com.github.pureconfig" %% "pureconfig-cats-effect" % pureConfigVersion,
+      "com.github.pureconfig" %% "pureconfig-enumeratum" % pureConfigVersion,
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-derivation-annotations" % circeDerivationVersion,
       "org.http4s" %% "http4s-blaze-server" % http4sVersion,
