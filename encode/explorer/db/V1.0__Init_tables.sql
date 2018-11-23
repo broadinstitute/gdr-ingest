@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS donors;
 CREATE TABLE donors (
     donor_id varchar(250) PRIMARY KEY,
     age integer NULL,
@@ -7,6 +8,7 @@ CREATE TABLE donors (
     more_info varchar(250) NULL
 );
 
+DROP TABLE IF EXISTS files;
 CREATE TABLE files (
     file_id varchar(250) PRIMARY KEY,
     data_source varchar(250) NOT NULL,

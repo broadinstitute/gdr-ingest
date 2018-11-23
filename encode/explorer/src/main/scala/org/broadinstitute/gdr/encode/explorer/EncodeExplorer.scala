@@ -34,15 +34,15 @@ object EncodeExplorer extends IOApp {
   ): IO[Unit] = {
     val routes = HttpRoutes
       .of[IO] {
-        case GET -> Root / "dataset" =>
+        case GET -> Root / "api" / "dataset" =>
           Ok(datasetController.datasetInfo.asJson)
-        case GET -> Root / "facets" =>
+        case GET -> Root / "api" / "facets" =>
           Ok(facetsController.getFacets.map(_.asJson))
       }
       .orNotFound
 
     BlazeServerBuilder[IO]
-      .bindHttp(port, "localhost")
+      .bindHttp(port, "0.0.0.0")
       .withHttpApp(Logger(logHeaders = true, logBody = true)(routes))
       .serve
       .compile

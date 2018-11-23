@@ -46,6 +46,7 @@ val fs2Version = "1.0.0"
 val http4sVersion = "0.20.0-M3"
 val logbackVersion = "1.2.3"
 val paradiseVersion = "2.1.1"
+val postgresSocketFactoryVersion = "1.0.11"
 val pureConfigVersion = "0.10.0"
 
 val commonSettings = Seq(
@@ -72,7 +73,7 @@ lazy val `encode-ingest` = project
       "com.github.alexarchambault" %% "case-app" % caseAppVersion,
       "com.github.pathikrit" %% "better-files" % betterFilesVersion,
       "commons-codec" % "commons-codec" % commonsCodecVersion,
-      "io.circe" %% "circe-derivation" % circeDerivationVersion % Provided,
+      "io.circe" %% "circe-derivation" % circeDerivationVersion,
       "io.circe" %% "circe-fs2" % circeFs2Version,
       "io.circe" %% "circe-literal" % circeVersion,
       "org.http4s" %% "http4s-blaze-client" % http4sVersion,
@@ -87,6 +88,7 @@ lazy val `encode-ingest` = project
 
 lazy val `encode-explorer` = project
   .in(file("encode/explorer"))
+  .enablePlugins(JavaAppPackaging, DockerPlugin)
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
@@ -95,6 +97,7 @@ lazy val `encode-explorer` = project
       "com.github.pureconfig" %% "pureconfig" % pureConfigVersion,
       "com.github.pureconfig" %% "pureconfig-cats-effect" % pureConfigVersion,
       "com.github.pureconfig" %% "pureconfig-enumeratum" % pureConfigVersion,
+      "com.google.cloud.sql" % "postgres-socket-factory" % postgresSocketFactoryVersion % Runtime,
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-derivation-annotations" % circeDerivationVersion,
       "org.http4s" %% "http4s-blaze-server" % http4sVersion,
@@ -106,5 +109,6 @@ lazy val `encode-explorer` = project
     ),
     dependencyOverrides ++= Seq(
       "co.fs2" %% "fs2-core" % fs2Version
-    )
+    ),
+    dockerBaseImage := "gcr.io/google_appengine/openjdk8"
   )

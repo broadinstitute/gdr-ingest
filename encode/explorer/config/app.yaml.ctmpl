@@ -1,0 +1,6 @@
+runtime: custom
+env: flex
+service: api
+
+env_variables:
+  JAVA_OPTS: -Djava.security.egd=file:/dev/./urandom -Dconfig.file={{env "CONFIG_PATH"}}
