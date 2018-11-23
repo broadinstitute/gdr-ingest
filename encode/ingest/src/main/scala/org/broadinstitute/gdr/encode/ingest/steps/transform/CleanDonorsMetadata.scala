@@ -33,12 +33,12 @@ class CleanDonorsMetadata(
         .unNone
         .collect {
           case (id, donor) if accessionsToKeep.contains(id) =>
-            removeUnknowns(
-              donor
-                .filterKeys(CleanDonorsMetadata.RetainedFields.contains)
-                .add("more_info", (EncodeClient.EncodeUri / id).toString.asJson)
-            )
+            donor
+              .filterKeys(CleanDonorsMetadata.RetainedFields.contains)
+              .add("more_info", (EncodeClient.EncodeUri / id).toString.asJson)
         }
+        .map(removeUnknowns)
+        .map(normalizeAges)
         .through(
           IngestStep.renameFields(
             Map(
@@ -61,18 +61,38 @@ class CleanDonorsMetadata(
       .unNone
       .foldMonoid
 
+  private def normalizeAges(js: JsonObject): JsonObject = {
+    import CleanDonorsMetadata.AgeField
+
+    val maybeAge = js(AgeField).flatMap(_.asString)
+
+    maybeAge.fold(js) { age =>
+      val rangeIdx = age.indexOf('-')
+      val normalized = if (rangeIdx == -1) {
+        age
+      } else {
+        val (low, high) = (age.take(rangeIdx).toLong, age.drop(rangeIdx + 1).toLong)
+        ((low + high) / 2).toString
+      }
+      js.add(AgeField, normalized.asJson)
+    }
+  }
+
   private def removeUnknowns(js: JsonObject): JsonObject =
-    js.filter { case (_, value) => value != "unknown".asJson }
+    js.filter { case (_, value) => value != CleanDonorsMetadata.Unknown }
 }
 
 object CleanDonorsMetadata {
 
   val DonorIdField = "donor_id"
+  val AgeField = "age"
+
+  val Unknown = "unknown".asJson
 
   val RetainedFields =
     Set(
       JoinReplicateMetadata.DonorAccessionField,
-      "age",
+      AgeField,
       "age_units",
       "health_status",
       "sex"

@@ -23,7 +23,7 @@ CREATE TABLE files (
     donor_ids varchar(250)[] NOT NULL,
     experiments varchar(250)[] NOT NULL,
     file_format varchar(250) NOT NULL,
-    file_size_MB double precision NOT NULL,
+    file_size_MB double precision NULL,
     file_format_subtype varchar(250) NOT NULL,
     file_available_in_gcs boolean NOT NULL,
     labs_generating_data varchar(250)[] NOT NULL,
