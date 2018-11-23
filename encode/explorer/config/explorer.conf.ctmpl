@@ -1,4 +1,6 @@
 org.broadinstitute.gdr.encode.explorer.port: 8080
+# App Engine logs requests and responses for you:
+org.broadinstitute.gdr.encode.explorer.logging.log-bodies: false
 {{with $db := env "DB_NAME"}}{{with $dbLogin := vault (printf "secret/dsde/gdr/encode/cloudsql/logins/%s" $db)}}
 org.broadinstitute.gdr.encode.explorer.db.username: {{$dbLogin.Data.username}}
 org.broadinstitute.gdr.encode.explorer.db.password: {{$dbLogin.Data.password}}

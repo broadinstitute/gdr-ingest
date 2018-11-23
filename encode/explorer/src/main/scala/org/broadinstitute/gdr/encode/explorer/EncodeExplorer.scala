@@ -23,29 +23,25 @@ object EncodeExplorer extends IOApp {
 
   private def run(config: ExplorerConfig): IO[Unit] =
     DbClient.resource[IO](config.db).use { db =>
-      val facetsController = new FacetsController[IO, IO.Par](config.fields, db)
-      runServer(config.port, DatasetController.default, facetsController)
-    }
+      val facetsController = new FacetsController(config.fields, db)
 
-  private def runServer(
-    port: Int,
-    datasetController: DatasetController,
-    facetsController: FacetsController[IO, IO.Par]
-  ): IO[Unit] = {
-    val routes = HttpRoutes
-      .of[IO] {
+      val routes = HttpRoutes.of[IO] {
         case GET -> Root / "api" / "dataset" =>
-          Ok(datasetController.datasetInfo.asJson)
+          Ok(DatasetController.default.datasetInfo.asJson)
         case GET -> Root / "api" / "facets" =>
           Ok(facetsController.getFacets.map(_.asJson))
       }
-      .orNotFound
 
-    BlazeServerBuilder[IO]
-      .bindHttp(port, "0.0.0.0")
-      .withHttpApp(Logger(logHeaders = true, logBody = true)(routes))
-      .serve
-      .compile
-      .drain
-  }
+      val app = Logger[IO](
+        logHeaders = config.logging.logHeaders,
+        logBody = config.logging.logBodies
+      )(routes.orNotFound)
+
+      BlazeServerBuilder[IO]
+        .bindHttp(config.port, "0.0.0.0")
+        .withHttpApp(app)
+        .serve
+        .compile
+        .drain
+    }
 }
