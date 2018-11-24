@@ -31,10 +31,15 @@ object EncodeExplorer extends IOApp {
           case GET -> Root / "api" / "facets" =>
             Ok(facetsController.getFacets.map(_.asJson))
         }
-        val app = Logger[IO](
-          logHeaders = config.logging.logHeaders,
-          logBody = config.logging.logBodies
-        )(routes.orNotFound)
+
+        val app = if (config.logging.logHeaders || config.logging.logBodies) {
+          Logger[IO](
+            logHeaders = config.logging.logHeaders,
+            logBody = config.logging.logBodies
+          )(routes.orNotFound)
+        } else {
+          routes.orNotFound
+        }
 
         // NOTE: .serve returns a never-ending stream, so this will only
         // complete on SIGSTOP or SIGINT

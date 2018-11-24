@@ -54,7 +54,9 @@ class FacetsController[M[_]: Sync, F[_]](
         case FieldType.Number  => dbClient.countsByRange(table, f.column)
       }
 
-      counts.map { case (value, count) => FacetValue(value, count) }.compile.toList
-        .map(Facet(f.displayName, None, s"$table.${f.column}", _))
+      counts.map { cs =>
+        val vals = cs.map { case (v, c) => FacetValue(v, c) }
+        Facet(f.displayName, None, s"$table.${f.column}", vals)
+      }
     }
 }
