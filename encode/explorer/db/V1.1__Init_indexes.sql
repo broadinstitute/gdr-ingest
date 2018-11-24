@@ -1,0 +1,23 @@
+CREATE INDEX donors_age ON donors (age);
+CREATE INDEX donors_age_units ON donors (age_units);
+CREATE INDEX donors_health_status ON donors (health_status);
+CREATE INDEX donors_sex ON donors (sex);
+
+CREATE INDEX files_assay_type ON files (assay_type);
+CREATE INDEX files_reference_genome_assembly ON files (reference_genome_assembly);
+CREATE INDEX files_data_quality_category ON files (data_quality_category);
+CREATE INDEX files_biosample_type ON files (biosample_type);
+CREATE INDEX files_cell_type ON files (cell_type);
+CREATE INDEX files_file_format ON files (file_format);
+CREATE INDEX files_file_size_mb ON files (file_size_mb);
+CREATE INDEX files_file_format_subtype ON files (file_format_subtype);
+CREATE INDEX files_file_available_in_gcs ON files (file_available_in_gcs);
+CREATE INDEX files_labs_generating_data ON files USING gin (labs_generating_data);
+CREATE INDEX files_dna_library_ids ON files USING gin (dna_library_ids);
+CREATE INDEX files_data_type ON files (data_type);
+CREATE INDEX files_paired_end_sequencing ON files (paired_end_sequencing);
+CREATE INDEX files_read_count ON files (read_count);
+CREATE INDEX files_target_of_assay ON files (target_of_assay);
+CREATE INDEX files_read_length ON files (read_length);
+CREATE INDEX files_percent_aligned_reads ON files (percent_aligned_reads);
+CREATE INDEX files_percent_percent_duplicated_reads ON files (percent_duplicated_reads);

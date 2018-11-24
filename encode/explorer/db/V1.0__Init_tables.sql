@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS donors;
 CREATE TABLE donors (
     donor_id varchar(250) PRIMARY KEY,
     age integer NULL,
@@ -8,7 +7,6 @@ CREATE TABLE donors (
     more_info varchar(250) NULL
 );
 
-DROP TABLE IF EXISTS files;
 CREATE TABLE files (
     file_id varchar(250) PRIMARY KEY,
     data_source varchar(250) NOT NULL,
@@ -25,11 +23,11 @@ CREATE TABLE files (
     donor_ids varchar(250)[] NOT NULL,
     experiments varchar(250)[] NOT NULL,
     file_format varchar(250) NOT NULL,
-    file_size_MB double precision NULL,
+    file_size_mb double precision NULL,
     file_format_subtype varchar(250) NOT NULL,
     file_available_in_gcs boolean NOT NULL,
     labs_generating_data varchar(250)[] NOT NULL,
-    DNA_library_ids varchar(250)[] NOT NULL,
+    dna_library_ids varchar(250)[] NOT NULL,
     md5sum varchar(250) NOT NULL,
     data_type varchar(250) NOT NULL,
     paired_end_sequencing boolean NULL,
