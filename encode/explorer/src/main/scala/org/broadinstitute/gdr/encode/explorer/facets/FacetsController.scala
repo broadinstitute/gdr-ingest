@@ -17,11 +17,30 @@ class FacetsController[M[_]: Sync, F[_]](
   dbClient: DbClient[M]
 )(implicit par: Parallel[M, F]) {
 
+  def validateFields: M[Unit] =
+    (
+      validateFields("donors", fields.donorFields),
+      validateFields("files", fields.fileFields)
+    ).parMapN((_, _) => ())
+
+  private def validateFields(table: String, fields: List[FieldConfig]): M[Unit] =
+    dbClient.fields(table).flatMap { dbFields =>
+      val badFields = fields.map(_.column).toSet[String].diff(dbFields)
+      if (badFields.isEmpty) {
+        ().pure[M]
+      } else {
+        val err: Throwable = new IllegalStateException(
+          s"No such fields in table '$table': ${badFields.mkString(",")}"
+        )
+        err.raiseError[M, Unit]
+      }
+    }
+
   def getFacets: M[FacetsResponse] = {
     val donorCount = dbClient.count("donors")
     val donorFields = getFacets("donors", fields.donorFields)
     val fileFields = getFacets("files", fields.fileFields)
-    (donorCount, donorFields, fileFields).mapN {
+    (donorCount, donorFields, fileFields).parMapN {
       case (count, donors, files) =>
         FacetsResponse(donors ::: files, count)
     }

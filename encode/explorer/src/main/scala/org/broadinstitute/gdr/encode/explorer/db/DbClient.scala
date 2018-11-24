@@ -1,6 +1,5 @@
 package org.broadinstitute.gdr.encode.explorer.db
 
-import cats.Monad
 import cats.effect._
 import cats.implicits._
 import fs2.Stream
@@ -11,7 +10,15 @@ import doobie.util.ExecutionContexts
 
 import scala.language.higherKinds
 
-class DbClient[F[_]: Monad] private[db] (transactor: Transactor[F]) {
+class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
+
+  def fields(table: String): F[Set[String]] =
+    sql"select column_name from information_schema.columns where table_name = $table"
+      .query[String]
+      .stream
+      .transact(transactor)
+      .compile
+      .fold(Set.empty[String])(_ + _)
 
   def count(table: String): F[Long] =
     Query0[Long](s"select count(*) from $table").unique.transact(transactor)
