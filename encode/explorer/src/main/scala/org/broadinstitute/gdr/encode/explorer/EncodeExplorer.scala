@@ -1,6 +1,7 @@
 package org.broadinstitute.gdr.encode.explorer
 
 import cats.effect.{ExitCode, IO, IOApp}
+import cats.implicits._
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.explorer.dataset.DatasetController
 import org.broadinstitute.gdr.encode.explorer.db.DbClient
@@ -25,11 +26,33 @@ object EncodeExplorer extends IOApp {
 
       // Fail fast on bad config, and also warm up the DB connection pool.
       facetsController.validateFields.flatMap { _ =>
+        implicit val filterQueryDecoder: QueryParamDecoder[Map[String, Vector[String]]] =
+          QueryParamDecoder[String].map { s =>
+            if (s.isEmpty) {
+              Map.empty
+            } else {
+              s.split('|').toList.foldMap { kv =>
+                val i = kv.indexOf('=')
+                if (i < 0) {
+                  throw new IllegalArgumentException(s"Bad filter: $kv")
+                } else {
+                  val (k, v) = (kv.take(i), kv.drop(i + 1))
+                  Map(k -> Vector(v))
+                }
+              }
+            }
+          }
+
+        object FilterQueryDecoder
+            extends OptionalQueryParamDecoderMatcher[
+              Map[String, Vector[String]]
+            ]("filter")
+
         val routes = HttpRoutes.of[IO] {
           case GET -> Root / "api" / "dataset" =>
             Ok(DatasetController.default.datasetInfo.asJson)
-          case GET -> Root / "api" / "facets" =>
-            Ok(facetsController.getFacets.map(_.asJson))
+          case GET -> Root / "api" / "facets" :? FilterQueryDecoder(filters) =>
+            Ok(facetsController.getFacets(filters.getOrElse(Map.empty)).map(_.asJson))
         }
 
         val app = if (config.logging.logHeaders || config.logging.logBodies) {
@@ -42,7 +65,7 @@ object EncodeExplorer extends IOApp {
         }
 
         // NOTE: .serve returns a never-ending stream, so this will only
-        // complete on SIGSTOP or SIGINT
+        // complete on SIGSTOP or SIGINT.
         BlazeServerBuilder[IO]
           .bindHttp(config.port, "0.0.0.0")
           .withHttpApp(app)

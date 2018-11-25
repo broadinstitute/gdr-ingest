@@ -38,7 +38,8 @@ class FacetsController[M[_]: Sync, F[_]](
       }
     }
 
-  def getFacets: M[FacetsResponse] = {
+  def getFacets(filters: Map[String, Vector[String]]): M[FacetsResponse] = {
+    val _ = filters
     val donorCount = dbClient.count(DbTable.Donors)
     val donorFields = getFacets(DbTable.Donors, fields.donorFields)
     val fileFields = getFacets(DbTable.Files, fields.fileFields)
