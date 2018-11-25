@@ -3,7 +3,7 @@ package org.broadinstitute.gdr.encode.explorer.facets
 import cats.Parallel
 import cats.effect.Sync
 import cats.implicits._
-import org.broadinstitute.gdr.encode.explorer.db.DbClient
+import org.broadinstitute.gdr.encode.explorer.db.{DbClient, DbTable}
 import org.broadinstitute.gdr.encode.explorer.fields.{
   FieldConfig,
   FieldType,
@@ -19,34 +19,36 @@ class FacetsController[M[_]: Sync, F[_]](
 
   def validateFields: M[Unit] =
     (
-      validateFields("donors", fields.donorFields),
-      validateFields("files", fields.fileFields)
+      validateFields(DbTable.Donors, fields.donorFields),
+      validateFields(DbTable.Files, fields.fileFields)
     ).parMapN((_, _) => ())
 
-  private def validateFields(table: String, fields: List[FieldConfig]): M[Unit] =
+  private def validateFields(table: DbTable, fields: List[FieldConfig]): M[Unit] =
     dbClient.fields(table).flatMap { dbFields =>
-      val badFields = fields.map(_.column).toSet[String].diff(dbFields)
-      if (badFields.isEmpty) {
-        ().pure[M]
-      } else {
-        val err: Throwable = new IllegalStateException(
-          s"No such fields in table '$table': ${badFields.mkString(",")}"
-        )
-        err.raiseError[M, Unit]
+      fields.traverse_ { f =>
+        val col = f.column
+        if (dbFields.contains(col)) {
+          ().pure[M]
+        } else {
+          val err: Throwable = new IllegalStateException(
+            s"No such field in table '${table.entryName}': $col"
+          )
+          err.raiseError[M, Unit]
+        }
       }
     }
 
   def getFacets: M[FacetsResponse] = {
-    val donorCount = dbClient.count("donors")
-    val donorFields = getFacets("donors", fields.donorFields)
-    val fileFields = getFacets("files", fields.fileFields)
+    val donorCount = dbClient.count(DbTable.Donors)
+    val donorFields = getFacets(DbTable.Donors, fields.donorFields)
+    val fileFields = getFacets(DbTable.Files, fields.fileFields)
     (donorCount, donorFields, fileFields).parMapN {
       case (count, donors, files) =>
         FacetsResponse(donors ::: files, count)
     }
   }
 
-  private def getFacets(table: String, fields: List[FieldConfig]): M[List[Facet]] =
+  private def getFacets(table: DbTable, fields: List[FieldConfig]): M[List[Facet]] =
     fields.parTraverse { f =>
       val counts = f.fieldType match {
         case FieldType.Array   => dbClient.countsByNestedValue(table, f.column)

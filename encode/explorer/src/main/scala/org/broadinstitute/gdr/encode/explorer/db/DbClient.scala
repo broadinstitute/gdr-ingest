@@ -49,23 +49,24 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     }
   }
 
-  def fields(table: String): F[Set[String]] =
-    sql"select column_name from information_schema.columns where table_name = $table"
+  def fields(table: DbTable): F[Set[String]] =
+    sql"select column_name from information_schema.columns where table_name = ${table.entryName}"
       .query[String]
       .to[Set]
       .transact(transactor)
 
-  def count(table: String): F[Long] =
-    (fr"select count(*) from" ++ Fragment.const(table))
+  def count(table: DbTable): F[Long] =
+    Fragment
+      .const0(s"select count(*) from ${table.entryName}")
       .query[Long]
       .unique
       .transact(transactor)
 
-  def countsByValue(table: String, column: String): F[List[(String, Long)]] = {
+  def countsByValue(table: DbTable, column: String): F[List[(String, Long)]] = {
     Fragment
       .const0(
         s"""select $column, count(*)
-           |from $table
+           |from ${table.entryName}
            |where $column is not null
            |group by $column""".stripMargin
       )
@@ -74,13 +75,13 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       .transact(transactor)
   }
 
-  def countsByNestedValue(table: String, column: String): F[List[(String, Long)]] =
+  def countsByNestedValue(table: DbTable, column: String): F[List[(String, Long)]] =
     Fragment
       .const0(
         s"""select v, count(*)
            |from (
            |  select unnest($column) as v
-           |  from $table
+           |  from ${table.entryName}
            |  where $column is not null
            |) as v
            |group by v""".stripMargin
@@ -89,18 +90,18 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       .to[List]
       .transact(transactor)
 
-  def countsByRange(table: String, column: String): F[List[(String, Long)]] =
+  def countsByRange(table: DbTable, column: String): F[List[(String, Long)]] =
     Fragment
       .const0(
         s"""with source as (
-           |  select $column from $table where $column is not null
+           |  select $column from ${table.entryName} where $column is not null
            |), stats as (
-           |  select min($column) as min, max($column) as max, count($column) as n from source
+           |  select min($column) as min, max($column) as max from source
            |), histogram as (
            |  select
            |    case
            |      when stats.min = stats.max then 1
-           |      else width_bucket($column, stats.min, stats.max, least(10, stats.n)::int)
+           |      else width_bucket($column, stats.min, stats.max, 10)
            |    end as bucket,
            |    min($column) as low,
            |    max($column) as high,
@@ -113,9 +114,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
            |from histogram""".stripMargin
       )
       .query[(Double, Double, Long)]
-      .to[List]
-      .transact(transactor)
-      .map(_.map {
+      .map {
         case (low, high, count) =>
           val diff = high - low
           val range = if (diff == 0) {
@@ -124,7 +123,9 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
             s"${formatRangeEnd(low)}-${formatRangeEnd(high)}"
           }
           range -> count
-      })
+      }
+      .to[List]
+      .transact(transactor)
 
   private def formatRangeEnd(n: Double): String =
     if (n == 0) {
