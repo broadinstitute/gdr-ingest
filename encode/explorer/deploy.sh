@@ -10,7 +10,7 @@ declare -r RENDERED_CONFIG_PATH=opt/docker/conf/explorer.conf
 
 declare -r DB_PROJECT=broad-gdr-encode-storage
 declare -r DB_REGION=us-central1
-declare -r DB_INSTANCE=encode-metadata-db
+declare -r DB_INSTANCE=encode-metadata
 declare -r DB_NAME=postgres
 
 declare -r DEPLOY_PROJECT=broad-gdr-encode
