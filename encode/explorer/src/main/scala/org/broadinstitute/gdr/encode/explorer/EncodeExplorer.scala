@@ -67,7 +67,7 @@ object EncodeExplorer extends IOApp {
             }
 
           // Ugly as an object, but http4s has somehow designed their syntax
-          // to make it now work as a val.
+          // to make it not work as a val.
           object FilterQueryDecoder
               extends OptionalQueryParamDecoderMatcher[
                 Map[String, Vector[String]]
