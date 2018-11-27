@@ -12,6 +12,15 @@ import org.broadinstitute.gdr.encode.ingest.steps.IngestStep
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
+/**
+  * Ingest step which cleans / transforms raw donor metadata from ENCODE
+  * to match the schema expected by the Data Explorer API.
+  *
+  * @param donorMetadata path to raw human-donors metadata from the 'download-metadata' step
+  * @param joinedFileMetadata path to output file from the [[JoinReplicatesToFiles]] step
+  * @param out path to output file where cleaned JSON should be written
+  * @param ec execution context which should run blocking I/O operations
+  */
 class CleanDonorsMetadata(
   donorMetadata: File,
   joinedFileMetadata: File,
@@ -49,6 +58,11 @@ class CleanDonorsMetadata(
         .to(IngestStep.writeJsonArray(ec)(out))
     }
 
+  /**
+    * Build a stream which will collect all the donor IDs referenced in the cleaned file metadata.
+    *
+    * Emits a single element.
+    */
   private def donorAccessions[F[_]: Sync: ContextShift]: Stream[F, Set[String]] =
     IngestStep
       .readJsonArray(ec)(joinedFileMetadata)
@@ -61,6 +75,12 @@ class CleanDonorsMetadata(
       .unNone
       .foldMonoid
 
+  /**
+    * Ensure the age value in the given donors JSON is a valid number.
+    *
+    * Some ages are given as ranges (10-12) in ENCODE. We replace these values
+    * with the midpoint of the range.
+    */
   private def normalizeAges(js: JsonObject): JsonObject = {
     import CleanDonorsMetadata.AgeField
 
@@ -78,6 +98,12 @@ class CleanDonorsMetadata(
     }
   }
 
+  /**
+    * Remove all values of 'unknown' from the given JSON.
+    *
+    * 'unknown' means the same thing as `null` in our use-case, and `null`
+    * plays much more nicely with type-checking both in Scala and in the DB.
+    */
   private def removeUnknowns(js: JsonObject): JsonObject =
     js.filter { case (_, value) => value != CleanDonorsMetadata.Unknown }
 }
