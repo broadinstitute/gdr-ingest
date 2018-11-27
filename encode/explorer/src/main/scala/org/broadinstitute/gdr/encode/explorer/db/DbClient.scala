@@ -56,10 +56,10 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     }
   }
 
-  /** Get the names of all columns in a table. */
-  def fields(table: DbTable): F[Set[String]] =
-    sql"select column_name from information_schema.columns where table_name = ${table.entryName}"
-      .query[String]
+  /** Get info about all columns in a table. */
+  def fields(table: DbTable): F[Set[(String, String)]] =
+    sql"select column_name, data_type from information_schema.columns where table_name = ${table.entryName}"
+      .query[(String, String)]
       .to[Set]
       .transact(transactor)
 

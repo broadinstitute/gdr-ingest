@@ -27,7 +27,10 @@ class FacetsController[M[_]: Sync, F[_]](
   dbClient: DbClient[M]
 )(implicit par: Parallel[M, F]) {
 
-  /** Check that the fields defined in config refer to actual DB columns. */
+  /**
+    * Check that the fields defined in config refer to actual DB columns,
+    * with expected types.
+    */
   def validateFields: M[Unit] =
     (
       validateFields(DbTable.Donors, fields.donorFields),
@@ -35,19 +38,27 @@ class FacetsController[M[_]: Sync, F[_]](
     ).parMapN((_, _) => ())
 
   private def validateFields(table: DbTable, fields: List[FieldConfig]): M[Unit] =
-    dbClient.fields(table).flatMap { dbFields =>
-      fields.traverse_ { f =>
-        val col = f.column
-        if (dbFields.contains(col)) {
-          ().pure[M]
-        } else {
-          val err: Throwable = new IllegalStateException(
-            s"No such field in table '${table.entryName}': $col"
-          )
-          err.raiseError[M, Unit]
+    dbClient
+      .fields(table)
+      .map(_.toMap)
+      .flatMap { dbFields =>
+        fields.traverse_ { f =>
+          val col = f.column
+          (dbFields.get(col), f.fieldType) match {
+            case (None, _) =>
+              val err: Throwable = new IllegalStateException(
+                s"No such field in table '${table.entryName}': $col"
+              )
+              err.raiseError[M, Unit]
+            case (Some(tpe), fTpe) if fTpe.matches(tpe) => ().pure[M]
+            case (Some(tpe), fTpe) =>
+              val err: Throwable = new IllegalStateException(
+                s"Field '$col' has type '$tpe' in table '${table.entryName}', but is configured as type '${fTpe.entryName}'"
+              )
+              err.raiseError[M, Unit]
+          }
         }
       }
-    }
 
   /**
     * Get the unique values / counts of all columns configured for faceted search.
