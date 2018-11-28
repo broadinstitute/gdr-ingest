@@ -1,0 +1,21 @@
+runtime: custom
+env: flex
+service: api
+
+env_variables:
+  # Make sure the app uses the Cloud SQL proxy.
+  CLOUD_SQL_FORCE_UNIX_SOCKET: true
+
+  # Why the security setting? https://stackoverflow.com/a/25669300
+  JAVA_OPTS: >
+    -Djava.security.egd=file:/dev/./urandom
+    -Dscala.concurrent.context.minThreads=1
+    -Dscala.concurrent.context.numThreads=4
+    -Dscala.concurrent.context.maxThreads=8
+    -Dscala.concurrent.context.maxExtraThreads=0
+    -Dconfig.file={{env "CONFIG_PATH"}}
+
+# Undocumented setting I picked up from some Google Group posts.
+# Needed to make the CLOUD_SQL_FORCE_UNIX_SOCKET work.
+beta_settings:
+  cloud_sql_instances: "{{env "POSTGRES_INSTANCE"}}"

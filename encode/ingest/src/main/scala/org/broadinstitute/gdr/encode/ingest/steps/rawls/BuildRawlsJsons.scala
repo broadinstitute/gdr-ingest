@@ -5,9 +5,8 @@ import cats.effect._
 import fs2.Stream
 import io.circe.{Json, JsonObject}
 import io.circe.syntax._
-import org.broadinstitute.gdr.encode.ingest.steps.IngestStep
+import org.broadinstitute.gdr.encode.ingest.steps.{ExportTransforms, IngestStep}
 import org.broadinstitute.gdr.encode.ingest.steps.transform.CleanDonorsMetadata
-import org.broadinstitute.gdr.encode.ingest.steps.google.Gcs
 import org.broadinstitute.gdr.encode.ingest.steps.transform.{
   JoinReplicateMetadata,
   ShapeFileMetadata
@@ -34,7 +33,6 @@ class BuildRawlsJsons(
         )
       )
     } else {
-      val _ = (filesMetadata, storageBucket)
       Stream(
         writeRawlsUpserts(
           donorsMetadata,
@@ -45,7 +43,7 @@ class BuildRawlsJsons(
           filesMetadata,
           "sample",
           ShapeFileMetadata.FileIdField,
-          swapFileFields
+          ExportTransforms.swapFileFields(storageBucket)
         )
       ).parJoinUnbounded
     }
@@ -88,18 +86,6 @@ class BuildRawlsJsons(
           .asJson
       )
     }
-
-  private def swapFileFields(fileObj: JsonObject): JsonObject = {
-    val uriSwapped = Gcs.swapUriFields(storageBucket)(fileObj)
-    val maybeSizeMb = uriSwapped(ShapeFileMetadata.FileSizeField)
-      .flatMap(_.as[Long].toOption)
-      .map(_ / BuildRawlsJsons.BytesPerMb)
-      .map(_.asJson)
-
-    maybeSizeMb
-      .fold(uriSwapped)(uriSwapped.add("file_size_MB", _))
-      .remove(ShapeFileMetadata.FileSizeField)
-  }
 
   private def rawlsOperations(key: String, value: Json): Iterable[Json] = {
     import BuildRawlsJsons._
@@ -144,8 +130,6 @@ class BuildRawlsJsons(
 }
 
 object BuildRawlsJsons {
-  val BytesPerMb = math.pow(10, 6)
-
   val AddListMemberOp = "AddListMember".asJson
   val UpsertScalarOp = "AddUpdateAttribute".asJson
   val CreateReferenceListOp = "CreateAttributeEntityReferenceList".asJson

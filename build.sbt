@@ -40,25 +40,40 @@ val circeVersion = "0.10.1"
 val circeDerivationVersion = "0.10.0-M1"
 val circeFs2Version = "0.10.0"
 val commonsCodecVersion = "1.11"
+val doobieVersion = "0.6.0"
+val enumeratumVersion = "1.5.13"
 val fs2Version = "1.0.0"
 val http4sVersion = "0.20.0-M3"
 val logbackVersion = "1.2.3"
+val paradiseVersion = "2.1.1"
+val postgresSocketFactoryVersion = "1.0.11"
+val pureConfigVersion = "0.10.0"
+
+val commonSettings = Seq(
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % betterMonadicForVersion),
+  addCompilerPlugin("org.scalamacros" % "paradise" % paradiseVersion cross CrossVersion.full),
+  scalacOptions in (Compile, console) --= Seq(
+    "-Xfatal-warnings",
+    "-Xlint",
+    "-Ywarn-unused"
+  )
+)
 
 lazy val `gdr-ingest` = project
   .in(file("."))
-  .aggregate(`encode-ingest`)
+  .aggregate(`encode-ingest`, `encode-explorer`)
 
 lazy val `encode-ingest` = project
   .in(file("encode/ingest"))
+  .settings(commonSettings)
   .settings(
-    addCompilerPlugin("com.olegpy" %% "better-monadic-for" % betterMonadicForVersion),
     libraryDependencies ++= Seq(
       "ch.qos.logback" % "logback-classic" % logbackVersion,
       "co.fs2" %% "fs2-io" % fs2Version,
       "com.github.alexarchambault" %% "case-app" % caseAppVersion,
       "com.github.pathikrit" %% "better-files" % betterFilesVersion,
       "commons-codec" % "commons-codec" % commonsCodecVersion,
-      "io.circe" %% "circe-derivation" % circeDerivationVersion % Provided,
+      "io.circe" %% "circe-derivation" % circeDerivationVersion,
       "io.circe" %% "circe-fs2" % circeFs2Version,
       "io.circe" %% "circe-literal" % circeVersion,
       "org.http4s" %% "http4s-blaze-client" % http4sVersion,
@@ -68,10 +83,32 @@ lazy val `encode-ingest` = project
       "co.fs2" %% "fs2-core" % fs2Version,
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-parser" % circeVersion
-    ),
-    scalacOptions in (Compile, console) --= Seq(
-      "-Xfatal-warnings",
-      "-Xlint",
-      "-Ywarn-unused"
     )
+  )
+
+lazy val `encode-explorer` = project
+  .in(file("encode/explorer"))
+  .enablePlugins(JavaAppPackaging, DockerPlugin)
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "ch.qos.logback" % "logback-classic" % logbackVersion,
+      "com.beachape" %% "enumeratum" % enumeratumVersion,
+      "com.github.pureconfig" %% "pureconfig" % pureConfigVersion,
+      "com.github.pureconfig" %% "pureconfig-cats-effect" % pureConfigVersion,
+      "com.github.pureconfig" %% "pureconfig-enumeratum" % pureConfigVersion,
+      "com.google.cloud.sql" % "postgres-socket-factory" % postgresSocketFactoryVersion % Runtime,
+      "io.circe" %% "circe-core" % circeVersion,
+      "io.circe" %% "circe-derivation-annotations" % circeDerivationVersion,
+      "org.http4s" %% "http4s-blaze-server" % http4sVersion,
+      "org.http4s" %% "http4s-circe" % http4sVersion,
+      "org.http4s" %% "http4s-dsl" % http4sVersion,
+      "org.tpolecat" %% "doobie-core" % doobieVersion,
+      "org.tpolecat" %% "doobie-hikari" % doobieVersion,
+      "org.tpolecat" %% "doobie-postgres" % doobieVersion
+    ),
+    dependencyOverrides ++= Seq(
+      "co.fs2" %% "fs2-core" % fs2Version
+    ),
+    dockerBaseImage := "gcr.io/google_appengine/openjdk8"
   )
