@@ -81,7 +81,7 @@ class FacetsController[M[_]: Sync, F[_]](
     fields.parTraverse { f =>
       dbClient.countValues(table, f, (filters - f.column).values.toList).map { cs =>
         val vals = cs.map { case (v, c) => FacetValue(v, c) }
-        Facet(f.displayName, None, s"$table.${f.column}", vals)
+        Facet(f.displayName, None, s"${table.entryName}.${f.column}", vals)
       }
     }
 }
