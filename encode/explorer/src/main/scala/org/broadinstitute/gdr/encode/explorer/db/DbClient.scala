@@ -106,6 +106,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   ): F[List[(String, Long)]] =
     field.fieldType match {
       case FieldType.Keyword => countsByValue(table, field.column, filters)
+      case FieldType.Boolean => countsByBoolValue(table, field.column, filters)
       case FieldType.Array   => countsByNestedValue(table, field.column, filters)
       case FieldType.Number  => countsByRange(table, field.column, filters)
     }
@@ -126,6 +127,17 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       .to[List]
       .transact(transactor)
   }
+
+  private def countsByBoolValue(
+    table: DbTable,
+    column: String,
+    filters: List[Fragment]
+  ): F[List[(String, Long)]] =
+    countsByValue(table, column, filters)
+      .map(_.map {
+        case (k, v) =>
+          (if (k.startsWith("t")) "true" else "false") -> v
+      })
 
   /** Get the counts of each unique nested value in an array column. */
   private def countsByNestedValue(
@@ -211,12 +223,16 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   def whereFiltersMatch(field: FieldConfig, filters: NonEmptyList[String]): Fragment =
     field.fieldType match {
       case FieldType.Keyword => whereKeywordOneOf(field.column, filters)
+      case FieldType.Boolean => whereBoolOneOf(field.column, filters)
       case FieldType.Array   => whereArrayIntersects(field.column, filters)
       case FieldType.Number  => whereNumberInRanges(field.column, filters)
     }
 
   private def whereKeywordOneOf(column: String, values: NonEmptyList[String]): Fragment =
     Fragments.in(Fragment.const(column), values)
+
+  private def whereBoolOneOf(column: String, values: NonEmptyList[String]): Fragment =
+    Fragments.in(Fragment.const(column), values.map(_.toBoolean))
 
   private def whereArrayIntersects(
     column: String,
