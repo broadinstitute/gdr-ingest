@@ -1,5 +1,6 @@
 package org.broadinstitute.gdr.encode.explorer
 
+import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
 import cats.implicits._
 import io.circe.syntax._
@@ -47,9 +48,7 @@ object EncodeExplorer extends IOApp {
         // Fail fast on bad config, and also warm up the DB connection pool.
         // TODO: Experiment with this a repeated query param instead of an all-in-one.
         facetsController.validateFields.flatMap { _ =>
-          implicit val filterQueryDecoder: QueryParamDecoder[
-            Map[String, Vector[String]]
-          ] =
+          implicit val filterQueryDecoder: QueryParamDecoder[FacetsController.Filters] =
             QueryParamDecoder[String].map { s =>
               if (s.isEmpty) {
                 Map.empty
@@ -60,7 +59,7 @@ object EncodeExplorer extends IOApp {
                     throw new IllegalArgumentException(s"Bad filter: $kv")
                   } else {
                     val (k, v) = (kv.take(i), kv.drop(i + 1))
-                    Map(k -> Vector(v))
+                    Map(k -> NonEmptyList.of(v))
                   }
                 }
               }
@@ -69,9 +68,7 @@ object EncodeExplorer extends IOApp {
           // Ugly as an object, but http4s has somehow designed their syntax
           // to make it not work as a val.
           object FilterQueryDecoder
-              extends OptionalQueryParamDecoderMatcher[
-                Map[String, Vector[String]]
-              ]("filter")
+              extends OptionalQueryParamDecoderMatcher[FacetsController.Filters]("filter")
 
           val routes = HttpRoutes.of[IO] {
             case GET -> Root / "api" / "dataset" =>

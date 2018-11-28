@@ -52,6 +52,7 @@ CREATE INDEX files_reference_genome_assembly ON files (reference_genome_assembly
 CREATE INDEX files_data_quality_category ON files (data_quality_category);
 CREATE INDEX files_biosample_type ON files (biosample_type);
 CREATE INDEX files_cell_type ON files (cell_type);
+CREATE INDEX files_donor_ids ON files USING gin (donor_ids);
 CREATE INDEX files_file_format ON files (file_format);
 CREATE INDEX files_file_size_mb ON files (file_size_mb);
 CREATE INDEX files_file_format_subtype ON files (file_format_subtype);
