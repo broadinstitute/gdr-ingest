@@ -45,12 +45,18 @@ class FacetsController[M[_]: Sync, F[_]](
   def getFacets(filters: FacetsController.Filters): M[FacetsResponse] = {
 
     val donorFilters = getFilters(DbTable.Donors, filters)
-    val fileFilters = getFilters(DbTable.Files, filters) +
-      ("donor_ids" -> dbClient.whereDonorIncluded(donorFilters.values.toList))
+    val fileFilters = getFilters(DbTable.Files, filters)
+    val fileFiltersWithDonors = if (donorFilters.isEmpty) {
+      fileFilters
+    } else {
+      fileFilters +
+        ("donor_ids" -> dbClient.whereDonorIncluded(donorFilters.values.toList))
+    }
 
     val donorCount = dbClient.countRows(DbTable.Donors, donorFilters.values.toList)
     val donorFields = getFacets(DbTable.Donors, fields(DbTable.Donors), donorFilters)
-    val fileFields = getFacets(DbTable.Files, fields(DbTable.Files), fileFilters)
+    val fileFields =
+      getFacets(DbTable.Files, fields(DbTable.Files), fileFiltersWithDonors)
     (donorCount, donorFields, fileFields).parMapN {
       case (count, donors, files) =>
         FacetsResponse(donors ::: files, count)
