@@ -237,22 +237,35 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
         (exact - 0.00001, exact + 0.00001)
       }
 
-      Fragment.const(s"($column") ++ fr">= $low and" ++ Fragment.const(column) ++ fr"<= $high)"
+      Fragment.const(s"($column") ++ fr">= $low AND" ++ Fragment.const(column) ++ fr"<= $high)"
     }
 
     Fragments.or(rangeChecks.toList: _*)
   }
 
-  def whereDonorIncluded(donorFilters: List[Fragment]): Fragment = {
+  def fromIncludedFile(fileFilters: List[Fragment]): Fragment = {
+    val donorIds = fr"select unnest(" ++
+      Fragment.const0(DbClient.FileDonorsFk) ++
+      fr") from " ++
+      Fragment.const(DbTable.Files.entryName) ++
+      Fragments.whereAnd(fileFilters: _*)
+
+    Fragment.const(DbClient.DonorsId) ++ fr"IN (" ++ donorIds ++ fr")"
+  }
+
+  def fromIncludedDonor(donorFilters: List[Fragment]): Fragment = {
     val donorIds = fr"select array_agg(donor_id) from " ++
       Fragment.const(DbTable.Donors.entryName) ++
       Fragments.whereAnd(donorFilters: _*)
 
-    fr"donor_ids && (" ++ donorIds ++ fr")"
+    Fragment.const(DbClient.FileDonorsFk) ++ fr"&& (" ++ donorIds ++ fr")"
   }
 }
 
 object DbClient {
+
+  val DonorsId = "donor_id"
+  val FileDonorsFk = "donor_ids"
 
   /**
     * Construct a DB client, wrapped in logic which will:
