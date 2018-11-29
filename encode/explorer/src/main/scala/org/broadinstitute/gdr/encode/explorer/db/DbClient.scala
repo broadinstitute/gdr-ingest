@@ -123,12 +123,13 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     column: String,
     filters: Iterable[Fragment]
   ): F[List[(String, Long)]] = {
+    val col = Fragment.const(column)
+
     val selectFrom = Fragment.const(s"select $column, count(*) from ${table.entryName}")
     val whereFilters =
-      Fragments.whereAnd(Fragment.const(column) ++ fr"is not null" :: filters.toList: _*)
-    val groupBy = fr"group by " ++ Fragment.const0(column)
+      Fragments.whereAnd(col ++ fr"is not null" :: filters.toList: _*)
 
-    (selectFrom ++ whereFilters ++ groupBy)
+    (selectFrom ++ whereFilters ++ fr"group by " ++ col ++ fr"order by " ++ col)
       .query[(String, Long)]
       .to[List]
       .transact(transactor)
@@ -168,7 +169,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     val whereFilters =
       Fragments.whereAnd(Fragment.const(column) ++ fr"is not null" :: filters.toList: _*)
 
-    (fr"select v, count(*) from (" ++ selectUnnestFrom ++ whereFilters ++ fr") as v group by v")
+    (fr"select v, count(*) from (" ++ selectUnnestFrom ++ whereFilters ++ fr") as v group by v order by v")
       .query[(String, Long)]
       .to[List]
       .transact(transactor)
