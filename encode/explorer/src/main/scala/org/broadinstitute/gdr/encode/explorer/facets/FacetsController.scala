@@ -44,20 +44,22 @@ class FacetsController[M[_]: Sync, F[_]](
     */
   def getFacets(filters: FacetsController.Filters): M[FacetsResponse] = {
 
-    val donorFilters = getFilters(DbTable.Donors, filters)
-    val fileFilters = getFilters(DbTable.Files, filters)
+    val donorFilters = filtersToSql(DbTable.Donors, filters)
+    val fileFilters = filtersToSql(DbTable.Files, filters)
 
+    // If we've filtered out all files for a donor, we don't want to report / export it.
     val donorFiltersWithFiles = if (fileFilters.isEmpty) {
       donorFilters
     } else {
       donorFilters +
-        (DbClient.DonorsId -> dbClient.fromIncludedFile(fileFilters.values.toList))
+        (DbClient.DonorsId -> dbClient.donorFromIncludedFile(fileFilters.values.toList))
     }
+    // If we've filtered out all donors for a file, we don't want to report / export it.
     val fileFiltersWithDonors = if (donorFilters.isEmpty) {
       fileFilters
     } else {
       fileFilters +
-        (DbClient.FileDonorsFk -> dbClient.fromIncludedDonor(donorFilters.values.toList))
+        (DbClient.FileDonorsFk -> dbClient.fileFromIncludedDonor(donorFilters.values.toList))
     }
 
     val donorCount =
@@ -66,28 +68,41 @@ class FacetsController[M[_]: Sync, F[_]](
       getFacets(DbTable.Donors, fields(DbTable.Donors), donorFiltersWithFiles)
     val fileFields =
       getFacets(DbTable.Files, fields(DbTable.Files), fileFiltersWithDonors)
+
     (donorCount, donorFields, fileFields).parMapN {
       case (count, donors, files) =>
         FacetsResponse(donors ::: files, count)
     }
   }
 
-  private def getFilters(
+  /**
+    * Convert filters from the API to corresponding SQL constraints.
+    *
+    * FIXME: It feels like mixing of concerns to have anything related to SQL in this class
+    * instead of in the [[DbClient]]; try to push this logic down a layer.
+    */
+  private def filtersToSql(
     table: DbTable,
     filters: FacetsController.Filters
   ): Map[String, Fragment] =
     fields(table).flatMap { f =>
       filters
         .get(s"${table.entryName}.${f.column}")
-        .map(fs => f.column -> dbClient.whereFiltersMatch(f, fs))
+        .map(fs => f.column -> dbClient.filtersToSql(f, fs))
     }.toMap
 
+  /** Get facet values for fields in a table, under a set of constraints. */
   private def getFacets(
     table: DbTable,
     fields: List[FieldConfig],
     filters: Map[String, Fragment]
   ): M[List[Facet]] =
     fields.parTraverse { f =>
+      /*
+       * Remove any filters for the current field from the counting query because
+       * if we didn't, as soon as a user selected a facet value in the UI every other
+       * option for that facet would disappear.
+       */
       dbClient.countValues(table, f, (filters - f.column).values.toList).map { cs =>
         val vals = cs.map { case (v, c) => FacetValue(v, c) }
         Facet(f.displayName, None, s"${table.entryName}.${f.column}", vals)

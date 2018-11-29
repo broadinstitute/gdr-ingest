@@ -19,6 +19,9 @@ import scala.language.higherKinds
   * @tparam F wrapper type capable of suspending synchronous effects
   * @param transactor wrapper around a source of DB connections which
   *                   can actually run SQL
+  *
+  * @see https://tpolecat.github.io/doobie/docs/01-Introduction.html for
+  *      documentation on `doobie`, the library used for DB access
   */
 class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
 
@@ -60,11 +63,13 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     }
   }
 
+  /** Check that configuration for fields reflect actual columns in a DB table. */
   def validateFields(table: DbTable, fields: List[FieldConfig]): F[Unit] =
     fieldTypes(table).flatMap { dbFields =>
       fields.traverse_(validateField(dbFields))
     }
 
+  /** Check that configuration for a single field reflects an actual DB column. */
   private def validateField(dbTypes: Map[String, String])(field: FieldConfig): F[Unit] = {
     val col = field.column
     (dbTypes.get(col), field.fieldType) match {
@@ -80,7 +85,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     }
   }
 
-  /** Get info about all columns in a table. */
+  /** Get the DB types of all columns in a table. */
   private def fieldTypes(table: DbTable): F[Map[String, String]] =
     sql"select column_name, data_type from information_schema.columns where table_name = ${table.entryName}"
       .query[(String, String)]
@@ -99,6 +104,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       .transact(transactor)
   }
 
+  /** Get the counts of each facet value for a field in a table under a set of filters. */
   def countValues(
     table: DbTable,
     field: FieldConfig,
@@ -128,6 +134,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       .transact(transactor)
   }
 
+  /** Get the counts of each boolean value in a column. */
   private def countsByBoolValue(
     table: DbTable,
     column: String,
@@ -136,7 +143,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     countsByValue(table, column, filters)
       .map(_.map {
         case (k, v) =>
-          (if (k.startsWith("t")) "true" else "false") -> v
+          (if (k.startsWith("t")) "yes" else "no") -> v
       })
 
   /** Get the counts of each unique nested value in an array column. */
@@ -156,7 +163,12 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       .transact(transactor)
   }
 
-  /** Get the counts of elements assigned to each bin of a 10-bin histogram in a numeric column. */
+  /**
+    * Get the counts of elements assigned to each bin of a 10-bin histogram in a numeric column.
+    *
+    * FIXME: This builds a reasonably-complex query, and chopping it up into `val`s makes it hard
+    * to follow what's happening. Move into a SQL function?
+    */
   private def countsByRange(
     table: DbTable,
     column: String,
@@ -198,6 +210,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     (withTables ++ fr" select low, high, freq::bigint from histogram")
       .query[(Double, Double, Long)]
       .map {
+        // FIXME: See how hard / ugly it is to run this logic in the DB.
         case (low, high, count) =>
           val diff = high - low
           val range = if (diff == 0) {
@@ -220,26 +233,62 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       n.round.toString
     }
 
-  def whereFiltersMatch(field: FieldConfig, filters: NonEmptyList[String]): Fragment =
-    field.fieldType match {
+  /** Build a SQL constraint which checks that a field matches one of a set of filters. */
+  def filtersToSql(field: FieldConfig, filters: NonEmptyList[String]): Fragment = {
+    val constraint = field.fieldType match {
       case FieldType.Keyword => whereKeywordOneOf(field.column, filters)
       case FieldType.Boolean => whereBoolOneOf(field.column, filters)
       case FieldType.Array   => whereArrayIntersects(field.column, filters)
       case FieldType.Number  => whereNumberInRanges(field.column, filters)
     }
 
+    fr"(" ++ constraint ++ fr")"
+  }
+
+  /**
+    * Build a SQL constraint on the [[DbTable.Donors]] table which will remove all rows
+    * that will not be referred to by any files after the given filters are applied to the
+    * [[DbTable.Files]] table.
+    */
+  def donorFromIncludedFile(fileFilters: List[Fragment]): Fragment = {
+    val donorIds = fr"select unnest(" ++
+      Fragment.const0(DbClient.FileDonorsFk) ++
+      fr") from " ++
+      Fragment.const(DbTable.Files.entryName) ++
+      Fragments.whereAnd(fileFilters: _*)
+
+    Fragment.const(DbClient.DonorsId) ++ fr"IN (" ++ donorIds ++ fr")"
+  }
+
+  /**
+    * Build a SQL constraint on the [[DbTable.Files]] table which will remove all rows
+    * that refer only to donors which will be filtered out after the given filters are
+    * applied to the [[DbTable.Donors]] table.
+    */
+  def fileFromIncludedDonor(donorFilters: List[Fragment]): Fragment = {
+    val donorIds = fr"select array_agg(donor_id) from " ++
+      Fragment.const(DbTable.Donors.entryName) ++
+      Fragments.whereAnd(donorFilters: _*)
+
+    Fragment.const(DbClient.FileDonorsFk) ++ fr"&& (" ++ donorIds ++ fr")"
+  }
+
+  /** Build a SQL constraint checking that a string column is one of a set of keywords. */
   private def whereKeywordOneOf(column: String, values: NonEmptyList[String]): Fragment =
     Fragments.in(Fragment.const(column), values)
 
+  /** Build a SQL constraint checking that a bool column is one of a set of booleans. */
   private def whereBoolOneOf(column: String, values: NonEmptyList[String]): Fragment =
     Fragments.in(Fragment.const(column), values.map(_.toBoolean))
 
+  /** Build a SQL constraint checking that an array column overlaps a set of keywords. */
   private def whereArrayIntersects(
     column: String,
     values: NonEmptyList[String]
   ): Fragment =
     Fragment.const(s"$column &&") ++ fr"${values.toList}"
 
+  /** Build a SQL constraint checking that a numeric column falls within any of a set of ranges. */
   private def whereNumberInRanges(
     column: String,
     ranges: NonEmptyList[String]
@@ -258,29 +307,14 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
 
     Fragments.or(rangeChecks.toList: _*)
   }
-
-  def fromIncludedFile(fileFilters: List[Fragment]): Fragment = {
-    val donorIds = fr"select unnest(" ++
-      Fragment.const0(DbClient.FileDonorsFk) ++
-      fr") from " ++
-      Fragment.const(DbTable.Files.entryName) ++
-      Fragments.whereAnd(fileFilters: _*)
-
-    Fragment.const(DbClient.DonorsId) ++ fr"IN (" ++ donorIds ++ fr")"
-  }
-
-  def fromIncludedDonor(donorFilters: List[Fragment]): Fragment = {
-    val donorIds = fr"select array_agg(donor_id) from " ++
-      Fragment.const(DbTable.Donors.entryName) ++
-      Fragments.whereAnd(donorFilters: _*)
-
-    Fragment.const(DbClient.FileDonorsFk) ++ fr"&& (" ++ donorIds ++ fr")"
-  }
 }
 
 object DbClient {
 
+  /** Primary-key column in the donors table. */
   val DonorsId = "donor_id"
+
+  /** Foreign-key column in the files table, pointing to the donors table. */
   val FileDonorsFk = "donor_ids"
 
   /**
