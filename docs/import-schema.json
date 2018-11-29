@@ -1,0 +1,827 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://app.terra.bio/schemas/import-schema.json",
+  "title": "Terra JSON import schema",
+  "definitions": {
+    "simpleAttribute": {
+      "type": ["string", "number", "boolean", "null"]
+    },
+    "repeatedAttribute": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/simpleAttribute" },
+      "default": []
+    },
+    "entityAttribute": {
+      "title": "Feature / quality of an entity to add to a workspace",
+      "description": "Terra displays attributes in the 'Data' view of workspaces. It also allows users to plug attributes into notebooks and batch workflows for analysis.",
+      "anyOf": [
+        { "$ref": "#/definitions/simpleAttribute" },
+        { "$ref": "#/definitions/repeatedAttribute" }
+      ]
+    },
+    "entitySetItems": {
+      "title": "Collection of IDs defining an entity set",
+      "type": "object",
+      "properties": {
+        "itemsType": { "const": "EntityReference" },
+        "items": {
+          "title": "Unique entity IDs",
+          "description": "Contains the unique IDs ('names') of entities which should be included in the enclosing set. The referred-to entities should all be of the same type.",
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "minLength": 1
+        }
+      }
+    },
+    "entity": {
+      "title": "Record to add to a workspace",
+      "description": "Entities are the most granular unit of metadata which can be plugged into a workflow or notebook in Terra.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "The ID of the entity",
+          "description": "If multiple entities with the same ID are included in the export payload the attributes will be merged, with the attributes of the last entity 'winning' on conflicts.",
+          "type": "string"
+        },
+        "entityType": {
+          "title": "The type of the entity",
+          "description": "",
+          "examples": ["donor", "sample", "file"],
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/entityAttribute" }
+        }
+      }
+    },
+    "entitySet": {
+      "title": "Collection of entities",
+      "description": "Entity sets enable parallelizing analyses over a set of entities in Terra.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "The ID of the set",
+          "description": "If multiple sets with the same ID are included in the export payload the included references will be merged.",
+          "type": "string"
+        },
+        "entityType": {
+          "title": "The type of the set",
+          "description": "By convention, the name of an entity set follows the pattern '{entityType}'_set",
+          "examples": ["donor_set", "sample_set", "file_set"],
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": {
+            "description": "By convention, entity sets have a single attribute named as the plural of the referred-to entity type.",
+            "examples": ["donors", "samples", "files"],
+            "$ref": "#/definitions/entitySetItems"
+          },
+          "minProperties": 1,
+          "maxProperties": 1
+        }
+      }
+    }
+  },
+  "type": "array",
+  "items": {
+    "anyOf": [
+      { "$ref": "#/definitions/entity" },
+      { "$ref": "#/definitions/entitySet" }
+    ],
+    "default": [],
+    "examples": [
+      {
+        "attributes": {
+          "subject_subtype": "huang_macosko",
+          "project_name": "BICCN",
+          "sample_technique": "Drop-Seq",
+          "project_lab": "Macosko",
+          "sample_modality": "Transcriptome",
+          "project_organization": "Broad Institute",
+          "sample_library_method": "snRNA-seq",
+          "project_grant": "Huang",
+          "sample_organism": "Mouse",
+          "project_id": "1rqiymYI0qjdxwYF",
+          "sample_transgenic_line": "Unknown",
+          "study_full_name": "macosko_transcriptome_mouse_10X",
+          "sample_anatomical_region": "Brain"
+        },
+        "entityType": "sample",
+        "name": "DLS3"
+      },
+      {
+        "attributes": {
+          "subject_subtype": "zeng_zeng",
+          "project_name": "BICCN",
+          "sample_technique": "Drop-Seq(10X)",
+          "project_lab": "Zeng",
+          "sample_modality": "Transcriptome",
+          "project_organization": "Allen Institute For Brain Science",
+          "sample_library_method": "scRNA-Seq",
+          "project_grant": "Zeng",
+          "sample_organism": "Mouse",
+          "project_id": "VKCfVXcB3dzJE8sv",
+          "sample_transgenic_line": "Unknown",
+          "study_full_name": "zeng_transcriptome_mouse_10X",
+          "sample_anatomical_region": "Brain"
+        },
+        "entityType": "sample",
+        "name": "680583717"
+      },
+      {
+        "attributes": {
+          "subject_subtype": "zeng_zeng",
+          "project_name": "BICCN",
+          "sample_technique": "Drop-Seq(10X)",
+          "project_lab": "Zeng",
+          "sample_modality": "Transcriptome",
+          "project_organization": "Allen Institute For Brain Science",
+          "sample_library_method": "scRNA-Seq",
+          "project_grant": "Zeng",
+          "sample_organism": "Mouse",
+          "project_id": "VKCfVXcB3dzJE8sv",
+          "sample_transgenic_line": "Unknown",
+          "study_full_name": "zeng_transcriptome_mouse_10X",
+          "sample_anatomical_region": "Brain"
+        },
+        "entityType": "sample",
+        "name": "680080094"
+      },
+      {
+        "attributes": {
+          "subject_subtype": "zeng_zeng",
+          "project_name": "BICCN",
+          "sample_technique": "Drop-Seq(10X)",
+          "project_lab": "Zeng",
+          "sample_modality": "Transcriptome",
+          "project_organization": "Allen Institute For Brain Science",
+          "sample_library_method": "scRNA-Seq",
+          "project_grant": "Zeng",
+          "sample_organism": "Mouse",
+          "project_id": "VKCfVXcB3dzJE8sv",
+          "sample_transgenic_line": "Unknown",
+          "study_full_name": "zeng_transcriptome_mouse_10X",
+          "sample_anatomical_region": "Brain"
+        },
+        "entityType": "sample",
+        "name": "662171314"
+      },
+      {
+        "attributes": {
+          "subject_subtype": "zeng_zeng",
+          "project_name": "BICCN",
+          "sample_technique": "Drop-Seq(10X)",
+          "project_lab": "Zeng",
+          "sample_modality": "Transcriptome",
+          "project_organization": "Allen Institute For Brain Science",
+          "sample_library_method": "scRNA-Seq",
+          "project_grant": "Zeng",
+          "sample_organism": "Mouse",
+          "project_id": "VKCfVXcB3dzJE8sv",
+          "sample_transgenic_line": "Unknown",
+          "study_full_name": "zeng_transcriptome_mouse_10X",
+          "sample_anatomical_region": "Brain"
+        },
+        "entityType": "sample",
+        "name": "678420031"
+      },
+      {
+        "attributes": {
+          "subject_subtype": "zeng_zeng",
+          "project_name": "BICCN",
+          "sample_technique": "Smart-Seq",
+          "project_lab": "Zeng",
+          "sample_modality": "Transcriptome",
+          "project_organization": "Allen Institute For Brain Science",
+          "sample_library_method": "scRNA-Seq",
+          "project_grant": "Zeng",
+          "sample_organism": "Mouse",
+          "project_id": "VKCfVXcB3dzJE8sv",
+          "sample_transgenic_line": "Unknown",
+          "study_full_name": "zeng_transcriptome_mouse_SMARTSeq",
+          "sample_anatomical_region": "Brain"
+        },
+        "entityType": "sample",
+        "name": "665436395"
+      },
+      {
+        "attributes": {
+          "subject_subtype": "zeng_zeng",
+          "project_name": "BICCN",
+          "sample_technique": "Drop-Seq(10X)",
+          "project_lab": "Zeng",
+          "sample_modality": "Transcriptome",
+          "project_organization": "Allen Institute For Brain Science",
+          "sample_library_method": "scRNA-Seq",
+          "project_grant": "Zeng",
+          "sample_organism": "Mouse",
+          "project_id": "VKCfVXcB3dzJE8sv",
+          "sample_transgenic_line": "Unknown",
+          "study_full_name": "zeng_transcriptome_mouse_10X",
+          "sample_anatomical_region": "Brain"
+        },
+        "entityType": "sample",
+        "name": "665281924"
+      },
+      {
+        "attributes": {
+          "subject_subtype": "ecker_ecker",
+          "project_name": "BICCN",
+          "sample_technique": "Snmc-Seq2",
+          "project_lab": "Ecker",
+          "sample_modality": "Methylation",
+          "project_organization": "Salk Institute For Biological Sciences",
+          "sample_library_method": "snmC-seq",
+          "project_grant": "Ecker",
+          "sample_organism": "Mouse",
+          "project_id": "BiQFywbfAExmRVeh",
+          "sample_transgenic_line": "Unknown",
+          "study_full_name": "ecker_methylation_mouse_snmC-seq2",
+          "sample_anatomical_region": "Brain"
+        },
+        "entityType": "sample",
+        "name": "CEMBA180119_1B"
+      },
+      {
+        "attributes": {
+          "subject_subtype": "zeng_zeng",
+          "project_name": "BICCN",
+          "sample_technique": "Drop-Seq(10X)",
+          "project_lab": "Zeng",
+          "sample_modality": "Transcriptome",
+          "project_organization": "Allen Institute For Brain Science",
+          "sample_library_method": "scRNA-Seq",
+          "project_grant": "Zeng",
+          "sample_organism": "Mouse",
+          "project_id": "VKCfVXcB3dzJE8sv",
+          "sample_transgenic_line": "Unknown",
+          "study_full_name": "zeng_transcriptome_mouse_10X",
+          "sample_anatomical_region": "Brain"
+        },
+        "entityType": "sample",
+        "name": "680847414"
+      },
+      {
+        "attributes": {
+          "subject_subtype": "zeng_zeng",
+          "project_name": "BICCN",
+          "sample_technique": "Drop-Seq(10X)",
+          "project_lab": "Zeng",
+          "sample_modality": "Transcriptome",
+          "project_organization": "Allen Institute For Brain Science",
+          "sample_library_method": "scRNA-Seq",
+          "project_grant": "Zeng",
+          "sample_organism": "Mouse",
+          "project_id": "VKCfVXcB3dzJE8sv",
+          "sample_transgenic_line": "Unknown",
+          "study_full_name": "zeng_transcriptome_mouse_10X",
+          "sample_anatomical_region": "Brain"
+        },
+        "entityType": "sample",
+        "name": "676617945"
+      },
+      {
+        "attributes": {
+          "subject_subtype": "zeng_zeng",
+          "project_name": "BICCN",
+          "sample_technique": "Drop-Seq(10X)",
+          "project_lab": "Zeng",
+          "sample_modality": "Transcriptome",
+          "project_organization": "Allen Institute For Brain Science",
+          "sample_library_method": "scRNA-Seq",
+          "project_grant": "Zeng",
+          "sample_organism": "Mouse",
+          "project_id": "VKCfVXcB3dzJE8sv",
+          "sample_transgenic_line": "Unknown",
+          "study_full_name": "zeng_transcriptome_mouse_10X",
+          "sample_anatomical_region": "Brain"
+        },
+        "entityType": "sample",
+        "name": "675026503"
+      },
+
+      {
+        "entityType": "sample_set",
+        "name": "10X-samples",
+        "attributes": {
+          "samples": {
+            "itemsType": "EntityReference",
+            "items": [
+              "DLS3",
+              "680583717",
+              "680080094",
+              "662171314",
+              "678420031",
+              "665436395",
+              "665281924",
+              "CEMBA180119_1B",
+              "680847414",
+              "676617945",
+              "675026503"
+            ]
+          }
+        }
+      },
+
+      {
+        "attributes": {
+          "sample_id": "DLS3",
+          "size": "14008320",
+          "urls": "http://data.nemoarchive.org/biccn/grant/huang/macosko/transcriptome/scell/processed/counts/DLS3barcodes.tsv",
+          "md5": "9a4d06d503d05cde8fc153cd9c4f9297"
+        },
+        "entityType": "file",
+        "name": "k7GWWswgHMvXP4nE"
+      },
+      {
+        "attributes": {
+          "sample_id": "680583717",
+          "size": "65666672640",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_G04.fastq.tar",
+          "md5": "8541ce480db761f9493c012293c21d00"
+        },
+        "entityType": "file",
+        "name": "oiCCtYOMqV8hkoy4"
+      },
+      {
+        "attributes": {
+          "sample_id": "680080094",
+          "size": "38065070080",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/HIP/L8TX_180406_01_D06.fastq.tar",
+          "md5": "e6cf67e568096a6a739853ee1cdf8a05"
+        },
+        "entityType": "file",
+        "name": "vn0PMgHXZzW7eqiq"
+      },
+      {
+        "attributes": {
+          "sample_id": "662171314",
+          "size": "48024248320",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/RSP/L8TX_180221_01_D11.fastq.tar",
+          "md5": "16f938fc2b19ce39601fbee35a4fe801"
+        },
+        "entityType": "file",
+        "name": "qqRXsXtc3rtbY5g1"
+      },
+      {
+        "attributes": {
+          "sample_id": "678420031",
+          "size": "32806983680",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/ENT/L8TX_180406_01_C07.fastq.tar",
+          "md5": "4f789d0df1d8281cadb183908b9046b6"
+        },
+        "entityType": "file",
+        "name": "e2VZ78UP9HuJP9Ql"
+      },
+      {
+        "attributes": {
+          "sample_id": "680080094",
+          "size": "49609635840",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/HIP/L8TX_180406_01_G07.fastq.tar",
+          "md5": "ec2a6d7125526e11b6275ec0111f961b"
+        },
+        "entityType": "file",
+        "name": "EqmWnjvLFYCtXHLz"
+      },
+      {
+        "attributes": {
+          "sample_id": "665436395",
+          "size": "46489600",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/SMARTer/raw/TEa-PERI-ECT/SM-GE91R_S187_E1-50.fastq.tar",
+          "md5": "4435e6b8aad91a6173c510fea092259a"
+        },
+        "entityType": "file",
+        "name": "00aiCbJYSJrKgdPi"
+      },
+      {
+        "attributes": {
+          "sample_id": "680583717",
+          "size": "63552010240",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_F04.fastq.tar",
+          "md5": "033a93ce9e2e444704b87818ba61b4f6"
+        },
+        "entityType": "file",
+        "name": "pcwS4phed3sxm2Rf"
+      },
+      {
+        "attributes": {
+          "sample_id": "665281924",
+          "size": "51621345280",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/HIP/L8TX_180221_01_F12.fastq.tar",
+          "md5": "4b60193aea66bfb8e314024fe58d99e0"
+        },
+        "entityType": "file",
+        "name": "hJ7noY9acbqLlSFK"
+      },
+      {
+        "attributes": {
+          "sample_id": "CEMBA180119_1B",
+          "size": "126709760",
+          "urls": "http://data.nemoarchive.org/biccn/grant/cemba/ecker/methylation/1B/CEMBA180119_1B/bam/180305_CEMBA_mm_P56_P63_1B_CEMBA180119_1B_1_CEMBA180119_1B_2_F2_AD007_indexed_srt_rmdup_q10_filtered.bam.tar",
+          "md5": "7e25ebbf445b4358149dfcfe752f5052"
+        },
+        "entityType": "file",
+        "name": "000vEGxc0wF24zRp"
+      },
+      {
+        "attributes": {
+          "sample_id": "678420031",
+          "size": "32208773120",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/ENT/L8TX_180406_01_E07.fastq.tar",
+          "md5": "99d87f26b486e2a623ee217d727992ea"
+        },
+        "entityType": "file",
+        "name": "gLw1OhXaDhnPMCFO"
+      },
+      {
+        "attributes": {
+          "sample_id": "680847414",
+          "size": "37837465600",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_F05.fastq.tar",
+          "md5": "005acd78ec3a6692dc0716b99bd79089"
+        },
+        "entityType": "file",
+        "name": "LwvFJ84O1F0F252x"
+      },
+      {
+        "attributes": {
+          "sample_id": "662171314",
+          "size": "42184468480",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/RSP/L8TX_180221_01_F11.fastq.tar",
+          "md5": "9b1c58f5a6630f4791b7df671bd34d3a"
+        },
+        "entityType": "file",
+        "name": "QDTPhBAX3tT94PBC"
+      },
+      {
+        "attributes": {
+          "sample_id": "680847414",
+          "size": "31169341440",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_C05.fastq.tar",
+          "md5": "ace8e28c829ade3b192e101d79e72c81"
+        },
+        "entityType": "file",
+        "name": "0pXf7K06Kgpy4Aaq"
+      },
+      {
+        "attributes": {
+          "sample_id": "676617945",
+          "size": "48102830080",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/ENT/L8TX_180406_01_H01.fastq.tar",
+          "md5": "f99a84d338c39c622d45a159fb6c7477"
+        },
+        "entityType": "file",
+        "name": "PtAR2yCjVKvJAVjP"
+      },
+      {
+        "attributes": {
+          "sample_id": "680583717",
+          "size": "17195591680",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_A05.fastq.tar",
+          "md5": "6065c3b4f962b3cc74874d26f4d65fb1"
+        },
+        "entityType": "file",
+        "name": "8areNB0rNJVa2rVd"
+      },
+      {
+        "attributes": {
+          "sample_id": "680847414",
+          "size": "45313443840",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_H05.fastq.tar",
+          "md5": "NA"
+        },
+        "entityType": "file",
+        "name": "yX4uIst5SE0pI7pM"
+      },
+      {
+        "attributes": {
+          "sample_id": "662171314",
+          "size": "18821457920",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/RSP/L8TX_180221_01_B11.fastq.tar",
+          "md5": "NA"
+        },
+        "entityType": "file",
+        "name": "PH7IVuOfefNeLN6D"
+      },
+      {
+        "attributes": {
+          "sample_id": "676617945",
+          "size": "30636093440",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/ENT/L8TX_180406_01_E02.fastq.tar",
+          "md5": "d5215dc170510226d6e3aeb701fca08d"
+        },
+        "entityType": "file",
+        "name": "F6Ijr6nSTg17bmsC"
+      },
+      {
+        "attributes": {
+          "sample_id": "678420031",
+          "size": "30573834240",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/ENT/L8TX_180406_01_C08.fastq.tar",
+          "md5": "c56782e8f7be3988852180ff84a52c98"
+        },
+        "entityType": "file",
+        "name": "VVsk3cgm1KixhntC"
+      },
+      {
+        "attributes": {
+          "sample_id": "662171314",
+          "size": "42005053440",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/RSP/L8TX_180221_01_G11.fastq.tar",
+          "md5": "a240b33e9b70061d7a59259b975dffe0"
+        },
+        "entityType": "file",
+        "name": "p3PcGVujv1pJ5mzQ"
+      },
+      {
+        "attributes": {
+          "sample_id": "680080094",
+          "size": "49890938880",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/HIP/L8TX_180406_01_B08.fastq.tar",
+          "md5": "4fbb6fbfe5dc6a76f895c86b03a7edde"
+        },
+        "entityType": "file",
+        "name": "1kO4q9okByFKxohh"
+      },
+      {
+        "attributes": {
+          "sample_id": "662171314",
+          "size": "44789329920",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/RSP/L8TX_180221_01_E11.fastq.tar",
+          "md5": "881d241b37acb37ffc52abcaa59a3aba"
+        },
+        "entityType": "file",
+        "name": "2F8trncAaqsAIIyq"
+      },
+      {
+        "attributes": {
+          "sample_id": "676617945",
+          "size": "42977628160",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/ENT/L8TX_180406_01_H02.fastq.tar",
+          "md5": "79a85174a757292fafb755b20c0fb27b"
+        },
+        "entityType": "file",
+        "name": "k4cgvU05UqSA34x9"
+      },
+      {
+        "attributes": {
+          "sample_id": "680847414",
+          "size": "41016176640",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_E05.fastq.tar",
+          "md5": "2cd2bcfb8d9fcd5f7c4fb48eb9cb0f5a"
+        },
+        "entityType": "file",
+        "name": "ADKFhSB44nSLulP5"
+      },
+      {
+        "attributes": {
+          "sample_id": "662171314",
+          "size": "49051023360",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/RSP/L8TX_180221_01_C11.fastq.tar",
+          "md5": "26f3df6efa1f28029c35f35280a63afd"
+        },
+        "entityType": "file",
+        "name": "5UKBBzjy0KNR7Ny7"
+      },
+      {
+        "attributes": {
+          "sample_id": "680847414",
+          "size": "27793612800",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_G05.fastq.tar",
+          "md5": "NA"
+        },
+        "entityType": "file",
+        "name": "KyeJOONZ0hqQDG6Y"
+      },
+      {
+        "attributes": {
+          "sample_id": "665281924",
+          "size": "49681233920",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/HIP/L8TX_180221_01_G12.fastq.tar",
+          "md5": "7693b49ac1ee05d941038bf3b77c6d37"
+        },
+        "entityType": "file",
+        "name": "sWvYr2ZuegarjEf3"
+      },
+      {
+        "attributes": {
+          "sample_id": "678420031",
+          "size": "27421245440",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/ENT/L8TX_180406_01_B06.fastq.tar",
+          "md5": "a01451a2d458e58f5755ec6a73a7b4f9"
+        },
+        "entityType": "file",
+        "name": "2TFFxXiMN86UmnTV"
+      },
+      {
+        "attributes": {
+          "sample_id": "680583717",
+          "size": "47967569920",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_B05.fastq.tar",
+          "md5": "b433af904b39618fb99c2f9295b9ac25"
+        },
+        "entityType": "file",
+        "name": "0dlEjTxldzxOl7Zf"
+      },
+      {
+        "attributes": {
+          "sample_id": "680847414",
+          "size": "24773959680",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_D05.fastq.tar",
+          "md5": "6ddc2ddfc823e9c60ae0c830e5f61d09"
+        },
+        "entityType": "file",
+        "name": "56sxc4GlGgpbyWoh"
+      },
+      {
+        "attributes": {
+          "sample_id": "665281924",
+          "size": "58433638400",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/HIP/L8TX_180221_01_E12.fastq.tar",
+          "md5": "88a6af8b820717ac20156dd1afca96c3"
+        },
+        "entityType": "file",
+        "name": "pWizgGVaeXAUpzNk"
+      },
+      {
+        "attributes": {
+          "sample_id": "675026503",
+          "size": "45880371200",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_B04.fastq.tar",
+          "md5": "34b92f77079eca352a60c077d13c9c6a"
+        },
+        "entityType": "file",
+        "name": "exMmk8lJuagU4BXg"
+      },
+      {
+        "attributes": {
+          "sample_id": "678420031",
+          "size": "29089454080",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/ENT/L8TX_180406_01_E06.fastq.tar",
+          "md5": "4ebcdcb839eeab2190e2a9d025010a3d"
+        },
+        "entityType": "file",
+        "name": "myGx9QawDee0o5GO"
+      },
+      {
+        "attributes": {
+          "sample_id": "675026503",
+          "size": "33381652480",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_H03.fastq.tar",
+          "md5": "NA"
+        },
+        "entityType": "file",
+        "name": "UaplNY2ZtRvUpeC9"
+      },
+      {
+        "attributes": {
+          "sample_id": "675026503",
+          "size": "58353848320",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_F03.fastq.tar",
+          "md5": "4b8aee723b61514d278a68ef5ed4ac35"
+        },
+        "entityType": "file",
+        "name": "dB9poyq3ZM5Dxgs1"
+      },
+      {
+        "attributes": {
+          "sample_id": "675026503",
+          "size": "47806423040",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_A04.fastq.tar",
+          "md5": "NA"
+        },
+        "entityType": "file",
+        "name": "yfWAXRkSYPhCUDP1"
+      },
+      {
+        "attributes": {
+          "sample_id": "680583717",
+          "size": "52444149760",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_H04.fastq.tar",
+          "md5": "NA"
+        },
+        "entityType": "file",
+        "name": "XjWtcKNKzVWMIA1h"
+      },
+      {
+        "attributes": {
+          "sample_id": "680080094",
+          "size": "47350251520",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/HIP/L8TX_180406_01_D07.fastq.tar",
+          "md5": "e68a3cf18ff2834e45fd891cb09cbe39"
+        },
+        "entityType": "file",
+        "name": "OjYx5o5gZt8soADP"
+      },
+      {
+        "attributes": {
+          "sample_id": "675026503",
+          "size": "54859161600",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/MOp/L8TX_171026_01_G03.fastq.tar",
+          "md5": "e694965bfb797a73902760d4497e987f"
+        },
+        "entityType": "file",
+        "name": "aeAC0i3arTBNq6L0"
+      },
+      {
+        "attributes": {
+          "sample_id": "680080094",
+          "size": "47000268800",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/HIP/L8TX_180406_01_B07.fastq.tar",
+          "md5": "bc2bb88209979c4f6737a7168f71b40a"
+        },
+        "entityType": "file",
+        "name": "p08hsh4xSlIbYqSZ"
+      },
+      {
+        "attributes": {
+          "sample_id": "680080094",
+          "size": "50949427200",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/HIP/L8TX_180406_01_F07.fastq.tar",
+          "md5": "e6be22046a9d0d33d6d6e5dcabd8d27f"
+        },
+        "entityType": "file",
+        "name": "iLt0AmfuF2q0OyNP"
+      },
+      {
+        "attributes": {
+          "sample_id": "680080094",
+          "size": "114517688320",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/HIP/L8TX_180406_01_F06.fastq.tar",
+          "md5": "5df82feb4e854e12628debcdaa0e25a7"
+        },
+        "entityType": "file",
+        "name": "wNbGwWAy5NWVky1c"
+      },
+      {
+        "attributes": {
+          "sample_id": "676617945",
+          "size": "35349780480",
+          "urls": "http://data.nemoarchive.org/biccn/grant/zeng/zeng/transcriptome/scell/10X/raw/ENT/L8TX_180406_01_G02.fastq.tar",
+          "md5": "a2bcdc90ff89a0e2290d8ab09795d811"
+        },
+        "entityType": "file",
+        "name": "7bcsLyyRo6nO6ThW"
+      },
+
+      {
+        "entityType": "file_set",
+        "name": "10X-files",
+        "attributes": {
+          "files": {
+            "itemsType": "EntityReference",
+            "items": [
+              "k7GWWswgHMvXP4nE",
+              "oiCCtYOMqV8hkoy4",
+              "vn0PMgHXZzW7eqiq",
+              "qqRXsXtc3rtbY5g1",
+              "e2VZ78UP9HuJP9Ql",
+              "EqmWnjvLFYCtXHLz",
+              "00aiCbJYSJrKgdPi",
+              "pcwS4phed3sxm2Rf",
+              "hJ7noY9acbqLlSFK",
+              "000vEGxc0wF24zRp",
+              "gLw1OhXaDhnPMCFO",
+              "LwvFJ84O1F0F252x",
+              "QDTPhBAX3tT94PBC",
+              "0pXf7K06Kgpy4Aaq",
+              "PtAR2yCjVKvJAVjP",
+              "8areNB0rNJVa2rVd",
+              "yX4uIst5SE0pI7pM",
+              "PH7IVuOfefNeLN6D",
+              "F6Ijr6nSTg17bmsC",
+              "VVsk3cgm1KixhntC",
+              "p3PcGVujv1pJ5mzQ",
+              "1kO4q9okByFKxohh",
+              "2F8trncAaqsAIIyq",
+              "k4cgvU05UqSA34x9",
+              "ADKFhSB44nSLulP5",
+              "5UKBBzjy0KNR7Ny7",
+              "KyeJOONZ0hqQDG6Y",
+              "sWvYr2ZuegarjEf3",
+              "2TFFxXiMN86UmnTV",
+              "0dlEjTxldzxOl7Zf",
+              "56sxc4GlGgpbyWoh",
+              "pWizgGVaeXAUpzNk",
+              "exMmk8lJuagU4BXg",
+              "myGx9QawDee0o5GO",
+              "UaplNY2ZtRvUpeC9",
+              "dB9poyq3ZM5Dxgs1",
+              "yfWAXRkSYPhCUDP1",
+              "XjWtcKNKzVWMIA1h",
+              "OjYx5o5gZt8soADP",
+              "aeAC0i3arTBNq6L0",
+              "p08hsh4xSlIbYqSZ",
+              "iLt0AmfuF2q0OyNP",
+              "wNbGwWAy5NWVky1c",
+              "7bcsLyyRo6nO6ThW"
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
