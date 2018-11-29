@@ -151,10 +151,10 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     val source = Fragment.const(s"select $column from ${table.entryName}") ++
       Fragments.whereAnd(col ++ fr"is not null" :: filters.toList: _*)
     val selectTrue = Fragment.const(
-      s"select '${DbClient.True}', count(*) from source where $column"
+      s"select '${DbClient.TrueRepr}', count(*) from source where $column"
     )
     val selectFalse = Fragment.const(
-      s"select '${DbClient.False}', count(*) from source where not $column"
+      s"select '${DbClient.FalseRepr}', count(*) from source where not $column"
     )
 
     (fr"with source as (" ++ source ++ fr") " ++ selectTrue ++ fr" UNION ALL " ++ selectFalse)
@@ -198,19 +198,19 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       s"stats as (select min($column) as min, max($column) as max from source)"
     )
     val histogram = {
-      val bucket = Fragment.const0(
+      val sourceBucket = Fragment.const0(
         s"""case
            |  when stats.min = stats.max then 1
            |  else width_bucket($column, stats.min, stats.max, 10)
            |end as bucket
          """.stripMargin
       )
-      val min = Fragment.const0(s"min($column) as low")
-      val max = Fragment.const0(s"max($column) as high")
-      val freq = Fragment.const0(s"count($column) as freq")
+      val bucketMin = Fragment.const0(s"min($column) as low")
+      val bucketMax = Fragment.const0(s"max($column) as high")
+      val bucketSize = Fragment.const0(s"count($column) as freq")
 
-      val select =
-        List(fr"select " ++ bucket, min, max, freq).reduceLeft(_ ++ fr", " ++ _)
+      val select = List(fr"select " ++ sourceBucket, bucketMin, bucketMax, bucketSize)
+        .reduceLeft(_ ++ fr", " ++ _)
       val whereFilters = Fragments.whereAnd(filters.toSeq: _*)
 
       fr"histogram as (" ++
@@ -295,7 +295,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
 
   /** Build a SQL constraint checking that a bool column is one of a set of booleans. */
   private def whereBoolOneOf(column: String, values: NonEmptyList[String]): Fragment =
-    Fragments.in(Fragment.const(column), values.map(_ == DbClient.True))
+    Fragments.in(Fragment.const(column), values.map(_ == DbClient.TrueRepr))
 
   /** Build a SQL constraint checking that an array column overlaps a set of keywords. */
   private def whereArrayIntersects(
@@ -327,8 +327,19 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
 
 object DbClient {
 
-  val True = "yes"
-  val False = "no"
+  /**
+    * Value to use for boolean 'true' in responses to the UI.
+    *
+    * By default, Postgres returns "t" for true.
+    */
+  val TrueRepr = "yes"
+
+  /**
+    * Value to use for boolean 'false' in responses to the UI.
+    *
+    * By default, Postgres returns "f" for false.
+    */
+  val FalseRepr = "no"
 
   /** Primary-key column in the donors table. */
   val DonorsId = "donor_id"

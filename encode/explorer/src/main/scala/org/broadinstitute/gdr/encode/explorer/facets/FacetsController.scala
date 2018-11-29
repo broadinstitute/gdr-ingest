@@ -97,15 +97,16 @@ class FacetsController[M[_]: Sync, F[_]](
     fields: List[FieldConfig],
     filters: Map[String, Fragment]
   ): M[List[Facet]] =
-    fields.parTraverse { f =>
+    fields.parTraverse { field =>
       /*
        * Remove any filters for the current field from the counting query because
        * if we didn't, as soon as a user selected a facet value in the UI every other
        * option for that facet would disappear.
        */
-      dbClient.countValues(table, f, (filters - f.column).values.toList).map { cs =>
-        val vals = cs.map { case (v, c) => FacetValue(v, c) }
-        Facet(f.displayName, None, s"${table.entryName}.${f.column}", vals)
+      dbClient.countValues(table, field, (filters - field.column).values.toList).map {
+        cs =>
+          val vals = cs.map { case (v, c) => FacetValue(v, c) }
+          Facet(field.displayName, None, s"${table.entryName}.${field.column}", vals)
       }
     }
 }

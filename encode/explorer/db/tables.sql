@@ -58,7 +58,6 @@ CREATE INDEX IF NOT EXISTS files_file_size_mb ON files (file_size_mb);
 CREATE INDEX IF NOT EXISTS files_file_format_subtype ON files (file_format_subtype);
 CREATE INDEX IF NOT EXISTS files_file_available_in_gcs ON files (file_available_in_gcs);
 CREATE INDEX IF NOT EXISTS files_labs_generating_data ON files USING gin (labs_generating_data);
-CREATE INDEX IF NOT EXISTS files_dna_library_ids ON files USING gin (dna_library_ids);
 CREATE INDEX IF NOT EXISTS files_data_type ON files (data_type);
 CREATE INDEX IF NOT EXISTS files_paired_end_sequencing ON files (paired_end_sequencing);
 CREATE INDEX IF NOT EXISTS files_read_count ON files (read_count);

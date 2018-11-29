@@ -49,17 +49,17 @@ object EncodeExplorer extends IOApp {
         // TODO: Experiment with this a repeated query param instead of an all-in-one.
         facetsController.validateFields.flatMap { _ =>
           implicit val filterQueryDecoder: QueryParamDecoder[FacetsController.Filters] =
-            QueryParamDecoder[String].map { s =>
-              if (s.isEmpty) {
+            QueryParamDecoder[String].map { queryString =>
+              if (queryString.isEmpty) {
                 Map.empty
               } else {
-                s.split('|').toList.foldMap { kv =>
-                  val i = kv.indexOf('=')
+                queryString.split('|').toList.foldMap { constraint =>
+                  val i = constraint.indexOf('=')
                   if (i < 0) {
-                    throw new IllegalArgumentException(s"Bad filter: $kv")
+                    throw new IllegalArgumentException(s"Bad filter: $constraint")
                   } else {
-                    val (k, v) = (kv.take(i), kv.drop(i + 1))
-                    Map(k -> NonEmptyList.of(v))
+                    val (field, filter) = (constraint.take(i), constraint.drop(i + 1))
+                    Map(field -> NonEmptyList.of(filter))
                   }
                 }
               }
