@@ -94,9 +94,9 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       .transact(transactor)
 
   /** Get the count of all elements in a table. */
-  def countRows(table: DbTable, filters: List[Fragment]): F[Long] = {
+  def countRows(table: DbTable, filters: Iterable[Fragment]): F[Long] = {
     val selectFrom = Fragment.const(s"select count(*) from ${table.entryName}")
-    val whereFilters = Fragments.whereAnd(filters: _*)
+    val whereFilters = Fragments.whereAnd(filters.toSeq: _*)
 
     (selectFrom ++ whereFilters)
       .query[Long]
@@ -108,7 +108,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   def countValues(
     table: DbTable,
     field: FieldConfig,
-    filters: List[Fragment]
+    filters: Iterable[Fragment]
   ): F[List[(String, Long)]] =
     field.fieldType match {
       case FieldType.Keyword => countsByValue(table, field.column, filters)
@@ -121,11 +121,11 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   private def countsByValue(
     table: DbTable,
     column: String,
-    filters: List[Fragment]
+    filters: Iterable[Fragment]
   ): F[List[(String, Long)]] = {
     val selectFrom = Fragment.const(s"select $column, count(*) from ${table.entryName}")
     val whereFilters =
-      Fragments.whereAnd(Fragment.const(column) ++ fr"is not null" :: filters: _*)
+      Fragments.whereAnd(Fragment.const(column) ++ fr"is not null" :: filters.toList: _*)
     val groupBy = fr"group by " ++ Fragment.const0(column)
 
     (selectFrom ++ whereFilters ++ groupBy)
@@ -138,24 +138,35 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   private def countsByBoolValue(
     table: DbTable,
     column: String,
-    filters: List[Fragment]
-  ): F[List[(String, Long)]] =
-    countsByValue(table, column, filters)
-      .map(_.map {
-        case (k, v) =>
-          (if (k.startsWith("t")) "yes" else "no") -> v
-      })
+    filters: Iterable[Fragment]
+  ): F[List[(String, Long)]] = {
+    val col = Fragment.const(column)
+
+    val source = Fragment.const(s"select $column from ${table.entryName}") ++
+      Fragments.whereAnd(col ++ fr"is not null" :: filters.toList: _*)
+    val selectTrue = Fragment.const(
+      s"select '${DbClient.True}', count(*) from source where $column"
+    )
+    val selectFalse = Fragment.const(
+      s"select '${DbClient.False}', count(*) from source where not $column"
+    )
+
+    (fr"with source as (" ++ source ++ fr") " ++ selectTrue ++ fr" UNION ALL " ++ selectFalse)
+      .query[(String, Long)]
+      .to[List]
+      .transact(transactor)
+  }
 
   /** Get the counts of each unique nested value in an array column. */
   private def countsByNestedValue(
     table: DbTable,
     column: String,
-    filters: List[Fragment]
+    filters: Iterable[Fragment]
   ): F[List[(String, Long)]] = {
     val selectUnnestFrom =
       Fragment.const(s"select unnest($column) as v from ${table.entryName}")
     val whereFilters =
-      Fragments.whereAnd(Fragment.const(column) ++ fr"is not null" :: filters: _*)
+      Fragments.whereAnd(Fragment.const(column) ++ fr"is not null" :: filters.toList: _*)
 
     (fr"select v, count(*) from (" ++ selectUnnestFrom ++ whereFilters ++ fr") as v group by v")
       .query[(String, Long)]
@@ -172,7 +183,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   private def countsByRange(
     table: DbTable,
     column: String,
-    filters: List[Fragment]
+    filters: Iterable[Fragment]
   ): F[List[(String, Long)]] = {
     val source = Fragment.const0(
       s"source as (select * from ${table.entryName} where $column is not null)"
@@ -194,8 +205,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
 
       val select =
         List(fr"select " ++ bucket, min, max, freq).reduceLeft(_ ++ fr", " ++ _)
-      val whereFilters =
-        Fragments.whereAnd(filters: _*)
+      val whereFilters = Fragments.whereAnd(filters.toSeq: _*)
 
       fr"histogram as (" ++
         select ++
@@ -250,12 +260,12 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     * that will not be referred to by any files after the given filters are applied to the
     * [[DbTable.Files]] table.
     */
-  def donorFromIncludedFile(fileFilters: List[Fragment]): Fragment = {
+  def donorFromIncludedFile(fileFilters: Iterable[Fragment]): Fragment = {
     val donorIds = fr"select unnest(" ++
       Fragment.const0(DbClient.FileDonorsFk) ++
       fr") from " ++
       Fragment.const(DbTable.Files.entryName) ++
-      Fragments.whereAnd(fileFilters: _*)
+      Fragments.whereAnd(fileFilters.toSeq: _*)
 
     Fragment.const(DbClient.DonorsId) ++ fr"IN (" ++ donorIds ++ fr")"
   }
@@ -265,10 +275,10 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     * that refer only to donors which will be filtered out after the given filters are
     * applied to the [[DbTable.Donors]] table.
     */
-  def fileFromIncludedDonor(donorFilters: List[Fragment]): Fragment = {
+  def fileFromIncludedDonor(donorFilters: Iterable[Fragment]): Fragment = {
     val donorIds = fr"select array_agg(donor_id) from " ++
       Fragment.const(DbTable.Donors.entryName) ++
-      Fragments.whereAnd(donorFilters: _*)
+      Fragments.whereAnd(donorFilters.toSeq: _*)
 
     Fragment.const(DbClient.FileDonorsFk) ++ fr"&& (" ++ donorIds ++ fr")"
   }
@@ -279,7 +289,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
 
   /** Build a SQL constraint checking that a bool column is one of a set of booleans. */
   private def whereBoolOneOf(column: String, values: NonEmptyList[String]): Fragment =
-    Fragments.in(Fragment.const(column), values.map(_.toBoolean))
+    Fragments.in(Fragment.const(column), values.map(_ == DbClient.True))
 
   /** Build a SQL constraint checking that an array column overlaps a set of keywords. */
   private def whereArrayIntersects(
@@ -310,6 +320,9 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
 }
 
 object DbClient {
+
+  val True = "yes"
+  val False = "no"
 
   /** Primary-key column in the donors table. */
   val DonorsId = "donor_id"

@@ -52,18 +52,18 @@ class FacetsController[M[_]: Sync, F[_]](
       donorFilters
     } else {
       donorFilters +
-        (DbClient.DonorsId -> dbClient.donorFromIncludedFile(fileFilters.values.toList))
+        (DbClient.DonorsId -> dbClient.donorFromIncludedFile(fileFilters.values))
     }
     // If we've filtered out all donors for a file, we don't want to report / export it.
     val fileFiltersWithDonors = if (donorFilters.isEmpty) {
       fileFilters
     } else {
       fileFilters +
-        (DbClient.FileDonorsFk -> dbClient.fileFromIncludedDonor(donorFilters.values.toList))
+        (DbClient.FileDonorsFk -> dbClient.fileFromIncludedDonor(donorFilters.values))
     }
 
     val donorCount =
-      dbClient.countRows(DbTable.Donors, donorFiltersWithFiles.values.toList)
+      dbClient.countRows(DbTable.Donors, donorFiltersWithFiles.values)
     val donorFields =
       getFacets(DbTable.Donors, fields(DbTable.Donors), donorFiltersWithFiles)
     val fileFields =
