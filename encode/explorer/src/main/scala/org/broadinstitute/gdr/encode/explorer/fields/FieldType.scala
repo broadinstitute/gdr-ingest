@@ -15,7 +15,12 @@ object FieldType extends Enum[FieldType] {
   /** Category for fields which should have unique values counted. */
   case object Keyword extends FieldType {
     override def matches(dbType: String): Boolean =
-      Set("boolean", "text", "character varying").contains(dbType)
+      Set("text", "character varying").contains(dbType)
+  }
+
+  /** Category for true/false fields. */
+  case object Boolean extends FieldType {
+    override def matches(dbType: String): Boolean = dbType == "boolean"
   }
 
   /** Category for fields which should be counted within histogram bins. */

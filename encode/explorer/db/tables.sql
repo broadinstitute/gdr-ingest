@@ -1,4 +1,4 @@
-CREATE TABLE donors (
+CREATE TABLE IF NOT EXISTS donors (
     donor_id varchar(250) PRIMARY KEY,
     age integer NULL,
     age_units varchar(250) NULL,
@@ -7,12 +7,12 @@ CREATE TABLE donors (
     more_info varchar(250) NULL
 );
 
-CREATE INDEX donors_age ON donors (age);
-CREATE INDEX donors_age_units ON donors (age_units);
-CREATE INDEX donors_health_status ON donors (health_status);
-CREATE INDEX donors_sex ON donors (sex);
+CREATE INDEX IF NOT EXISTS donors_age ON donors (age);
+CREATE INDEX IF NOT EXISTS donors_age_units ON donors (age_units);
+CREATE INDEX IF NOT EXISTS donors_health_status ON donors (health_status);
+CREATE INDEX IF NOT EXISTS donors_sex ON donors (sex);
 
-CREATE TABLE files (
+CREATE TABLE IF NOT EXISTS files (
     file_id varchar(250) PRIMARY KEY,
     data_source varchar(250) NOT NULL,
     assay_type varchar(250) NOT NULL,
@@ -47,21 +47,21 @@ CREATE TABLE files (
     percent_duplicated_reads double precision NULL
 );
 
-CREATE INDEX files_assay_type ON files (assay_type);
-CREATE INDEX files_reference_genome_assembly ON files (reference_genome_assembly);
-CREATE INDEX files_data_quality_category ON files (data_quality_category);
-CREATE INDEX files_biosample_type ON files (biosample_type);
-CREATE INDEX files_cell_type ON files (cell_type);
-CREATE INDEX files_file_format ON files (file_format);
-CREATE INDEX files_file_size_mb ON files (file_size_mb);
-CREATE INDEX files_file_format_subtype ON files (file_format_subtype);
-CREATE INDEX files_file_available_in_gcs ON files (file_available_in_gcs);
-CREATE INDEX files_labs_generating_data ON files USING gin (labs_generating_data);
-CREATE INDEX files_dna_library_ids ON files USING gin (dna_library_ids);
-CREATE INDEX files_data_type ON files (data_type);
-CREATE INDEX files_paired_end_sequencing ON files (paired_end_sequencing);
-CREATE INDEX files_read_count ON files (read_count);
-CREATE INDEX files_target_of_assay ON files (target_of_assay);
-CREATE INDEX files_read_length ON files (read_length);
-CREATE INDEX files_percent_aligned_reads ON files (percent_aligned_reads);
-CREATE INDEX files_percent_percent_duplicated_reads ON files (percent_duplicated_reads);
+CREATE INDEX IF NOT EXISTS files_assay_type ON files (assay_type);
+CREATE INDEX IF NOT EXISTS files_reference_genome_assembly ON files (reference_genome_assembly);
+CREATE INDEX IF NOT EXISTS files_data_quality_category ON files (data_quality_category);
+CREATE INDEX IF NOT EXISTS files_biosample_type ON files (biosample_type);
+CREATE INDEX IF NOT EXISTS files_cell_type ON files (cell_type);
+CREATE INDEX IF NOT EXISTS files_donor_ids ON files USING gin (donor_ids);
+CREATE INDEX IF NOT EXISTS files_file_format ON files (file_format);
+CREATE INDEX IF NOT EXISTS files_file_size_mb ON files (file_size_mb);
+CREATE INDEX IF NOT EXISTS files_file_format_subtype ON files (file_format_subtype);
+CREATE INDEX IF NOT EXISTS files_file_available_in_gcs ON files (file_available_in_gcs);
+CREATE INDEX IF NOT EXISTS files_labs_generating_data ON files USING gin (labs_generating_data);
+CREATE INDEX IF NOT EXISTS files_data_type ON files (data_type);
+CREATE INDEX IF NOT EXISTS files_paired_end_sequencing ON files (paired_end_sequencing);
+CREATE INDEX IF NOT EXISTS files_read_count ON files (read_count);
+CREATE INDEX IF NOT EXISTS files_target_of_assay ON files (target_of_assay);
+CREATE INDEX IF NOT EXISTS files_read_length ON files (read_length);
+CREATE INDEX IF NOT EXISTS files_percent_aligned_reads ON files (percent_aligned_reads);
+CREATE INDEX IF NOT EXISTS files_percent_percent_duplicated_reads ON files (percent_duplicated_reads);
