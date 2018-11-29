@@ -66,6 +66,11 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   /** Check that configuration for fields reflect actual columns in a DB table. */
   def validateFields(table: DbTable, fields: List[FieldConfig]): F[Unit] =
     fieldTypes(table).flatMap { dbFields =>
+      /*
+       * FIXME: traverse_ fails fast as long as `validateField` returns `F`.
+       * Changing `validateField` to return a `ValidatedNel` should collect the
+       * errors, but then custom logic is needed to lift the result into an `F`.
+       */
       fields.traverse_(validateField(dbFields))
     }
 
