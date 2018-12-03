@@ -28,14 +28,14 @@ class ExportController[M[_]: Sync, F[_]](config: ExportConfig, dbClient: DbClien
   private def encodeFilter(field: FieldConfig, filters: FieldFilter): List[String] =
     filters.values.map(v => s"${field.encoded}=$v").toList
 
-  def export(request: ExportRequest): M[List[Json]] = {
+  def export(request: ExportRequest): M[Vector[Json]] = {
     val sqlFilters = dbClient.filtersToSql(request.filter)
 
     val donorJson = dbClient.donorStream(sqlFilters)
     val fileJson = dbClient.fileStream(sqlFilters)
 
     (donorJson, fileJson).parMapN {
-      case (donors, files) => donors ::: files
+      case (donors, files) => donors ++ files
     }
   }
 }

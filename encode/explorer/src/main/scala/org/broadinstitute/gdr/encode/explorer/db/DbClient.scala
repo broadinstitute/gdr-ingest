@@ -359,10 +359,10 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     Fragments.or(rangeChecks.toList: _*)
   }
 
-  def donorStream(filters: Map[FieldConfig, Fragment]): F[List[Json]] =
+  def donorStream(filters: Map[FieldConfig, Fragment]): F[Vector[Json]] =
     entityStream("donor", DbClient.DonorIdColumn, DbTable.Donors, filters)
 
-  def fileStream(filters: Map[FieldConfig, Fragment]): F[List[Json]] =
+  def fileStream(filters: Map[FieldConfig, Fragment]): F[Vector[Json]] =
     entityStream("file", DbClient.FileIdColumn, DbTable.Files, filters)
 
   private def entityStream(
@@ -370,13 +370,13 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     nameField: String,
     table: DbTable,
     allFilters: Map[FieldConfig, Fragment]
-  ): F[List[Json]] = {
+  ): F[Vector[Json]] = {
     val filters = allFilters.filter(_._1.table == table).values
 
     val source = Fragment.const(s"select * from ${table.entryName}") ++
       Fragments.whereAnd(filters.toSeq: _*)
 
-    (fr"select json_agg(res) from (" ++ source ++ fr") as res")
+    (fr"select row_to_json(res) from (" ++ source ++ fr") as res")
       .query[Json]
       .map { js =>
         js.withObject { obj =>
@@ -389,7 +389,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
           }
         }
       }
-      .to[List]
+      .to[Vector]
       .transact(transactor)
   }
 }
