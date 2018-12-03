@@ -6,9 +6,12 @@ import cats.implicits._
 import doobie._
 import doobie.implicits._
 import doobie.hikari._
+import doobie.postgres.circe.json.implicits._
 import doobie.postgres.implicits._
 import doobie.util.ExecutionContexts
 import doobie.util.log.{ExecFailure, ProcessingFailure, Success}
+import io.circe.Json
+import io.circe.syntax._
 import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldFilter, FieldType}
 
 import scala.language.higherKinds
@@ -355,6 +358,40 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
 
     Fragments.or(rangeChecks.toList: _*)
   }
+
+  def donorStream(filters: Map[FieldConfig, Fragment]): F[List[Json]] =
+    entityStream("donor", DbClient.DonorIdColumn, DbTable.Donors, filters)
+
+  def fileStream(filters: Map[FieldConfig, Fragment]): F[List[Json]] =
+    entityStream("file", DbClient.FileIdColumn, DbTable.Files, filters)
+
+  private def entityStream(
+    entityType: String,
+    nameField: String,
+    table: DbTable,
+    allFilters: Map[FieldConfig, Fragment]
+  ): F[List[Json]] = {
+    val filters = allFilters.filter(_._1.table == table).values
+
+    val source = Fragment.const(s"select * from ${table.entryName}") ++
+      Fragments.whereAnd(filters.toSeq: _*)
+
+    (fr"select json_agg(res) from (" ++ source ++ fr") as res")
+      .query[Json]
+      .map { js =>
+        js.withObject { obj =>
+          obj(nameField).fold(js) { id =>
+            Json.obj(
+              "name" -> id,
+              "entityType" -> entityType.asJson,
+              "attributes" -> obj.remove(nameField).asJson
+            )
+          }
+        }
+      }
+      .to[List]
+      .transact(transactor)
+  }
 }
 
 object DbClient {
@@ -382,6 +419,8 @@ object DbClient {
     "Donor ID",
     FieldType.Keyword
   )
+
+  val FileIdColumn = "file_id"
 
   /** Foreign-key column in the files table, pointing to the donors table. */
   val FileDonorsFk = "donor_ids"

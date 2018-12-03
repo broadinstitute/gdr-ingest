@@ -1,5 +1,6 @@
 package org.broadinstitute.gdr.encode.explorer.export
 
+import cats.Parallel
 import cats.effect.Sync
 import cats.implicits._
 import io.circe.Json
@@ -8,9 +9,11 @@ import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldFilter}
 
 import scala.language.higherKinds
 
-class ExportController[F[_]: Sync](config: ExportConfig, dbClient: DbClient[F]) {
+class ExportController[M[_]: Sync, F[_]](config: ExportConfig, dbClient: DbClient[M])(
+  implicit par: Parallel[M, F]
+) {
 
-  def exportUrl(request: ExportRequest): F[ExportResponse] = {
+  def exportUrl(request: ExportRequest): M[ExportResponse] = {
     val filterParam = request.filter.flatMap {
       case (field, filters) => encodeFilter(field, filters)
     }.mkString("|")
@@ -19,16 +22,20 @@ class ExportController[F[_]: Sync](config: ExportConfig, dbClient: DbClient[F]) 
       .withQueryParam("filter", filterParam)
       .withOptionQueryParam("cohortName", request.cohortName)
 
-    ExportResponse(exportUri).pure[F]
+    ExportResponse(exportUri).pure[M]
   }
 
   private def encodeFilter(field: FieldConfig, filters: FieldFilter): List[String] =
     filters.values.map(v => s"${field.encoded}=$v").toList
 
-  // FIXME: Ideally this would return a Stream, but Terra's import UI can't handle chunked payloads.
-  // Patch support into Terra?
-  def export(request: ExportRequest): List[Json] = {
-    val _ = (request, dbClient)
-    Nil
+  def export(request: ExportRequest): M[List[Json]] = {
+    val sqlFilters = dbClient.filtersToSql(request.filter)
+
+    val donorJson = dbClient.donorStream(sqlFilters)
+    val fileJson = dbClient.fileStream(sqlFilters)
+
+    (donorJson, fileJson).parMapN {
+      case (donors, files) => donors ::: files
+    }
   }
 }

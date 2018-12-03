@@ -106,7 +106,8 @@ lazy val `encode-explorer` = project
       "org.http4s" %% "http4s-dsl" % http4sVersion,
       "org.tpolecat" %% "doobie-core" % doobieVersion,
       "org.tpolecat" %% "doobie-hikari" % doobieVersion,
-      "org.tpolecat" %% "doobie-postgres" % doobieVersion
+      "org.tpolecat" %% "doobie-postgres" % doobieVersion,
+      "org.tpolecat" %% "doobie-postgres-circe" % doobieVersion
     ),
     dependencyOverrides ++= Seq(
       "co.fs2" %% "fs2-core" % fs2Version
