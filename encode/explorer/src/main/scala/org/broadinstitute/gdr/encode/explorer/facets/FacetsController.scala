@@ -14,24 +14,15 @@ import scala.language.higherKinds
   *
   * @tparam M wrapper type capable of suspending synchronous effects
   * @tparam F wrapper type capable of composing instances of `M` in parallel
-  * @param fieldsConfig configuration determining which DB columns should be queried
-  *                     and returned on faceted search requests
+  * @param fields configuration determining which DB columns should be queried
+  *               and returned on faceted search requests
   * @param dbClient client which knows how to query the DB
   * @param par proof that `F` can compose instances of `M` in parallel
   */
 class FacetsController[M[_]: Sync, F[_]](
-  fieldsConfig: List[FieldConfig],
+  fields: List[FieldConfig],
   dbClient: DbClient[M]
 )(implicit par: Parallel[M, F]) {
-
-  private val fields: Map[DbTable, List[FieldConfig]] = fieldsConfig.groupBy(_.table)
-
-  /**
-    * Check that the fields defined in config refer to actual DB columns,
-    * with expected types.
-    */
-  def validateFields: M[Unit] =
-    DbTable.values.toList.parTraverse_(t => dbClient.validateFields(t, fields(t)))
 
   /**
     * Get the unique values / counts of all columns configured for faceted search.
@@ -39,57 +30,21 @@ class FacetsController[M[_]: Sync, F[_]](
     * @param filters filters to apply to the search.
     */
   def getFacets(filters: FieldFilter.Filters): M[FacetsResponse] = {
+    val sqlFilters = dbClient.filtersToSql(filters)
 
-    val donorFilters = filtersToSql(DbTable.Donors, filters)
-    val fileFilters = filtersToSql(DbTable.Files, filters)
+    val donorCount = dbClient.countRows(DbTable.Donors, sqlFilters)
+    val facetValues = getFacets(fields, sqlFilters)
 
-    // If we've filtered out all files for a donor, we don't want to report / export it.
-    val donorFiltersWithFiles = if (fileFilters.isEmpty) {
-      donorFilters
-    } else {
-      donorFilters +
-        (DbClient.DonorsId -> dbClient.donorFromIncludedFile(fileFilters.values))
-    }
-    // If we've filtered out all donors for a file, we don't want to report / export it.
-    val fileFiltersWithDonors = if (donorFilters.isEmpty) {
-      fileFilters
-    } else {
-      fileFilters +
-        (DbClient.FileDonorsFk -> dbClient.fileFromIncludedDonor(donorFilters.values))
-    }
-
-    val donorCount =
-      dbClient.countRows(DbTable.Donors, donorFiltersWithFiles.values)
-    val donorFields =
-      getFacets(DbTable.Donors, fields(DbTable.Donors), donorFiltersWithFiles)
-    val fileFields =
-      getFacets(DbTable.Files, fields(DbTable.Files), fileFiltersWithDonors)
-
-    (donorCount, donorFields, fileFields).parMapN {
-      case (count, donors, files) =>
-        FacetsResponse(donors ::: files, count)
+    (donorCount, facetValues).parMapN {
+      case (count, facets) =>
+        FacetsResponse(facets, count)
     }
   }
 
-  /**
-    * Convert filters from the API to corresponding SQL constraints.
-    *
-    * FIXME: It feels like mixing of concerns to have anything related to SQL in this class
-    * instead of in the [[DbClient]]; try to push this logic down a layer.
-    */
-  private def filtersToSql(
-    table: DbTable,
-    filters: FieldFilter.Filters
-  ): Map[String, Fragment] =
-    fields(table)
-      .flatMap(f => filters.get(f).map(fs => f.column -> dbClient.filtersToSql(f, fs)))
-      .toMap
-
-  /** Get facet values for fields in a table, under a set of constraints. */
+  /** Get facet values for fields, under a set of constraints. */
   private def getFacets(
-    table: DbTable,
     fields: List[FieldConfig],
-    filters: Map[String, Fragment]
+    filters: Map[FieldConfig, Fragment]
   ): M[List[Facet]] =
     fields.parTraverse { field =>
       /*
@@ -97,10 +52,11 @@ class FacetsController[M[_]: Sync, F[_]](
        * if we didn't, as soon as a user selected a facet value in the UI every other
        * option for that facet would disappear.
        */
-      dbClient.countValues(table, field, (filters - field.column).values.toList).map {
-        cs =>
+      dbClient
+        .countValues(field, filters)
+        .map { cs =>
           val vals = cs.map { case (v, c) => FacetValue(v, c) }
-          Facet(field.displayName, None, s"${table.entryName}.${field.column}", vals)
-      }
+          Facet(field.displayName, None, field.encoded, vals)
+        }
     }
 }

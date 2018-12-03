@@ -47,12 +47,11 @@ object EncodeExplorer extends IOApp {
        * elsewhere, and then thread the dependencies through here.
        */
       db =>
-        val facetsController = new FacetsController(config.fields, db)
-        val exportController = new ExportController(config.export, db)
-
         // Fail fast on bad config, and also warm up the DB connection pool.
-        // TODO: Experiment with this a repeated query param instead of an all-in-one.
-        facetsController.validateFields.flatMap { _ =>
+        db.validateFields(config.fields).flatMap { _ =>
+          val facetsController = new FacetsController(config.fields, db)
+          val exportController = new ExportController(config.export, db)
+
           implicit val filterQueryDecoder: QueryParamDecoder[FieldFilter.Filters] =
             queryParam =>
               FieldFilter
