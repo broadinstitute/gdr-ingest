@@ -1,12 +1,11 @@
 package org.broadinstitute.gdr.encode.explorer.facets
 
 import cats.Parallel
-import cats.data.NonEmptyList
 import cats.effect.Sync
 import cats.implicits._
 import doobie.util.fragment.Fragment
 import org.broadinstitute.gdr.encode.explorer.db.{DbClient, DbTable}
-import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldsConfig}
+import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldFilter}
 
 import scala.language.higherKinds
 
@@ -21,14 +20,11 @@ import scala.language.higherKinds
   * @param par proof that `F` can compose instances of `M` in parallel
   */
 class FacetsController[M[_]: Sync, F[_]](
-  fieldsConfig: FieldsConfig,
+  fieldsConfig: List[FieldConfig],
   dbClient: DbClient[M]
 )(implicit par: Parallel[M, F]) {
 
-  private val fields: Map[DbTable, List[FieldConfig]] = Map(
-    DbTable.Donors -> fieldsConfig.donorFields,
-    DbTable.Files -> fieldsConfig.fileFields
-  )
+  private val fields: Map[DbTable, List[FieldConfig]] = fieldsConfig.groupBy(_.table)
 
   /**
     * Check that the fields defined in config refer to actual DB columns,
@@ -42,7 +38,7 @@ class FacetsController[M[_]: Sync, F[_]](
     *
     * @param filters filters to apply to the search.
     */
-  def getFacets(filters: FacetsController.Filters): M[FacetsResponse] = {
+  def getFacets(filters: FieldFilter.Filters): M[FacetsResponse] = {
 
     val donorFilters = filtersToSql(DbTable.Donors, filters)
     val fileFilters = filtersToSql(DbTable.Files, filters)
@@ -83,13 +79,11 @@ class FacetsController[M[_]: Sync, F[_]](
     */
   private def filtersToSql(
     table: DbTable,
-    filters: FacetsController.Filters
+    filters: FieldFilter.Filters
   ): Map[String, Fragment] =
-    fields(table).flatMap { f =>
-      filters
-        .get(s"${table.entryName}.${f.column}")
-        .map(fs => f.column -> dbClient.filtersToSql(f, fs))
-    }.toMap
+    fields(table)
+      .flatMap(f => filters.get(f).map(fs => f.column -> dbClient.filtersToSql(f, fs)))
+      .toMap
 
   /** Get facet values for fields in a table, under a set of constraints. */
   private def getFacets(
@@ -109,8 +103,4 @@ class FacetsController[M[_]: Sync, F[_]](
           Facet(field.displayName, None, s"${table.entryName}.${field.column}", vals)
       }
     }
-}
-
-object FacetsController {
-  type Filters = Map[String, NonEmptyList[String]]
 }

@@ -34,6 +34,7 @@ function render_ctmpl () {
   env_map[CONFIG_PATH]=/${RENDERED_CONFIG_PATH}
   env_map[DB_NAME]=${DB_NAME}
   env_map[POSTGRES_INSTANCE]=${DB_PROJECT}:${DB_REGION}:${DB_INSTANCE}
+  env_map[DEPLOY_PROJECT]=${DEPLOY_PROJECT}
 
   local -r ctmpl_env_file=${CONFIG_DIR}/env-vars.txt
   for key in ${!env_map[@]}; do

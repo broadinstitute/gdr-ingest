@@ -1,6 +1,7 @@
 package org.broadinstitute.gdr.encode.explorer.dataset
 
-import io.circe.derivation.annotations.{Configuration, JsonCodec}
+import io.circe.Encoder
+import io.circe.derivation.{deriveEncoder, renaming}
 
 /**
   * Dataset information.
@@ -8,5 +9,8 @@ import io.circe.derivation.annotations.{Configuration, JsonCodec}
   * This will always be name="ENCODE", but for now I'm just mechanically
   * mirroring the Data Explorer UI's expected API.
   */
-@JsonCodec(Configuration.encodeOnly.withSnakeCaseMemberNames)
 case class DatasetResponse(name: String)
+
+object DatasetResponse {
+  implicit val encoder: Encoder[DatasetResponse] = deriveEncoder(renaming.snakeCase)
+}

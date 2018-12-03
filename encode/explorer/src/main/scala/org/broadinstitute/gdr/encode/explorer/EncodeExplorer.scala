@@ -1,19 +1,23 @@
 package org.broadinstitute.gdr.encode.explorer
 
-import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.implicits._
+import io.circe.{Decoder, DecodingFailure}
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.explorer.dataset.DatasetController
 import org.broadinstitute.gdr.encode.explorer.db.DbClient
+import org.broadinstitute.gdr.encode.explorer.export.{ExportController, ExportRequest}
 import org.broadinstitute.gdr.encode.explorer.facets.FacetsController
+import org.broadinstitute.gdr.encode.explorer.fields.FieldFilter
 import org.http4s._
-import org.http4s.circe._
+import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.io._
 import org.http4s.implicits._
 import org.http4s.server.blaze.BlazeServerBuilder
-import org.http4s.server.middleware.Logger
+import org.http4s.server.middleware.{CORS, CORSConfig, GZip, Logger}
 import pureconfig.module.catseffect._
+
+import scala.concurrent.duration._
 
 /**
   * Top-level entry point for the API server.
@@ -44,46 +48,92 @@ object EncodeExplorer extends IOApp {
        */
       db =>
         val facetsController = new FacetsController(config.fields, db)
+        val exportController = new ExportController(config.export, db)
 
         // Fail fast on bad config, and also warm up the DB connection pool.
         // TODO: Experiment with this a repeated query param instead of an all-in-one.
         facetsController.validateFields.flatMap { _ =>
-          implicit val filterQueryDecoder: QueryParamDecoder[FacetsController.Filters] =
-            QueryParamDecoder[String].map { queryString =>
-              if (queryString.isEmpty) {
-                Map.empty
-              } else {
-                queryString.split('|').toList.foldMap { constraint =>
-                  val i = constraint.indexOf('=')
-                  if (i < 0) {
-                    throw new IllegalArgumentException(s"Bad filter: $constraint")
-                  } else {
-                    val (field, filter) = (constraint.take(i), constraint.drop(i + 1))
-                    Map(field -> NonEmptyList.of(filter))
-                  }
-                }
-              }
+          implicit val filterQueryDecoder: QueryParamDecoder[FieldFilter.Filters] =
+            queryParam =>
+              FieldFilter
+                .parseFilters(queryParam.value.split('|').toList, config.fields)
+                .leftMap(_.map(err => ParseFailure(err, err)))
+
+          implicit val exportBodyDecoder: Decoder[ExportRequest] = cursor =>
+            for {
+              cohort <- cursor.get[Option[String]]("cohortName")
+              encodedFilters <- cursor.get[List[String]]("filter")
+              decodedFilters <- FieldFilter
+                .parseFilters(encodedFilters, config.fields)
+                .leftMap(errs => DecodingFailure(errs.head, Nil))
+                .toEither
+            } yield {
+              ExportRequest(cohort, decodedFilters)
             }
 
           // Ugly as an object, but http4s has somehow designed their syntax
           // to make it not work as a val.
           object FilterQueryDecoder
-              extends OptionalQueryParamDecoderMatcher[FacetsController.Filters]("filter")
+              extends OptionalValidatingQueryParamDecoderMatcher[
+                FieldFilter.Filters
+              ]("filter")
+
+          object CohortQueryDecoder
+              extends OptionalQueryParamDecoderMatcher[String]("cohortName")
 
           val routes = HttpRoutes.of[IO] {
             case GET -> Root / "api" / "dataset" =>
               Ok(DatasetController.default.datasetInfo.asJson)
-            case GET -> Root / "api" / "facets" :? FilterQueryDecoder(filters) =>
-              Ok(facetsController.getFacets(filters.getOrElse(Map.empty)).map(_.asJson))
+
+            case GET -> Root / "api" / "facets" :? FilterQueryDecoder(maybeFilters) =>
+              maybeFilters match {
+                case None =>
+                  Ok(facetsController.getFacets(Map.empty).map(_.asJson))
+                case Some(Invalid(errs)) =>
+                  BadRequest(errs.map(_.sanitized).asJson)
+                case Some(Valid(filters)) =>
+                  Ok(facetsController.getFacets(filters).map(_.asJson))
+              }
+
+            case req @ POST -> Root / "api" / "exportUrl" =>
+              for {
+                exportReq <- req.as[ExportRequest]
+                body <- exportController.exportUrl(exportReq)
+                response <- Ok(body.asJson)
+              } yield response
+
+            case GET -> Root / "api" / "export"
+                  :? FilterQueryDecoder(maybeFilters)
+                    +& CohortQueryDecoder(maybeCohort) =>
+              maybeFilters match {
+                case None =>
+                  Ok(exportController.export(ExportRequest(maybeCohort, Map.empty)))
+                case Some(Invalid(errs)) =>
+                  BadRequest(errs.map(_.sanitized).asJson)
+                case Some(Valid(filters)) =>
+                  Ok(exportController.export(ExportRequest(maybeCohort, filters)))
+              }
           }
 
-          val app = if (config.logging.logHeaders || config.logging.logBodies) {
-            Logger[IO](
-              logHeaders = config.logging.logHeaders,
-              logBody = config.logging.logBodies
-            )(routes.orNotFound)
-          } else {
-            routes.orNotFound
+          /*
+           * Add "middleware" to the routes to:
+           *   1. Log requests and responses
+           *   2. gzip responses
+           *   3. Allow CORS from Terra
+           */
+          val app = {
+            val corsConfig = CORSConfig(
+              anyOrigin = false,
+              allowCredentials = true,
+              maxAge = 1.hour.toSeconds,
+              anyMethod = false,
+              allowedOrigins = Set("https://app.terra.bio"),
+              allowedMethods = Some(Set("GET"))
+            )
+            val withLogging =
+              Logger[IO](logHeaders = true, logBody = true)(routes.orNotFound)
+
+            CORS(GZip(withLogging), corsConfig)
           }
 
           // NOTE: .serve returns a never-ending stream, so this will only

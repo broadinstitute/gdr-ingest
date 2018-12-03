@@ -9,7 +9,7 @@ import doobie.hikari._
 import doobie.postgres.implicits._
 import doobie.util.ExecutionContexts
 import doobie.util.log.{ExecFailure, ProcessingFailure, Success}
-import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldType}
+import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldFilter, FieldType}
 
 import scala.language.higherKinds
 
@@ -250,12 +250,12 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     }
 
   /** Build a SQL constraint which checks that a field matches one of a set of filters. */
-  def filtersToSql(field: FieldConfig, filters: NonEmptyList[String]): Fragment = {
+  def filtersToSql(field: FieldConfig, filters: FieldFilter): Fragment = {
     val constraint = field.fieldType match {
-      case FieldType.Keyword => whereKeywordOneOf(field.column, filters)
-      case FieldType.Boolean => whereBoolOneOf(field.column, filters)
-      case FieldType.Array   => whereArrayIntersects(field.column, filters)
-      case FieldType.Number  => whereNumberInRanges(field.column, filters)
+      case FieldType.Keyword => whereKeywordOneOf(field.column, filters.values)
+      case FieldType.Boolean => whereBoolOneOf(field.column, filters.values)
+      case FieldType.Array   => whereArrayIntersects(field.column, filters.values)
+      case FieldType.Number  => whereNumberInRanges(field.column, filters.values)
     }
 
     fr"(" ++ constraint ++ fr")"

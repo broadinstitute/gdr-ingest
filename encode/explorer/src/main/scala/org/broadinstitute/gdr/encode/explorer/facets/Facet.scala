@@ -1,6 +1,7 @@
 package org.broadinstitute.gdr.encode.explorer.facets
 
-import io.circe.derivation.annotations.{Configuration, JsonCodec}
+import io.circe.Encoder
+import io.circe.derivation.{deriveEncoder, renaming}
 
 /**
   * A facet.
@@ -11,10 +12,13 @@ import io.circe.derivation.annotations.{Configuration, JsonCodec}
   *                    The "es" prefix is there to mirror what the Data
   *                    Explorer UI expects
   */
-@JsonCodec(Configuration.encodeOnly.withSnakeCaseMemberNames)
 case class Facet(
   name: String,
   description: Option[String],
   esFieldName: String,
   values: List[FacetValue]
 )
+
+object Facet {
+  implicit val encoder: Encoder[Facet] = deriveEncoder(renaming.snakeCase)
+}
