@@ -1,6 +1,7 @@
 package org.broadinstitute.gdr.encode.explorer.facets
 
-import io.circe.derivation.annotations.{Configuration, JsonCodec}
+import io.circe.Encoder
+import io.circe.derivation.{deriveEncoder, renaming}
 
 /**
   * A facet value, for example "Male"/34.
@@ -9,5 +10,8 @@ import io.circe.derivation.annotations.{Configuration, JsonCodec}
   * @param count number of entities in the current selection with this value
   *              for the enclosing facet
   */
-@JsonCodec(Configuration.encodeOnly.withSnakeCaseMemberNames)
 case class FacetValue(name: String, count: Long)
+
+object FacetValue {
+  implicit val decoder: Encoder[FacetValue] = deriveEncoder(renaming.snakeCase)
+}

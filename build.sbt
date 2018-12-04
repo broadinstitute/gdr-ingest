@@ -1,7 +1,7 @@
 inThisBuild(
   Seq(
     organization := "org.broadinstitute",
-    scalaVersion := "2.12.7",
+    scalaVersion := "2.12.8",
     scalafmtConfig := Some((baseDirectory in ThisBuild)(_ / ".scalafmt.conf").value),
     scalafmtOnCompile := true,
     scalacOptions ++= Seq(
@@ -42,12 +42,12 @@ val circeFs2Version = "0.10.0"
 val commonsCodecVersion = "1.11"
 val doobieVersion = "0.6.0"
 val enumeratumVersion = "1.5.13"
-val fs2Version = "1.0.0"
+val fs2Version = "1.0.2"
 val http4sVersion = "0.20.0-M3"
 val logbackVersion = "1.2.3"
 val paradiseVersion = "2.1.1"
 val postgresSocketFactoryVersion = "1.0.11"
-val pureConfigVersion = "0.10.0"
+val pureConfigVersion = "0.10.1"
 
 val commonSettings = Seq(
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % betterMonadicForVersion),
@@ -97,15 +97,17 @@ lazy val `encode-explorer` = project
       "com.github.pureconfig" %% "pureconfig" % pureConfigVersion,
       "com.github.pureconfig" %% "pureconfig-cats-effect" % pureConfigVersion,
       "com.github.pureconfig" %% "pureconfig-enumeratum" % pureConfigVersion,
+      "com.github.pureconfig" %% "pureconfig-http4s" % pureConfigVersion,
       "com.google.cloud.sql" % "postgres-socket-factory" % postgresSocketFactoryVersion % Runtime,
       "io.circe" %% "circe-core" % circeVersion,
-      "io.circe" %% "circe-derivation-annotations" % circeDerivationVersion,
+      "io.circe" %% "circe-derivation" % circeDerivationVersion,
       "org.http4s" %% "http4s-blaze-server" % http4sVersion,
       "org.http4s" %% "http4s-circe" % http4sVersion,
       "org.http4s" %% "http4s-dsl" % http4sVersion,
       "org.tpolecat" %% "doobie-core" % doobieVersion,
       "org.tpolecat" %% "doobie-hikari" % doobieVersion,
-      "org.tpolecat" %% "doobie-postgres" % doobieVersion
+      "org.tpolecat" %% "doobie-postgres" % doobieVersion,
+      "org.tpolecat" %% "doobie-postgres-circe" % doobieVersion
     ),
     dependencyOverrides ++= Seq(
       "co.fs2" %% "fs2-core" % fs2Version
