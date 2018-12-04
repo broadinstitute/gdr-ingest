@@ -55,7 +55,7 @@ class FacetsController[M[_]: Sync, F[_]](
       dbClient
         .countValues(field, filters)
         .map { cs =>
-          val vals = cs.map { case (v, c) => FacetValue(v, c) }
+          val vals = cs.map { case (value, count) => FacetValue(value, count) }
           Facet(field.displayName, None, field.encoded, vals)
         }
     }

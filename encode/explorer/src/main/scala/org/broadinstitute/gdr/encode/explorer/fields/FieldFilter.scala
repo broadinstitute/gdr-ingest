@@ -34,6 +34,7 @@ object FieldFilter {
     val fieldFilterPairs = encodedFilters
       .filter(_.nonEmpty)
       .traverse[ParsingValidation, (String, String)] { constraint =>
+        // Java-ism, returns -1 when '=' isn't in the string:
         val i = constraint.indexOf('=')
         if (i < 0) {
           s"Bad filter: $constraint".invalidNel
