@@ -260,7 +260,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       n.round.toString
     }
 
-  /** Convert the [[FieldFilter]]s in a filter map into corresponding SQL constraints. */
+  /** Convert the `FieldFilter`s in a filter map into corresponding SQL constraints. */
   def filtersToSql(allFilters: FieldFilter.Filters): Map[FieldConfig, Fragment] = {
     val baseFilters = allFilters.map {
       case (field, values) => field -> filterToSql(field, values)
