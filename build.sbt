@@ -1,7 +1,7 @@
 inThisBuild(
   Seq(
     organization := "org.broadinstitute",
-    scalaVersion := "2.12.7",
+    scalaVersion := "2.12.8",
     scalafmtConfig := Some((baseDirectory in ThisBuild)(_ / ".scalafmt.conf").value),
     scalafmtOnCompile := true,
     scalacOptions ++= Seq(
@@ -42,7 +42,7 @@ val circeFs2Version = "0.10.0"
 val commonsCodecVersion = "1.11"
 val doobieVersion = "0.6.0"
 val enumeratumVersion = "1.5.13"
-val fs2Version = "1.0.1"
+val fs2Version = "1.0.2"
 val http4sVersion = "0.20.0-M3"
 val logbackVersion = "1.2.3"
 val paradiseVersion = "2.1.1"
