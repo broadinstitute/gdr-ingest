@@ -4,19 +4,29 @@ import cats.data.{NonEmptyList, ValidatedNel}
 import cats.implicits._
 import cats.kernel.Monoid
 
+/** Collection of constraints to apply to a field in search / export. */
 case class FieldFilter(values: NonEmptyList[String])
 
 object FieldFilter {
 
+  /** Convenience alias for mapping from field -> filters to apply to that field. */
   type Filters = Map[FieldConfig, FieldFilter]
 
-  type ParsingValidation[A] = ValidatedNel[String, A]
+  // Methods like 'traverse' need a type with only one variable.
+  // The standard work-around is to fix the error type to a constant, which we do here with 'String'.
+  private type ParsingValidation[A] = ValidatedNel[String, A]
 
   private implicit val mon: Monoid[Filters] = new Monoid[Filters] {
     def empty = Map.empty[FieldConfig, FieldFilter]
     def combine(x: Filters, y: Filters): Filters = x ++ y
   }
 
+  /**
+    * Parse a collection of 'field=value' pairs into a filters map.
+    *
+    * @return a filters map if all 'field=value' pairs are well-formed and refer to
+    *         actual fields, otherwise a list of error messages
+    */
   def parseFilters(
     encodedFilters: List[String],
     fields: List[FieldConfig]
@@ -39,6 +49,12 @@ object FieldFilter {
     }
   }
 
+  /**
+    * Parse a collection of (field, value) pairs into a filters map.
+    *
+    * @return a filters map if all (field, value) pairs refer to actual fields,
+    *         otherwise a list of error messages
+    */
   private def parse(
     fieldFilterPairs: NonEmptyList[(String, String)],
     fields: List[FieldConfig]

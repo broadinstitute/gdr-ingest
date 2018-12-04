@@ -10,10 +10,20 @@ import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldFilter}
 
 import scala.language.higherKinds
 
+/**
+  * Component responsible for handling export-to-Terra requests.
+  *
+  * @tparam M wrapper type capable of suspending synchronous effects
+  * @tparam F wrapper type capable of composing instances of `M` in parallel
+  * @param config configuration setting deployment-specific details of export
+  * @param dbClient client which knows how to query the DB
+  * @param par proof that `F` can compose instances of `M` in parallel
+  */
 class ExportController[M[_]: Sync, F[_]](config: ExportConfig, dbClient: DbClient[M])(
   implicit par: Parallel[M, F]
 ) {
 
+  /** Generate a URI which, when fetched, will return import JSON for Terra. */
   def exportUrl(request: ExportRequest): M[ExportResponse] = {
     val filterParam = request.filter.flatMap {
       case (field, filters) => encodeFilter(field, filters)
@@ -29,11 +39,12 @@ class ExportController[M[_]: Sync, F[_]](config: ExportConfig, dbClient: DbClien
   private def encodeFilter(field: FieldConfig, filters: FieldFilter): List[String] =
     filters.values.map(v => s"${field.encoded}=$v").toList
 
+  /** Get donor and file JSON for import to Terra. */
   def export(request: ExportRequest): M[Vector[ExportJson]] = {
     val sqlFilters = dbClient.filtersToSql(request.filter)
 
-    val donorJson = dbClient.donorStream(sqlFilters)
-    val fileJson = dbClient.fileStream(sqlFilters)
+    val donorJson = dbClient.getDonorJson(sqlFilters)
+    val fileJson = dbClient.getFileJson(sqlFilters)
 
     (donorJson, fileJson).parMapN {
       case (donors, files) =>
@@ -50,6 +61,7 @@ class ExportController[M[_]: Sync, F[_]](config: ExportConfig, dbClient: DbClien
     }
   }
 
+  /** Build an entity set over JSON-to-export. */
   private def buildSet(
     setName: String,
     entityType: String,

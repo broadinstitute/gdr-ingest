@@ -21,6 +21,7 @@ case class FieldConfig(
   fieldType: FieldType
 ) {
 
+  /** Build a representation of this field to send to the UI. */
   def encoded: String = s"${table.entryName}.$column"
 }
 

@@ -260,6 +260,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       n.round.toString
     }
 
+  /** Convert the [[FieldFilter]]s in a filter map into corresponding SQL constraints. */
   def filtersToSql(allFilters: FieldFilter.Filters): Map[FieldConfig, Fragment] = {
     val baseFilters = allFilters.map {
       case (field, values) => field -> filterToSql(field, values)
@@ -359,13 +360,16 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     Fragments.or(rangeChecks.toList: _*)
   }
 
-  def donorStream(filters: Map[FieldConfig, Fragment]): F[Vector[ExportJson]] =
-    entityStream("donor", DbClient.DonorIdColumn, DbTable.Donors, filters)
+  /** Collect JSON for all donors matching the given filters, for export to Terra. */
+  def getDonorJson(filters: Map[FieldConfig, Fragment]): F[Vector[ExportJson]] =
+    getEntityJson("donor", DbClient.DonorIdColumn, DbTable.Donors, filters)
 
-  def fileStream(filters: Map[FieldConfig, Fragment]): F[Vector[ExportJson]] =
-    entityStream("file", DbClient.FileIdColumn, DbTable.Files, filters)
+  /** Collect JSON for all files matching the given filters, for export to Terra. */
+  def getFileJson(filters: Map[FieldConfig, Fragment]): F[Vector[ExportJson]] =
+    getEntityJson("file", DbClient.FileIdColumn, DbTable.Files, filters)
 
-  private def entityStream(
+  /** Collect JSON for all entities matching the given filters, for export to Terra. */
+  private def getEntityJson(
     entityType: String,
     nameField: String,
     table: DbTable,
@@ -414,6 +418,7 @@ object DbClient {
   /** Primary-key column in the donors table. */
   val DonorIdColumn = "donor_id"
 
+  /** Configuration for the primary-key column in the donors table. */
   val DonorIdField = FieldConfig(
     DbTable.Donors,
     DonorIdColumn,
@@ -421,11 +426,13 @@ object DbClient {
     FieldType.Keyword
   )
 
+  /** Primary-key column in the files table. */
   val FileIdColumn = "file_id"
 
   /** Foreign-key column in the files table, pointing to the donors table. */
   val FileDonorsFk = "donor_ids"
 
+  /** Configuration for the foreign-key column in the files table pointing to the donors table. */
   val DonorsIdField = FieldConfig(
     DbTable.Files,
     FileDonorsFk,

@@ -60,6 +60,7 @@ object EncodeExplorer extends IOApp {
 
           implicit val exportBodyDecoder: Decoder[ExportRequest] = cursor =>
             for {
+              // FIXME: Validate this doesn't include "bad" characters.
               cohort <- cursor.get[Option[String]]("cohortName")
               encodedFilters <- cursor.get[List[String]]("filter")
               decodedFilters <- FieldFilter
@@ -77,6 +78,7 @@ object EncodeExplorer extends IOApp {
                 FieldFilter.Filters
               ]("filter")
 
+          // FIXME: Validate this doesn't include "bad" characters.
           object CohortQueryDecoder
               extends OptionalQueryParamDecoderMatcher[String]("cohortName")
 
