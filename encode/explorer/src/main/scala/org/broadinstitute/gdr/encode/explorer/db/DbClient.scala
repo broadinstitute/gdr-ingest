@@ -11,7 +11,7 @@ import doobie.postgres.implicits._
 import doobie.util.ExecutionContexts
 import doobie.util.log.{ExecFailure, ProcessingFailure, Success}
 import io.circe.Json
-import io.circe.syntax._
+import org.broadinstitute.gdr.encode.explorer.export.ExportJson
 import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldFilter, FieldType}
 
 import scala.language.higherKinds
@@ -359,10 +359,10 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     Fragments.or(rangeChecks.toList: _*)
   }
 
-  def donorStream(filters: Map[FieldConfig, Fragment]): F[Vector[Json]] =
+  def donorStream(filters: Map[FieldConfig, Fragment]): F[Vector[ExportJson]] =
     entityStream("donor", DbClient.DonorIdColumn, DbTable.Donors, filters)
 
-  def fileStream(filters: Map[FieldConfig, Fragment]): F[Vector[Json]] =
+  def fileStream(filters: Map[FieldConfig, Fragment]): F[Vector[ExportJson]] =
     entityStream("file", DbClient.FileIdColumn, DbTable.Files, filters)
 
   private def entityStream(
@@ -370,7 +370,7 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
     nameField: String,
     table: DbTable,
     allFilters: Map[FieldConfig, Fragment]
-  ): F[Vector[Json]] = {
+  ): F[Vector[ExportJson]] = {
     val filters = allFilters.filter(_._1.table == table).values
 
     val source = Fragment.const(s"select * from ${table.entryName}") ++
@@ -378,19 +378,20 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
 
     (fr"select row_to_json(res) from (" ++ source ++ fr") as res")
       .query[Json]
-      .map { js =>
-        js.withObject { obj =>
-          obj(nameField).fold(js) { id =>
-            Json.obj(
-              "name" -> id,
-              "entityType" -> entityType.asJson,
-              "attributes" -> obj.remove(nameField).asJson
-            )
-          }
-        }
-      }
-      .to[Vector]
+      .stream
       .transact(transactor)
+      .evalMap { js =>
+        val parsed = for {
+          obj <- js.asObject
+          id <- obj(nameField)
+        } yield {
+          ExportJson(id, entityType, obj.remove(nameField))
+        }
+
+        parsed.liftTo[F](new IllegalStateException(s"Failed to parse JSON: $js"))
+      }
+      .compile
+      .toVector
   }
 }
 
