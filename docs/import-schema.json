@@ -19,6 +19,19 @@
         { "$ref": "#/definitions/repeatedAttribute" }
       ]
     },
+    "entityId": {
+      "title": "Unique ID for an entity",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9\\-_]+$"
+    },
+    "entitySetItem": {
+      "title": "Pointer to an entity within a set",
+      "type": "object",
+      "properties": {
+        "entityType": { "type": "string" },
+        "entityName": { "type": "string" }
+      }
+    },
     "entitySetItems": {
       "title": "Collection of IDs defining an entity set",
       "type": "object",
@@ -28,7 +41,7 @@
           "title": "Unique entity IDs",
           "description": "Contains the unique IDs ('names') of entities which should be included in the enclosing set. The referred-to entities should all be of the same type.",
           "type": "array",
-          "items": { "type": "string" },
+          "items": { "$ref": "#/definitions/entitySetItem" },
           "uniqueItems": true,
           "minLength": 1
         }
@@ -42,7 +55,7 @@
         "name": {
           "title": "The ID of the entity",
           "description": "If multiple entities with the same ID are included in the export payload the attributes will be merged, with the attributes of the last entity 'winning' on conflicts.",
-          "type": "string"
+          "$ref": "#/definitions/entityId"
         },
         "entityType": {
           "title": "The type of the entity",
@@ -64,7 +77,7 @@
         "name": {
           "title": "The ID of the set",
           "description": "If multiple sets with the same ID are included in the export payload the included references will be merged.",
-          "type": "string"
+          "$ref": "#/definitions/entityId"
         },
         "entityType": {
           "title": "The type of the set",
@@ -310,17 +323,17 @@
           "samples": {
             "itemsType": "EntityReference",
             "items": [
-              "DLS3",
-              "680583717",
-              "680080094",
-              "662171314",
-              "678420031",
-              "665436395",
-              "665281924",
-              "CEMBA180119_1B",
-              "680847414",
-              "676617945",
-              "675026503"
+              { "entityType": "sample", "entityName": "DLS3" },
+              { "entityType": "sample", "entityName": "680583717" },
+              { "entityType": "sample", "entityName": "680080094" },
+              { "entityType": "sample", "entityName": "662171314" },
+              { "entityType": "sample", "entityName": "678420031" },
+              { "entityType": "sample", "entityName": "665436395" },
+              { "entityType": "sample", "entityName": "665281924" },
+              { "entityType": "sample", "entityName": "CEMBA180119_1B" },
+              { "entityType": "sample", "entityName": "680847414" },
+              { "entityType": "sample", "entityName": "676617945" },
+              { "entityType": "sample", "entityName": "675026503" }
             ]
           }
         }
@@ -774,50 +787,50 @@
           "files": {
             "itemsType": "EntityReference",
             "items": [
-              "k7GWWswgHMvXP4nE",
-              "oiCCtYOMqV8hkoy4",
-              "vn0PMgHXZzW7eqiq",
-              "qqRXsXtc3rtbY5g1",
-              "e2VZ78UP9HuJP9Ql",
-              "EqmWnjvLFYCtXHLz",
-              "00aiCbJYSJrKgdPi",
-              "pcwS4phed3sxm2Rf",
-              "hJ7noY9acbqLlSFK",
-              "000vEGxc0wF24zRp",
-              "gLw1OhXaDhnPMCFO",
-              "LwvFJ84O1F0F252x",
-              "QDTPhBAX3tT94PBC",
-              "0pXf7K06Kgpy4Aaq",
-              "PtAR2yCjVKvJAVjP",
-              "8areNB0rNJVa2rVd",
-              "yX4uIst5SE0pI7pM",
-              "PH7IVuOfefNeLN6D",
-              "F6Ijr6nSTg17bmsC",
-              "VVsk3cgm1KixhntC",
-              "p3PcGVujv1pJ5mzQ",
-              "1kO4q9okByFKxohh",
-              "2F8trncAaqsAIIyq",
-              "k4cgvU05UqSA34x9",
-              "ADKFhSB44nSLulP5",
-              "5UKBBzjy0KNR7Ny7",
-              "KyeJOONZ0hqQDG6Y",
-              "sWvYr2ZuegarjEf3",
-              "2TFFxXiMN86UmnTV",
-              "0dlEjTxldzxOl7Zf",
-              "56sxc4GlGgpbyWoh",
-              "pWizgGVaeXAUpzNk",
-              "exMmk8lJuagU4BXg",
-              "myGx9QawDee0o5GO",
-              "UaplNY2ZtRvUpeC9",
-              "dB9poyq3ZM5Dxgs1",
-              "yfWAXRkSYPhCUDP1",
-              "XjWtcKNKzVWMIA1h",
-              "OjYx5o5gZt8soADP",
-              "aeAC0i3arTBNq6L0",
-              "p08hsh4xSlIbYqSZ",
-              "iLt0AmfuF2q0OyNP",
-              "wNbGwWAy5NWVky1c",
-              "7bcsLyyRo6nO6ThW"
+              { "entityType": "file", "entityName": "k7GWWswgHMvXP4nE" },
+              { "entityType": "file", "entityName": "oiCCtYOMqV8hkoy4" },
+              { "entityType": "file", "entityName": "vn0PMgHXZzW7eqiq" },
+              { "entityType": "file", "entityName": "qqRXsXtc3rtbY5g1" },
+              { "entityType": "file", "entityName": "e2VZ78UP9HuJP9Ql" },
+              { "entityType": "file", "entityName": "EqmWnjvLFYCtXHLz" },
+              { "entityType": "file", "entityName": "00aiCbJYSJrKgdPi" },
+              { "entityType": "file", "entityName": "pcwS4phed3sxm2Rf" },
+              { "entityType": "file", "entityName": "hJ7noY9acbqLlSFK" },
+              { "entityType": "file", "entityName": "000vEGxc0wF24zRp" },
+              { "entityType": "file", "entityName": "gLw1OhXaDhnPMCFO" },
+              { "entityType": "file", "entityName": "LwvFJ84O1F0F252x" },
+              { "entityType": "file", "entityName": "QDTPhBAX3tT94PBC" },
+              { "entityType": "file", "entityName": "0pXf7K06Kgpy4Aaq" },
+              { "entityType": "file", "entityName": "PtAR2yCjVKvJAVjP" },
+              { "entityType": "file", "entityName": "8areNB0rNJVa2rVd" },
+              { "entityType": "file", "entityName": "yX4uIst5SE0pI7pM" },
+              { "entityType": "file", "entityName": "PH7IVuOfefNeLN6D" },
+              { "entityType": "file", "entityName": "F6Ijr6nSTg17bmsC" },
+              { "entityType": "file", "entityName": "VVsk3cgm1KixhntC" },
+              { "entityType": "file", "entityName": "p3PcGVujv1pJ5mzQ" },
+              { "entityType": "file", "entityName": "1kO4q9okByFKxohh" },
+              { "entityType": "file", "entityName": "2F8trncAaqsAIIyq" },
+              { "entityType": "file", "entityName": "k4cgvU05UqSA34x9" },
+              { "entityType": "file", "entityName": "ADKFhSB44nSLulP5" },
+              { "entityType": "file", "entityName": "5UKBBzjy0KNR7Ny7" },
+              { "entityType": "file", "entityName": "KyeJOONZ0hqQDG6Y" },
+              { "entityType": "file", "entityName": "sWvYr2ZuegarjEf3" },
+              { "entityType": "file", "entityName": "2TFFxXiMN86UmnTV" },
+              { "entityType": "file", "entityName": "0dlEjTxldzxOl7Zf" },
+              { "entityType": "file", "entityName": "56sxc4GlGgpbyWoh" },
+              { "entityType": "file", "entityName": "pWizgGVaeXAUpzNk" },
+              { "entityType": "file", "entityName": "exMmk8lJuagU4BXg" },
+              { "entityType": "file", "entityName": "myGx9QawDee0o5GO" },
+              { "entityType": "file", "entityName": "UaplNY2ZtRvUpeC9" },
+              { "entityType": "file", "entityName": "dB9poyq3ZM5Dxgs1" },
+              { "entityType": "file", "entityName": "yfWAXRkSYPhCUDP1" },
+              { "entityType": "file", "entityName": "XjWtcKNKzVWMIA1h" },
+              { "entityType": "file", "entityName": "OjYx5o5gZt8soADP" },
+              { "entityType": "file", "entityName": "aeAC0i3arTBNq6L0" },
+              { "entityType": "file", "entityName": "p08hsh4xSlIbYqSZ" },
+              { "entityType": "file", "entityName": "iLt0AmfuF2q0OyNP" },
+              { "entityType": "file", "entityName": "wNbGwWAy5NWVky1c" },
+              { "entityType": "file", "entityName": "7bcsLyyRo6nO6ThW" }
             ]
           }
         }

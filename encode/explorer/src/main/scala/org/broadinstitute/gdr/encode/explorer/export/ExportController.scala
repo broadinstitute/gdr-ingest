@@ -60,7 +60,9 @@ class ExportController[M[_]: Sync, F[_]](config: ExportConfig, dbClient: DbClien
     attributes = JsonObject(
       s"${entityType}s" -> Json.obj(
         "itemsType" -> "EntityReference".asJson,
-        "items" -> entities.map(_.name).asJson
+        "items" -> entities
+          .map(e => Json.obj("entityType" -> entityType.asJson, "entityName" -> e.name))
+          .asJson
       )
     )
   )
