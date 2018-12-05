@@ -105,6 +105,18 @@ class App extends Component {
       return (
         <MuiThemeProvider theme={theme}>
           <div className="app">
+            <FacetsGrid
+              updateFacets={this.updateFacets}
+              selectedFacetValues={this.state.selectedFacetValues}
+              facets={Array.from(this.state.facets.values())}
+            />
+            <ExportFab
+              exportUrlApi={new ExportUrlApi(this.apiClient)}
+              filter={this.filterMapToArray(this.state.selectedFacetValues)}
+            />
+            {this.state.datasetName == "1000 Genomes" ? Disclaimer : null}
+          </div>
+          <div className="headerSearchContainer">
             <Header
               datasetName={this.state.datasetName}
               totalCount={this.state.totalCount}
@@ -116,16 +128,6 @@ class App extends Component {
               selectedFacetValues={this.state.selectedFacetValues}
               facets={this.state.facets}
             />
-            <FacetsGrid
-              updateFacets={this.updateFacets}
-              selectedFacetValues={this.state.selectedFacetValues}
-              facets={Array.from(this.state.facets.values())}
-            />
-            <ExportFab
-              exportUrlApi={new ExportUrlApi(this.apiClient)}
-              filter={this.filterMapToArray(this.state.selectedFacetValues)}
-            />
-            {this.state.datasetName == "1000 Genomes" ? Disclaimer : null}
           </div>
         </MuiThemeProvider>
       );

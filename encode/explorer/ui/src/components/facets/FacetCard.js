@@ -18,22 +18,35 @@ const styles = {
     // If there is a long word (eg facet name or facet value), break in the
     // middle of the word. Without this, the word stays on one line and its CSS
     // grid is wider than the facet card.
-    wordBreak: "break-word"
+    wordBreak: "break-word",
+    height: "200px",
+    overflow: "hidden",
+    alignContent: "flex-start"
   },
   // By default, each div takes up one grid cell.
   // Don't specify gridColumn, just use default of one cell.
   facetDescription: {
-    color: "gray"
+    color: "gray",
+    width: "110%"
   },
   totalFacetValueCount: {
     color: "gray",
-    textAlign: "right"
+    textAlign: "right",
+    paddingRight: "14px"
+  },
+  facetSearch: {
+    margin: "5px 0px 0px 0px",
+    border: "0",
+    fontSize: "12px",
+    width: "110%",
+    borderBottom: "2px solid silver"
   },
   facetValueList: {
     gridColumn: "1 / 3",
-    margin: "20px 0 0 0",
+    margin: "2px 0 0 0",
     maxHeight: "400px",
-    overflow: "auto"
+    overflow: "auto",
+    paddingRight: "14px"
   },
   facetValue: {
     // This is a nested div, so need to specify a new grid.
@@ -144,19 +157,22 @@ class FacetCard extends Component {
         ) : (
           <div />
         )}
-        <Typography>
-          <form>
-            <input
-              type="text"
-              placeholder="Search..."
-              ref="filterTextInput"
-              onChange={() => this.setSearch()}
-            />
-          </form>
-        </Typography>
-        <Typography className={classes.facetDescription}>
-          {this.props.facet.description}
-        </Typography>
+        <div>
+          <Typography className={classes.facetDescription}>
+            {this.props.facet.description}
+          </Typography>
+          <Typography>
+            <form>
+              <input
+                className={classes.facetSearch}
+                type="text"
+                placeholder="Search..."
+                ref="filterTextInput"
+                onChange={() => this.setSearch()}
+              />
+            </form>
+          </Typography>
+        </div>
         <List dense className={classes.facetValueList}>
           {facetValueDivs}
         </List>
