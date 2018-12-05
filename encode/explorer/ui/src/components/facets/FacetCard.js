@@ -141,8 +141,10 @@ class FacetCard extends Component {
           <Typography className={classes.totalFacetValueCount}>
             {this.totalFacetValueCount}
           </Typography>
-        ) : null}
-        <div>
+        ) : (
+          <div />
+        )}
+        <Typography>
           <form>
             <input
               type="text"
@@ -151,7 +153,7 @@ class FacetCard extends Component {
               onChange={() => this.setSearch()}
             />
           </form>
-        </div>
+        </Typography>
         <Typography className={classes.facetDescription}>
           {this.props.facet.description}
         </Typography>
