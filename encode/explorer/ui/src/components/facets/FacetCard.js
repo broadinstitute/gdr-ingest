@@ -29,17 +29,13 @@ const styles = {
     color: "gray",
     width: "110%"
   },
-  totalFacetValueCount: {
-    color: "gray",
-    textAlign: "right",
-    paddingRight: "14px"
-  },
   facetSearch: {
     margin: "5px 0px 0px 0px",
     border: "0",
     fontSize: "12px",
     width: "110%",
-    borderBottom: "2px solid silver"
+    borderBottom: "2px solid silver",
+    outlineWidth: "0"
   },
   facetValueList: {
     gridColumn: "1 / 3",
@@ -149,15 +145,8 @@ class FacetCard extends Component {
 
     return (
       <div className={classes.facetCard}>
-        <Typography>{this.props.facet.name}</Typography>
-        {this.props.facet.name != "Samples Overview" ? (
-          <Typography className={classes.totalFacetValueCount}>
-            {this.totalFacetValueCount}
-          </Typography>
-        ) : (
-          <div />
-        )}
         <div>
+          <Typography>{this.props.facet.name}</Typography>
           <Typography className={classes.facetDescription}>
             {this.props.facet.description}
           </Typography>

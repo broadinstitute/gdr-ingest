@@ -122,7 +122,7 @@ class App extends Component {
               totalCount={this.state.totalCount}
             />
             <Search
-              searchPlaceholderText={this.state.searchPlaceholderText}
+              searchPlaceholderText=""
               searchResults={this.state.searchResults}
               handleSearchBoxChange={this.handleSearchBoxChange}
               selectedFacetValues={this.state.selectedFacetValues}
