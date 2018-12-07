@@ -1,3 +1,10 @@
+.headerSearchContainer {
+  top: 0;
+  width: 100%;
+  position: fixed;
+  flex-direction: row;
+}
+
 .app {
-  margin: 20px;
+  margin: 100px 20px 20px 20px;
 }

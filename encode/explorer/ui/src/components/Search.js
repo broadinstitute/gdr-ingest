@@ -5,7 +5,8 @@ const customStyles = {
   container: (provided, state) => ({
     ...provided,
     fontFamily: ["Lato", "sans-serif"].join(","),
-    fontSize: "13px"
+    fontSize: "16px",
+    color: "#007eff"
   })
 };
 
@@ -76,20 +77,37 @@ class Search extends React.Component {
   }
 
   render() {
-    return (
-      <Select
-        isMulti="true"
-        onChange={this.props.handleSearchBoxChange}
-        options={this.props.searchResults}
-        getOptionLabel={this.renderOption}
-        getOptionValue={this.renderValue}
-        value={this.chipsFromSelectedFacetValues(
-          this.props.selectedFacetValues
-        )}
-        styles={customStyles}
-        placeholder={this.props.searchPlaceholderText}
-      />
+    const entries = [].concat.apply(
+      [],
+      Array.from(this.props.selectedFacetValues.values())
     );
+    if (entries.length > 0) {
+      return (
+        <Select
+          isMulti="true"
+          isSearchable="true"
+          onChange={this.props.handleSearchBoxChange}
+          value={this.chipsFromSelectedFacetValues(
+            this.props.selectedFacetValues
+          )}
+          styles={customStyles}
+          placeholder=""
+        />
+      );
+    } else {
+      return (
+        <Select
+          isMulti="true"
+          isDisabled="true"
+          onChange={this.props.handleSearchBoxChange}
+          value={this.chipsFromSelectedFacetValues(
+            this.props.selectedFacetValues
+          )}
+          styles={customStyles}
+          placeholder=""
+        />
+      );
+    }
   }
 }
 
