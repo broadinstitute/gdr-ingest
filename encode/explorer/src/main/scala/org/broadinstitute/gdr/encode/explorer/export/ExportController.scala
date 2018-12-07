@@ -36,28 +36,32 @@ class ExportController[M[_]: Sync, F[_]](config: ExportConfig, dbClient: DbClien
     ExportResponse(exportUri).pure[M]
   }
 
-  private def encodeFilter(field: FieldConfig, filters: FieldFilter): List[String] =
-    filters.values.map(v => s"${field.encoded}=$v").toList
+  private def encodeFilter(field: FieldConfig, filter: FieldFilter): List[String] =
+    filter match {
+      case FieldFilter.RangeFilter(low, high) => List(s"${field.encoded}=$low-$high")
+      case FieldFilter.KeywordFilter(values) =>
+        values.map(v => s"${field.encoded}=$v").toList
+    }
 
   /** Get donor and file JSON for import to Terra. */
   def export(request: ExportRequest): M[Vector[ExportJson]] = {
-    val sqlFilters = dbClient.filtersToSql(request.filter)
-
-    val donorJson = dbClient.getDonorJson(sqlFilters)
-    val fileJson = dbClient.getFileJson(sqlFilters)
-
-    (donorJson, fileJson).parMapN {
-      case (donors, files) =>
-        Vector.concat(
-          donors,
-          files,
-          request.cohortName.fold(Vector.empty[ExportJson]) { cohort =>
-            Vector(
-              buildSet(cohort, "donor", donors),
-              buildSet(cohort, "file", files)
-            )
-          }
-        )
+    for {
+      sqlFilters <- dbClient.filtersToSql(request.filter)
+      (donors, files) <- (
+        dbClient.getDonorJson(sqlFilters),
+        dbClient.getFileJson(sqlFilters)
+      ).parTupled
+    } yield {
+      Vector.concat(
+        donors,
+        files,
+        request.cohortName.fold(Vector.empty[ExportJson]) { cohort =>
+          Vector(
+            buildSet(cohort, "donor", donors),
+            buildSet(cohort, "file", files)
+          )
+        }
+      )
     }
   }
 

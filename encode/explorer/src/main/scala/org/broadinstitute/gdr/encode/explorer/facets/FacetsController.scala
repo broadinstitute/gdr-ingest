@@ -30,14 +30,14 @@ class FacetsController[M[_]: Sync, F[_]](
     * @param filters filters to apply to the search.
     */
   def getFacets(filters: FieldFilter.Filters): M[FacetsResponse] = {
-    val sqlFilters = dbClient.filtersToSql(filters)
-
-    val donorCount = dbClient.countRows(DbTable.Donors, sqlFilters)
-    val facetValues = getFacets(fields, sqlFilters)
-
-    (donorCount, facetValues).parMapN {
-      case (count, facets) =>
-        FacetsResponse(facets, count)
+    for {
+      sqlFilters <- dbClient.filtersToSql(filters)
+      (count, facets) <- (
+        dbClient.countRows(DbTable.Donors, sqlFilters),
+        getFacets(fields, sqlFilters)
+      ).parTupled
+    } yield {
+      FacetsResponse(facets, count)
     }
   }
 
@@ -54,9 +54,6 @@ class FacetsController[M[_]: Sync, F[_]](
        */
       dbClient
         .countValues(field, filters)
-        .map { cs =>
-          val vals = cs.map { case (value, count) => FacetValue(value, count) }
-          Facet(field.displayName, None, field.encoded, vals)
-        }
+        .map(Facet(field.displayName, field.encoded, _))
     }
 }
