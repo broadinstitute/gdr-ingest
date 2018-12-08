@@ -6,15 +6,12 @@ import "components/facets/FacetsGrid.css";
 import FacetCard from "components/facets/FacetCard";
 
 function FacetsGrid(props) {
-  // An array of es field names
-  const facets = props.facets;
-  const updateFacets = props.updateFacets;
-  const facetsList = facets.map(facet => (
+  const facetsList = props.facets.map(facet => (
     <GridListTile key={facet.name}>
       <FacetCard
         facet={facet}
-        selectedValues={props.selectedFacetValues.get(facet.es_field_name)}
-        updateFacets={updateFacets}
+        selectedValues={props.selectedFacetValues.get(facet.db_name)}
+        updateFacets={props.updateFacets}
       />
     </GridListTile>
   ));

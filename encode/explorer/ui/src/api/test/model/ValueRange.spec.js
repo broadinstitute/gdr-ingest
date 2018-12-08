@@ -28,7 +28,7 @@
   var instance;
 
   beforeEach(function() {
-    instance = new DataExplorerService.SearchResponse();
+    instance = new DataExplorerService.ValueRange();
   });
 
   var getProperty = function(object, getter, property) {
@@ -43,16 +43,28 @@
     else object[property] = value;
   };
 
-  describe("SearchResponse", function() {
-    it("should create an instance of SearchResponse", function() {
-      // uncomment below and update the code to test SearchResponse
-      //var instane = new DataExplorerService.SearchResponse();
-      //expect(instance).to.be.a(DataExplorerService.SearchResponse);
+  describe("ValueRange", function() {
+    it("should create an instance of ValueRange", function() {
+      // uncomment below and update the code to test ValueRange
+      //var instane = new DataExplorerService.ValueRange();
+      //expect(instance).to.be.a(DataExplorerService.ValueRange);
     });
 
-    it('should have the property fields (base name: "fields")', function() {
-      // uncomment below and update the code to test the property fields
-      //var instane = new DataExplorerService.SearchResponse();
+    it('should have the property low (base name: "low")', function() {
+      // uncomment below and update the code to test the property low
+      //var instane = new DataExplorerService.ValueRange();
+      //expect(instance).to.be();
+    });
+
+    it('should have the property high (base name: "high")', function() {
+      // uncomment below and update the code to test the property high
+      //var instane = new DataExplorerService.ValueRange();
+      //expect(instance).to.be();
+    });
+
+    it('should have the property count (base name: "count")', function() {
+      // uncomment below and update the code to test the property count
+      //var instane = new DataExplorerService.ValueRange();
       //expect(instance).to.be();
     });
   });

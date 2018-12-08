@@ -77,96 +77,96 @@ class FacetCard extends Component {
   constructor(props) {
     super(props);
 
-    this.facetValues = this.props.facet.values;
-
     this.state = {
       searchString: ""
     };
-
-    this.totalFacetValueCount = this.sumFacetValueCounts(
-      this.props.facet.values,
-      []
-    );
 
     this.onClick = this.onClick.bind(this);
     this.isDimmed = this.isDimmed.bind(this);
     this.setSearch = this.setSearch.bind(this);
   }
 
-  componentWillReceiveProps(nextProps) {
-    this.totalFacetValueCount = this.sumFacetValueCounts(
-      nextProps.facet.values,
-      this.props.selectedValues
-    );
-  }
-
   render() {
     const { classes } = this.props;
 
-    const facetValueDivs = this.props.facet.values
-      .filter(
-        facetValue =>
+    const facetValues = this.props.facet.values;
+
+    if (facetValues.value_type === "list") {
+      const facetValueDivs = facetValues.values
+        .filter(facetValue =>
           facetValue.name
             .toLowerCase()
-            .indexOf(this.state.searchString.toLowerCase()) > -1
-      )
-      .map(value => (
-        <ListItem
-          className={classes.facetValue}
-          key={value.name}
-          button
-          dense
-          disableRipple
-          onClick={e => this.onClick(value.name)}
-        >
-          <Checkbox
-            className={classes.facetValueCheckbox}
-            checked={
-              this.props.selectedValues != null &&
-              this.props.selectedValues.includes(value.name)
-            }
-          />
-          <ListItemText
-            className={classes.facetValueNameAndCount}
-            classes={{
-              primary: this.isDimmed(value) ? classes.grayText : null
-            }}
-            primary={
-              <div
-                style={{ display: "grid", gridTemplateColumns: "auto 50px" }}
-              >
-                <div className={classes.facetValueName}>{value.name}</div>
-                <div className={classes.facetValueCount}>{value.count}</div>
-              </div>
-            }
-          />
-        </ListItem>
-      ));
+            .includes(this.state.searchString.toLowerCase())
+        )
+        .map(value => (
+          <ListItem
+            className={classes.facetValue}
+            key={value.name}
+            button
+            dense
+            disableRipple
+            onClick={e => this.onClick(value.name)}
+          >
+            <Checkbox
+              className={classes.facetValueCheckbox}
+              checked={
+                this.props.selectedValues != null &&
+                this.props.selectedValues.includes(value.name)
+              }
+            />
+            <ListItemText
+              className={classes.facetValueNameAndCount}
+              classes={{
+                primary: this.isDimmed(value) ? classes.grayText : null
+              }}
+              primary={
+                <div
+                  style={{ display: "grid", gridTemplateColumns: "auto 50px" }}
+                >
+                  <div className={classes.facetValueName}>{value.name}</div>
+                  <div className={classes.facetValueCount}>{value.count}</div>
+                </div>
+              }
+            />
+          </ListItem>
+        ));
 
-    return (
-      <div className={classes.facetCard}>
-        <div>
-          <Typography>{this.props.facet.name}</Typography>
-          <Typography className={classes.facetDescription}>
-            {this.props.facet.description}
-          </Typography>
-          <Typography>
-            <form>
-              <input
-                className={classes.facetSearch}
-                type="text"
-                placeholder="Search..."
-                ref="filterTextInput"
-                onChange={() => this.setSearch()}
-              />
-            </form>
-          </Typography>
+      return (
+        <div className={classes.facetCard}>
+          <div>
+            <Typography>{this.props.facet.name}</Typography>
+            <Typography className={classes.facetDescription}>
+              {this.props.facet.description}
+            </Typography>
+            <Typography>
+              <form>
+                <input
+                  className={classes.facetSearch}
+                  type="text"
+                  placeholder="Search..."
+                  ref="filterTextInput"
+                  onChange={() => this.setSearch()}
+                />
+              </form>
+            </Typography>
+          </div>
+          <List dense className={classes.facetValueList}>
+            {facetValueDivs}
+          </List>
         </div>
-        <List dense className={classes.facetValueList}>
-          {facetValueDivs}
-        </List>
-      </div>
-    );
+      );
+    } else {
+      return (
+        <div className={classes.facetCard}>
+          <div>
+            <Typography>{this.props.facet.name}</Typography>
+            <Typography className={classes.facetDescription}>
+              {this.props.facet.description}
+            </Typography>
+          </div>
+        </div>
+      );
+    }
   }
 
   isDimmed(facetValue) {
@@ -179,28 +179,6 @@ class FacetCard extends Component {
 
   setSearch() {
     this.setState({ searchString: this.refs.filterTextInput.value });
-  }
-
-  /**
-   * @param facetValues FacetValue[] to sum counts over
-   * @param selectedValueNames Optional string[] to select a subset of facetValues to sum counts for
-   * @return number count the total sum of all facetValue counts, optionally filtered by selectedValueNames
-   * */
-  sumFacetValueCounts(facetValues, selectedValueNames) {
-    let count = 0;
-    if (selectedValueNames == null || selectedValueNames.length === 0) {
-      facetValues.forEach(value => {
-        count += value.count;
-      });
-    } else {
-      facetValues.forEach(value => {
-        if (selectedValueNames.indexOf(value.name) > -1) {
-          count += value.count;
-        }
-      });
-    }
-
-    return count;
   }
 
   onClick(facetValue) {
@@ -218,11 +196,7 @@ class FacetCard extends Component {
       isSelected = true;
     }
 
-    this.props.updateFacets(
-      this.props.facet.es_field_name,
-      facetValue,
-      isSelected
-    );
+    this.props.updateFacets(this.props.facet.db_name, facetValue, isSelected);
   }
 }
 

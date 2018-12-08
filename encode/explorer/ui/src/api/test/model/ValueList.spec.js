@@ -28,7 +28,7 @@
   var instance;
 
   beforeEach(function() {
-    instance = new DataExplorerService.FieldsResponse();
+    instance = new DataExplorerService.ValueList();
   });
 
   var getProperty = function(object, getter, property) {
@@ -43,16 +43,16 @@
     else object[property] = value;
   };
 
-  describe("FieldsResponse", function() {
-    it("should create an instance of FieldsResponse", function() {
-      // uncomment below and update the code to test FieldsResponse
-      //var instane = new DataExplorerService.FieldsResponse();
-      //expect(instance).to.be.a(DataExplorerService.FieldsResponse);
+  describe("ValueList", function() {
+    it("should create an instance of ValueList", function() {
+      // uncomment below and update the code to test ValueList
+      //var instane = new DataExplorerService.ValueList();
+      //expect(instance).to.be.a(DataExplorerService.ValueList);
     });
 
-    it('should have the property fields (base name: "fields")', function() {
-      // uncomment below and update the code to test the property fields
-      //var instane = new DataExplorerService.FieldsResponse();
+    it('should have the property values (base name: "values")', function() {
+      // uncomment below and update the code to test the property values
+      //var instane = new DataExplorerService.ValueList();
       //expect(instance).to.be();
     });
   });

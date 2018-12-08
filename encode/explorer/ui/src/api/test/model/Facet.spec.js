@@ -50,14 +50,20 @@
       //expect(instance).to.be.a(DataExplorerService.Facet);
     });
 
-    it('should have the property facetName (base name: "facet_name")', function() {
-      // uncomment below and update the code to test the property facetName
+    it('should have the property name (base name: "name")', function() {
+      // uncomment below and update the code to test the property name
       //var instane = new DataExplorerService.Facet();
       //expect(instance).to.be();
     });
 
-    it('should have the property values (base name: "values")', function() {
-      // uncomment below and update the code to test the property values
+    it('should have the property description (base name: "description")', function() {
+      // uncomment below and update the code to test the property description
+      //var instane = new DataExplorerService.Facet();
+      //expect(instance).to.be();
+    });
+
+    it('should have the property dbName (base name: "db_name")', function() {
+      // uncomment below and update the code to test the property dbName
       //var instane = new DataExplorerService.Facet();
       //expect(instance).to.be();
     });

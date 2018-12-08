@@ -1,14 +1,8 @@
 import React, { Component } from "react";
 import { MuiThemeProvider, createMuiTheme } from "@material-ui/core/styles";
-import Typography from "@material-ui/core/Typography";
 
 import "App.css";
-import {
-  ApiClient,
-  DatasetApi,
-  FacetsApi,
-  SearchApi
-} from "data_explorer_service";
+import { ApiClient, DatasetApi, FacetsApi } from "data_explorer_service";
 import ExportFab from "components/ExportFab";
 import ExportUrlApi from "api/src/api/ExportUrlApi";
 import FacetsGrid from "components/facets/FacetsGrid";
@@ -21,18 +15,6 @@ const theme = createMuiTheme({
   }
 });
 
-const Disclaimer = (
-  <Typography style={{ margin: "20px" }}>
-    This dataset is publicly available for anyone to use under the terms
-    provided by the dataset source (<a href="http://www.internationalgenome.org/data">
-      http://www.internationalgenome.org/data
-    </a>) and are provided "AS IS" without any warranty, express or implied,
-    from Verily Life Sciences, LLC. Verily Life Sciences, LLC disclaims all
-    liability for any damages, direct or indirect, resulting from the use of the
-    dataset.
-  </Typography>
-);
-
 class App extends Component {
   constructor(props) {
     super(props);
@@ -41,25 +23,17 @@ class App extends Component {
       // What to show in search box by default. If this is the empty string, the
       // react-select default of "Select..." is shown.
       searchPlaceholderText: "",
-      // Map from es_field_name to facet data returned from API server /facets call.
+      // Map from db_name to facet data returned from API server /facets call.
       facets: new Map(),
       totalCount: null,
-      // Map from es_field_name to a list of selected facet values.
-      selectedFacetValues: new Map(),
-      // Search results shown in the search drop-down.
-      // This is an array of dicts, where each dict has
-      // facetName - The name of the facet.
-      // facetDescription - The description of the facet.
-      // esFieldName - The elasticsearch field name of the facet.
-      // facetValue
-      searchResults: [],
-      // These represent extra facets added via the search box.
-      // This is an array of Elasticsearch field names
-      extraFacetEsFieldNames: []
+      // Map from db_name to a list of selected facet values.
+      selectedFacetValues: new Map()
     };
 
     this.apiClient = new ApiClient();
-    this.apiClient.basePath = "/api";
+    // FIXME: DON'T CHECK THIS IN
+    this.apiClient.basePath = "http://localhost:8080/api";
+    //this.apiClient.basePath = "/api";
     this.facetsApi = new FacetsApi(this.apiClient);
     this.facetsCallback = function(error, data) {
       if (error) {
@@ -73,24 +47,6 @@ class App extends Component {
       }
     }.bind(this);
 
-    this.searchApi = new SearchApi(this.apiClient);
-    this.searchCallback = function(error, data) {
-      if (error) {
-        console.error(error);
-      } else {
-        this.setState({
-          searchResults: data.search_results.map(searchResult => {
-            return {
-              facetName: searchResult.facet_name,
-              facetDescription: searchResult.facet_description,
-              esFieldName: searchResult.elasticsearch_field_name,
-              facetValue: searchResult.facet_value
-            };
-          })
-        });
-      }
-    }.bind(this);
-
     // Map from facet name to a list of facet values.
     this.filterMap = new Map();
     this.updateFacets = this.updateFacets.bind(this);
@@ -98,44 +54,37 @@ class App extends Component {
   }
 
   render() {
-    if (this.state.facets.size == 0 || this.state.datasetName === "") {
-      // Server has not yet responded or returned an error
-      return <div />;
-    } else {
-      return (
-        <MuiThemeProvider theme={theme}>
-          <div className="app">
-            <FacetsGrid
-              updateFacets={this.updateFacets}
-              selectedFacetValues={this.state.selectedFacetValues}
-              facets={Array.from(this.state.facets.values())}
-            />
-            <ExportFab
-              exportUrlApi={new ExportUrlApi(this.apiClient)}
-              filter={this.filterMapToArray(this.state.selectedFacetValues)}
-            />
-            {this.state.datasetName == "1000 Genomes" ? Disclaimer : null}
-          </div>
-          <div className="headerSearchContainer">
-            <Header
-              datasetName={this.state.datasetName}
-              totalCount={this.state.totalCount}
-            />
-            <Search
-              searchPlaceholderText=""
-              searchResults={this.state.searchResults}
-              handleSearchBoxChange={this.handleSearchBoxChange}
-              selectedFacetValues={this.state.selectedFacetValues}
-              facets={this.state.facets}
-            />
-          </div>
-        </MuiThemeProvider>
-      );
-    }
+    return (
+      <MuiThemeProvider theme={theme}>
+        <div className="app">
+          <FacetsGrid
+            updateFacets={this.updateFacets}
+            selectedFacetValues={this.state.selectedFacetValues}
+            facets={Array.from(this.state.facets.values())}
+          />
+          <ExportFab
+            exportUrlApi={new ExportUrlApi(this.apiClient)}
+            filter={this.filterMapToArray(this.state.selectedFacetValues)}
+          />
+        </div>
+        <div className="headerSearchContainer">
+          <Header
+            datasetName={this.state.datasetName}
+            totalCount={this.state.totalCount}
+          />
+          <Search
+            searchPlaceholderText=""
+            searchResults={this.state.searchResults}
+            handleSearchBoxChange={this.handleSearchBoxChange}
+            selectedFacetValues={this.state.selectedFacetValues}
+            facets={this.state.facets}
+          />
+        </div>
+      </MuiThemeProvider>
+    );
   }
 
   componentDidMount() {
-    this.searchApi.searchGet(this.searchCallback);
     this.facetsApi.facetsGet({}, this.facetsCallback);
 
     // Call /api/dataset
@@ -157,7 +106,7 @@ class App extends Component {
   getFacetMap(facets) {
     var facetMap = new Map();
     facets.forEach(function(facet) {
-      facetMap.set(facet.es_field_name, facet);
+      facetMap.set(facet.db_name, facet);
     });
     return facetMap;
   }

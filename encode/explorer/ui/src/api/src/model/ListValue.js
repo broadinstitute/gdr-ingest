@@ -14,51 +14,49 @@
 import ApiClient from "../ApiClient";
 
 /**
- * The DatasetResponse model module.
- * @module model/DatasetResponse
+ * The ListValue model module.
+ * @module model/ListValue
  * @version 0.0.1
  */
-export default class DatasetResponse {
+export default class ListValue {
   /**
-   * Constructs a new <code>DatasetResponse</code>.
-   * Dataset information.
-   * @alias module:model/DatasetResponse
+   * Constructs a new <code>ListValue</code>.
+   * A facet value, for example, \&quot;Male\&quot;/34.
+   * @alias module:model/ListValue
    * @class
    */
 
   constructor() {}
 
   /**
-   * Constructs a <code>DatasetResponse</code> from a plain JavaScript object, optionally creating a new instance.
+   * Constructs a <code>ListValue</code> from a plain JavaScript object, optionally creating a new instance.
    * Copies all relevant properties from <code>data</code> to <code>obj</code> if supplied or a new instance if not.
    * @param {Object} data The plain JavaScript object bearing properties of interest.
-   * @param {module:model/DatasetResponse} obj Optional instance to populate.
-   * @return {module:model/DatasetResponse} The populated <code>DatasetResponse</code> instance.
+   * @param {module:model/ListValue} obj Optional instance to populate.
+   * @return {module:model/ListValue} The populated <code>ListValue</code> instance.
    */
   static constructFromObject(data, obj) {
     if (data) {
-      obj = obj || new DatasetResponse();
+      obj = obj || new ListValue();
 
       if (data.hasOwnProperty("name")) {
         obj["name"] = ApiClient.convertToType(data["name"], "String");
       }
-      if (data.hasOwnProperty("search_placeholder_text")) {
-        obj["search_placeholder_text"] = ApiClient.convertToType(
-          data["search_placeholder_text"],
-          "String"
-        );
+      if (data.hasOwnProperty("count")) {
+        obj["count"] = ApiClient.convertToType(data["count"], "Number");
       }
     }
     return obj;
   }
 
   /**
+   * Facet value name, for example, \"Male\".
    * @member {String} name
    */
   name = undefined;
   /**
-   * Optional. What to show in the search box by default
-   * @member {String} search_placeholder_text
+   * Facet value count.
+   * @member {Number} count
    */
-  search_placeholder_text = undefined;
+  count = undefined;
 }

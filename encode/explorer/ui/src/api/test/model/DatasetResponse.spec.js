@@ -55,5 +55,11 @@
       //var instane = new DataExplorerService.DatasetResponse();
       //expect(instance).to.be();
     });
+
+    it('should have the property searchPlaceholderText (base name: "search_placeholder_text")', function() {
+      // uncomment below and update the code to test the property searchPlaceholderText
+      //var instane = new DataExplorerService.DatasetResponse();
+      //expect(instance).to.be();
+    });
   });
 });

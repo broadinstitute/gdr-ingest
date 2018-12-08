@@ -28,7 +28,7 @@
   var instance;
 
   beforeEach(function() {
-    instance = new DataExplorerService.SearchResult();
+    instance = new DataExplorerService.ListValue();
   });
 
   var getProperty = function(object, getter, property) {
@@ -43,28 +43,22 @@
     else object[property] = value;
   };
 
-  describe("SearchResult", function() {
-    it("should create an instance of SearchResult", function() {
-      // uncomment below and update the code to test SearchResult
-      //var instane = new DataExplorerService.SearchResult();
-      //expect(instance).to.be.a(DataExplorerService.SearchResult);
+  describe("ListValue", function() {
+    it("should create an instance of ListValue", function() {
+      // uncomment below and update the code to test ListValue
+      //var instane = new DataExplorerService.ListValue();
+      //expect(instance).to.be.a(DataExplorerService.ListValue);
     });
 
     it('should have the property name (base name: "name")', function() {
       // uncomment below and update the code to test the property name
-      //var instane = new DataExplorerService.SearchResult();
+      //var instane = new DataExplorerService.ListValue();
       //expect(instance).to.be();
     });
 
-    it('should have the property description (base name: "description")', function() {
-      // uncomment below and update the code to test the property description
-      //var instane = new DataExplorerService.SearchResult();
-      //expect(instance).to.be();
-    });
-
-    it('should have the property elasticsearchName (base name: "elasticsearch_name")', function() {
-      // uncomment below and update the code to test the property elasticsearchName
-      //var instane = new DataExplorerService.SearchResult();
+    it('should have the property count (base name: "count")', function() {
+      // uncomment below and update the code to test the property count
+      //var instane = new DataExplorerService.ListValue();
       //expect(instance).to.be();
     });
   });

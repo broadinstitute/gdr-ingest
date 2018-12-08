@@ -118,25 +118,26 @@ object EncodeExplorer extends IOApp {
               }
           }
 
-          /*
-           * Add "middleware" to the routes to:
-           *   1. Log requests and responses
-           *   2. gzip responses
-           *   3. Allow CORS from Terra
-           */
+          // Add logging, CORS, and (when deployed) GZip "middleware".
           val app = {
+            val withLogging =
+              Logger[IO](logHeaders = true, logBody = true)(routes.orNotFound)
+
             val corsConfig = CORSConfig(
-              anyOrigin = false,
+              anyOrigin = config.localEnv,
               allowCredentials = true,
               maxAge = 1.hour.toSeconds,
               anyMethod = false,
               allowedOrigins = Set("https://app.terra.bio"),
-              allowedMethods = Some(Set("GET"))
+              allowedMethods =
+                Some(if (config.localEnv) Set("GET", "POST") else Set("GET"))
             )
-            val withLogging =
-              Logger[IO](logHeaders = true, logBody = true)(routes.orNotFound)
 
-            CORS(GZip(withLogging), corsConfig)
+            if (config.localEnv) {
+              CORS(withLogging, corsConfig)
+            } else {
+              CORS(GZip(withLogging), corsConfig)
+            }
           }
 
           // NOTE: .serve returns a never-ending stream, so this will only

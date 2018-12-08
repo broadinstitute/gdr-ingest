@@ -49,5 +49,17 @@
       //var instane = new DataExplorerService.FacetsResponse();
       //expect(instance).to.be.a(DataExplorerService.FacetsResponse);
     });
+
+    it('should have the property facets (base name: "facets")', function() {
+      // uncomment below and update the code to test the property facets
+      //var instane = new DataExplorerService.FacetsResponse();
+      //expect(instance).to.be();
+    });
+
+    it('should have the property count (base name: "count")', function() {
+      // uncomment below and update the code to test the property count
+      //var instane = new DataExplorerService.FacetsResponse();
+      //expect(instance).to.be();
+    });
   });
 });

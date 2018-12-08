@@ -18,7 +18,8 @@ case class ExplorerConfig(
   port: Int,
   db: DbConfig,
   export: ExportConfig,
-  fields: List[FieldConfig]
+  fields: List[FieldConfig],
+  localEnv: Boolean
 )
 
 object ExplorerConfig {

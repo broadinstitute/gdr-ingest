@@ -50,8 +50,26 @@
       //expect(instance).to.be.a(DataExplorerService.FacetValue);
     });
 
-    it('should have the property valueName (base name: "value_name")', function() {
-      // uncomment below and update the code to test the property valueName
+    it('should have the property valueType (base name: "value_type")', function() {
+      // uncomment below and update the code to test the property valueType
+      //var instane = new DataExplorerService.FacetValue();
+      //expect(instance).to.be();
+    });
+
+    it('should have the property values (base name: "values")', function() {
+      // uncomment below and update the code to test the property values
+      //var instane = new DataExplorerService.FacetValue();
+      //expect(instance).to.be();
+    });
+
+    it('should have the property low (base name: "low")', function() {
+      // uncomment below and update the code to test the property low
+      //var instane = new DataExplorerService.FacetValue();
+      //expect(instance).to.be();
+    });
+
+    it('should have the property high (base name: "high")', function() {
+      // uncomment below and update the code to test the property high
       //var instane = new DataExplorerService.FacetValue();
       //expect(instance).to.be();
     });
