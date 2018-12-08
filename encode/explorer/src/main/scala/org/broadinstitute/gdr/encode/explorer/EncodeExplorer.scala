@@ -1,18 +1,11 @@
 package org.broadinstitute.gdr.encode.explorer
 
-import cats.data.Validated.{Invalid, Valid}
 import cats.effect.{ExitCode, IO, IOApp}
-import io.circe.{Decoder, DecodingFailure}
-import io.circe.syntax._
 import org.broadinstitute.gdr.encode.explorer.dataset.DatasetController
 import org.broadinstitute.gdr.encode.explorer.db.DbClient
-import org.broadinstitute.gdr.encode.explorer.export.{ExportController, ExportRequest}
+import org.broadinstitute.gdr.encode.explorer.export.ExportController
 import org.broadinstitute.gdr.encode.explorer.facets.FacetsController
-import org.broadinstitute.gdr.encode.explorer.fields.FieldFilter
-import org.http4s._
-import org.http4s.circe.CirceEntityCodec._
-import org.http4s.dsl.io._
-import org.http4s.implicits._
+import org.broadinstitute.gdr.encode.explorer.web.ExplorerApi
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.middleware.{CORS, CORSConfig, GZip, Logger}
 import pureconfig.module.catseffect._
@@ -49,79 +42,17 @@ object EncodeExplorer extends IOApp {
       db =>
         // Fail fast on bad config, and also warm up the DB connection pool.
         db.validateFields(config.fields).flatMap { _ =>
-          val facetsController = new FacetsController(config.fields, db)
-          val exportController = new ExportController(config.export, db)
-
-          implicit val filterQueryDecoder: QueryParamDecoder[FieldFilter.Filters] =
-            queryParam =>
-              FieldFilter
-                .parseFilters(queryParam.value.split('|').toList, config.fields)
-                .leftMap(_.map(err => ParseFailure(err, err)))
-
-          implicit val exportBodyDecoder: Decoder[ExportRequest] = cursor =>
-            for {
-              // FIXME: Validate this doesn't include "bad" characters.
-              // Only alphanumeric chars, underscore, and hyphen are allowed.
-              cohort <- cursor.get[Option[String]]("cohortName")
-              encodedFilters <- cursor.get[List[String]]("filter")
-              decodedFilters <- FieldFilter
-                .parseFilters(encodedFilters, config.fields)
-                .leftMap(errs => DecodingFailure(errs.head, Nil))
-                .toEither
-            } yield {
-              ExportRequest(cohort, decodedFilters)
-            }
-
-          // Ugly as an object, but http4s has somehow designed their syntax
-          // to make it not work as a val.
-          object FilterQueryDecoder
-              extends OptionalValidatingQueryParamDecoderMatcher[
-                FieldFilter.Filters
-              ]("filter")
-
-          // FIXME: Validate this doesn't include "bad" characters.
-          // Only alphanumeric chars, underscore, and hyphen are allowed.
-          object CohortQueryDecoder
-              extends OptionalQueryParamDecoderMatcher[String]("cohortName")
-
-          val routes = HttpRoutes.of[IO] {
-            case GET -> Root / "api" / "dataset" =>
-              Ok(DatasetController.default.datasetInfo.asJson)
-
-            case GET -> Root / "api" / "facets" :? FilterQueryDecoder(maybeFilters) =>
-              maybeFilters match {
-                case None =>
-                  Ok(facetsController.getFacets(Map.empty).map(_.asJson))
-                case Some(Invalid(errs)) =>
-                  BadRequest(errs.map(_.sanitized).asJson)
-                case Some(Valid(filters)) =>
-                  Ok(facetsController.getFacets(filters).map(_.asJson))
-              }
-
-            case req @ POST -> Root / "api" / "exportUrl" =>
-              for {
-                exportReq <- req.as[ExportRequest]
-                body <- exportController.exportUrl(exportReq)
-                response <- Ok(body.asJson)
-              } yield response
-
-            case GET -> Root / "api" / "export"
-                  :? FilterQueryDecoder(maybeFilters)
-                    +& CohortQueryDecoder(maybeCohort) =>
-              maybeFilters match {
-                case None =>
-                  Ok(exportController.export(ExportRequest(maybeCohort, Map.empty)))
-                case Some(Invalid(errs)) =>
-                  BadRequest(errs.map(_.sanitized).asJson)
-                case Some(Valid(filters)) =>
-                  Ok(exportController.export(ExportRequest(maybeCohort, filters)))
-              }
-          }
+          val app = ExplorerApp(
+            fields = config.fields,
+            datasetController = DatasetController.default,
+            facetsController = new FacetsController(config.fields, db),
+            exportController = new ExportController(config.export, db)
+          )
 
           // Add logging, CORS, and (when deployed) GZip "middleware".
-          val app = {
+          val http = {
             val withLogging =
-              Logger[IO](logHeaders = true, logBody = true)(routes.orNotFound)
+              Logger[IO](logHeaders = true, logBody = true)(new ExplorerApi(app).routes)
 
             val corsConfig = CORSConfig(
               anyOrigin = config.localEnv,
@@ -144,7 +75,7 @@ object EncodeExplorer extends IOApp {
           // complete on SIGSTOP or SIGINT.
           BlazeServerBuilder[IO]
             .bindHttp(config.port, "0.0.0.0")
-            .withHttpApp(app)
+            .withHttpApp(http)
             .serve
             .compile
             .lastOrError
