@@ -1,6 +1,7 @@
 package org.broadinstitute.gdr.encode.explorer
 
 import cats.effect.{ExitCode, IO, IOApp}
+import org.broadinstitute.gdr.encode.explorer.count.CountController
 import org.broadinstitute.gdr.encode.explorer.dataset.DatasetController
 import org.broadinstitute.gdr.encode.explorer.db.DbClient
 import org.broadinstitute.gdr.encode.explorer.export.ExportController
@@ -46,6 +47,7 @@ object EncodeExplorer extends IOApp {
             fields = config.fields,
             datasetController = DatasetController.default,
             facetsController = new FacetsController(config.fields, db),
+            countController = new CountController(db),
             exportController = new ExportController(config.export, db)
           )
 

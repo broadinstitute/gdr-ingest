@@ -2,6 +2,7 @@ package org.broadinstitute.gdr.encode.explorer.db
 
 import cats.data.NonEmptyList
 import cats.effect._
+import cats.free.Free
 import cats.implicits._
 import doobie._
 import doobie.implicits._
@@ -12,7 +13,8 @@ import doobie.util.ExecutionContexts
 import doobie.util.log.{ExecFailure, ProcessingFailure, Success}
 import io.circe.Json
 import org.broadinstitute.gdr.encode.explorer.export.ExportJson
-import org.broadinstitute.gdr.encode.explorer.facets.FacetValues
+import org.broadinstitute.gdr.encode.explorer.facets.Facet
+import org.broadinstitute.gdr.encode.explorer.facets.Facet.{KeywordFacet, RangeFacet}
 import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldFilter, FieldType}
 
 import scala.language.higherKinds
@@ -118,94 +120,60 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   }
 
   /** Get the counts of each facet value for a field in a table under a set of filters. */
-  def countValues(
-    field: FieldConfig,
-    allFilters: Map[FieldConfig, Fragment]
-  ): F[FacetValues] = {
-    val filters = allFilters.filter {
-      case (f, _) => f.table == field.table && f != field
-    }.values
-
+  def buildFacet(field: FieldConfig): F[Facet] = {
     val query = field.fieldType match {
-      case FieldType.Keyword => countsByValue(field.table, field.column, filters)
-      case FieldType.Boolean => countsByBoolValue(field.table, field.column, filters)
-      case FieldType.Array   => countsByNestedValue(field.table, field.column, filters)
-      case FieldType.Number  => countInRange(field.table, field.column, filters)
+      case FieldType.Keyword => listFacet(field)
+      case FieldType.Boolean => boolFacet(field)
+      case FieldType.Array   => nestedFacet(field)
+      case FieldType.Number  => rangeFacet(field)
     }
 
     query.transact(transactor)
   }
 
-  /** Get the counts of each unique value in a column. */
-  private def countsByValue(
-    table: DbTable,
-    column: String,
-    filters: Iterable[Fragment]
-  ): ConnectionIO[FacetValues] = {
-    val col = Fragment.const(column)
+  /** Get the unique values in a column. */
+  private def listFacet(field: FieldConfig): ConnectionIO[Facet] = {
+    val col = Fragment.const(field.column)
+    val tbl = Fragment.const(field.table.entryName)
 
-    val selectFrom = Fragment.const(s"select $column, count(*) from ${table.entryName}")
-    val whereFilters =
-      Fragments.whereAnd(col ++ fr"is not null" :: filters.toList: _*)
-
-    (selectFrom ++ whereFilters ++ fr"group by " ++ col ++ fr"order by " ++ col)
-      .query[FacetValues.ListValue]
+    (fr"select distinct " ++ col ++ fr"from " ++ tbl ++ fr"where " ++ col ++ fr"is not null order by " ++ col)
+      .query[String]
       .to[List]
-      .map(FacetValues.ValueList)
+      .map(KeywordFacet(field.displayName, field.encoded, _))
   }
 
   /** Get the counts of each boolean value in a column. */
-  private def countsByBoolValue(
-    table: DbTable,
-    column: String,
-    filters: Iterable[Fragment]
-  ): ConnectionIO[FacetValues] = {
-    val col = Fragment.const(column)
-
-    val source = Fragment.const(s"select $column from ${table.entryName}") ++
-      Fragments.whereAnd(col ++ fr"is not null" :: filters.toList: _*)
-    val selectTrue = Fragment.const(
-      s"select '${DbClient.TrueRepr}', count(*) from source where $column"
+  private def boolFacet(field: FieldConfig): ConnectionIO[Facet] = Free.pure(
+    KeywordFacet(
+      field.displayName,
+      field.encoded,
+      List(DbClient.TrueRepr, DbClient.FalseRepr)
     )
-    val selectFalse = Fragment.const(
-      s"select '${DbClient.FalseRepr}', count(*) from source where not $column"
-    )
-
-    (fr"with source as (" ++ source ++ fr") " ++ selectTrue ++ fr" UNION ALL " ++ selectFalse)
-      .query[FacetValues.ListValue]
-      .to[List]
-      .map(FacetValues.ValueList)
-  }
+  )
 
   /** Get the counts of each unique nested value in an array column. */
-  private def countsByNestedValue(
-    table: DbTable,
-    column: String,
-    filters: Iterable[Fragment]
-  ): ConnectionIO[FacetValues] = {
-    val selectUnnestFrom =
-      Fragment.const(s"select unnest($column) as v from ${table.entryName}")
-    val whereFilters =
-      Fragments.whereAnd(Fragment.const(column) ++ fr"is not null" :: filters.toList: _*)
+  private def nestedFacet(field: FieldConfig): ConnectionIO[Facet] = {
+    val col = Fragment.const(field.column)
+    val tbl = Fragment.const(field.table.entryName)
 
-    (fr"select v, count(*) from (" ++ selectUnnestFrom ++ whereFilters ++ fr") as v group by v order by v")
-      .query[FacetValues.ListValue]
+    val selectUnnestFrom =
+      fr"select unnest(" ++ col ++ fr") as v from " ++ tbl ++ fr"where " ++ col ++ fr"is not null"
+
+    (fr"select distinct v from (" ++ selectUnnestFrom ++ fr") as v order by v")
+      .query[String]
       .to[List]
-      .map(FacetValues.ValueList)
+      .map(KeywordFacet(field.displayName, field.encoded, _))
   }
 
   /** Get the min, max, and count of elements in a numeric column. */
-  private def countInRange(
-    table: DbTable,
-    column: String,
-    filters: Iterable[Fragment]
-  ): ConnectionIO[FacetValues] = {
-    val col = Fragment.const0(column)
-    val select = fr"select min(" ++ col ++ fr"), max(" ++ col ++ fr"), count(*) from " ++
-      Fragment.const(table.entryName) ++
-      Fragments.whereAnd((col ++ fr" is not null") +: filters.toSeq: _*)
+  private def rangeFacet(field: FieldConfig): ConnectionIO[Facet] = {
+    val col = Fragment.const(field.column)
+    val tbl = Fragment.const(field.table.entryName)
 
-    select.query[FacetValues.ValueRange].unique.widen
+    (fr"select min(" ++ col ++ fr"), max(" ++ col ++ fr") from" ++ tbl ++ fr"where" ++ col ++ fr"is not null")
+      .query[(Double, Double)]
+      .unique
+      .map { case (min, max) => RangeFacet(field.displayName, field.encoded, min, max) }
   }
 
   /** Convert the `FieldFilter`s in a filter map into corresponding SQL constraints. */

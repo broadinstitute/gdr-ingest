@@ -4,11 +4,9 @@ import io.circe.Encoder
 import io.circe.derivation.{deriveEncoder, renaming}
 
 /**
-  * Results from a faceted search.
-  *
-  * @param count number of entities represented by current facet selection
+  * Options for a faceted search.
   */
-case class FacetsResponse(facets: List[Facet], count: Long)
+case class FacetsResponse(facets: List[Facet])
 
 object FacetsResponse {
   implicit val encoder: Encoder[FacetsResponse] = deriveEncoder(renaming.snakeCase)

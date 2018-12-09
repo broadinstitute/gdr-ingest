@@ -49,14 +49,15 @@ class ExplorerApi(app: ExplorerApp) {
         case GET -> Root / "api" / "dataset" =>
           Ok(app.datasetController.datasetInfo.asJson)
 
-        case GET -> Root / "api" / "facets" :? FilterQueryDecoder(maybeFilters) =>
+        case GET -> Root / "api" / "facets" =>
+          Ok(app.facetsController.getFacets.map(_.asJson))
+
+        case GET -> Root / "api" / "count" :? FilterQueryDecoder(maybeFilters) =>
           maybeFilters match {
-            case None =>
-              Ok(app.facetsController.getFacets(Map.empty).map(_.asJson))
-            case Some(Invalid(errs)) =>
-              BadRequest(errs.map(_.sanitized).asJson)
+            case None                => Ok(app.countController.count(Map.empty).map(_.asJson))
+            case Some(Invalid(errs)) => BadRequest(errs.map(_.sanitized).asJson)
             case Some(Valid(filters)) =>
-              Ok(app.facetsController.getFacets(filters).map(_.asJson))
+              Ok(app.countController.count(filters).map(_.asJson))
           }
 
         case req @ POST -> Root / "api" / "exportUrl" =>
