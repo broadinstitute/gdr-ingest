@@ -88,8 +88,7 @@ class FacetCard extends Component {
 
     this.state = {
       searchString: "",
-      matchingFacets: props.facet.values,
-      listKey: 0
+      matchingFacets: props.facet.values
     };
 
     this.cache = new CellMeasurerCache({
@@ -126,7 +125,7 @@ class FacetCard extends Component {
             {({ width, height }) => {
               return (
                 <List
-                  key={this.state.listKey}
+                  key={this.props.listKey}
                   className={classes.facetValueList}
                   width={width}
                   height={height - 50}
@@ -236,8 +235,7 @@ class FacetCard extends Component {
     this.props.updateFacets(
       this.props.facet.db_name,
       facetValue,
-      !alreadySelected,
-      () => this.setState({ listKey: (this.state.listKey + 1) % 10 })
+      !alreadySelected
     );
   }
 }

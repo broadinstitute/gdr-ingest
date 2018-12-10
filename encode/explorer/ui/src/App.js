@@ -19,6 +19,7 @@ class App extends React.Component {
 
     this.state = {
       facets: new Map(),
+      facetListKeys: new Map(),
       selectedFacetValues: new Map(),
       counts: null
     };
@@ -52,6 +53,7 @@ class App extends React.Component {
             setFacets={this.setFacets}
             updateFacets={this.updateFacets}
             selectedFacetValues={this.state.selectedFacetValues}
+            facetListKeys={this.state.facetListKeys}
           />
         </div>
         <div className="headerSearchContainer">
@@ -77,19 +79,37 @@ class App extends React.Component {
   }
 
   setFacets(facets) {
-    this.setState({ facets: new Map(facets.map(f => [f.db_name, f])) });
+    this.setState({
+      facets: new Map(facets.map(f => [f.db_name, f])),
+      facetListKeys: new Map(facets.map(f => [f.db_name, 0]))
+    });
   }
 
   clearFacets() {
-    this.setState({ selectedFacetValues: new Map() });
+    const newKeys = Array.from(this.state.facetListKeys.entries()).map(
+      entry => {
+        const selected = this.state.selectedFacetValues.get(entry[0]);
+        const newCount =
+          selected !== undefined && selected.length > 0
+            ? (entry[1] + 1) % 10
+            : entry[1];
+        return [entry[0], newCount];
+      }
+    );
+
+    this.setState(
+      { selectedFacetValues: new Map(), facetListKeys: new Map(newKeys) },
+      () => this.countApi.countGet({}, this.countCallback)
+    );
   }
 
   /**
    * Updates the selection for a single facet value and refreshes the facets data from the server.
    * */
-  updateFacets(fieldName, facetValue, isSelected, callback) {
+  updateFacets(fieldName, facetValue, isSelected) {
     let currentFilterMap = new Map(this.state.selectedFacetValues);
     let currentFacetValues = currentFilterMap.get(fieldName);
+
     if (isSelected) {
       // Add facetValue to the list of filters for facetName
       if (currentFacetValues === undefined) {
@@ -105,12 +125,18 @@ class App extends React.Component {
       );
     }
 
-    this.countApi.countGet(
-      { filter: this.filterMapToArray(currentFilterMap) },
-      this.countCallback
-    );
+    let currentListKeys = new Map(this.state.facetListKeys);
+    let currentListKey = currentListKeys.get(fieldName);
+    currentListKeys.set(fieldName, (currentListKey + 1) % 10);
 
-    this.setState({ selectedFacetValues: currentFilterMap }, callback);
+    this.setState(
+      { selectedFacetValues: currentFilterMap, facetListKeys: currentListKeys },
+      () =>
+        this.countApi.countGet(
+          { filter: this.filterMapToArray(this.state.selectedFacetValues) },
+          this.countCallback
+        )
+    );
   }
 
   /**
