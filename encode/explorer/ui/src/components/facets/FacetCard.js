@@ -10,6 +10,7 @@ import {
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import Typography from "@material-ui/core/Typography";
+import { Range } from "rc-slider";
 
 import * as Style from "libs/style";
 
@@ -74,6 +75,10 @@ const styles = {
   },
   grayText: {
     color: "silver"
+  },
+  facetSlider: {
+    width: 400,
+    margin: 50
   }
 };
 
@@ -134,11 +139,23 @@ class FacetCard extends Component {
         </div>
       );
     } else {
+      const { display_name, min, max } = this.props.facet;
+      const diff = max - min;
+      const step = diff / 100.0;
+
       return (
         <div className={classes.facetCard}>
           <div>
-            <Typography>{this.props.facet.display_name}</Typography>
-            {/* TODO: Slider! */}
+            <Typography>{display_name}</Typography>
+          </div>
+          <div className={classes.facetSlider}>
+            <Range
+              min={min}
+              max={max}
+              step={step}
+              value={[min, max]}
+              allowCross={false}
+            />
           </div>
         </div>
       );

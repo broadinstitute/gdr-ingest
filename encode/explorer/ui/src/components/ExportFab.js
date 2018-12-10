@@ -104,10 +104,10 @@ class ExportFab extends React.Component {
     let cohortName = this.state.cohortName;
     let filter = this.props.filter;
 
-    if (filter !== null) {
+    if (filter.length > 0) {
       exportParams.push("filter=" + filter.join("|"));
     }
-    if (cohortName !== null) {
+    if (cohortName) {
       exportParams.push("cohortName=" + cohortName);
     }
 
@@ -117,7 +117,7 @@ class ExportFab extends React.Component {
 
     let importUrl =
       "https://app.terra.bio/#import-data?format=entitiesJson&url=" +
-      encodeURI(exportUrl);
+      encodeURIComponent(exportUrl);
 
     window.location.assign(importUrl);
   }
