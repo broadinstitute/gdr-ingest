@@ -13,17 +13,20 @@ class CountController[M[_]: Sync, F[_]](dbClient: DbClient[M])(
 ) {
 
   def count(filters: FieldFilter.Filters): M[CountResponse] = {
-    val filtersByTable = filters.groupBy(_._1.table)
-    val donorsCount =
-      count(DbTable.Donors, filtersByTable.getOrElse(DbTable.Donors, Map.empty))
-    val filesCount =
-      count(DbTable.Files, filtersByTable.getOrElse(DbTable.Files, Map.empty))
-
-    (donorsCount, filesCount).parMapN {
-      case (donors, files) => CountResponse(donors, files)
+    for {
+      sqlFilters <- dbClient.filtersToSql(filters)
+      filtersByTable = sqlFilters.groupBy(_._1.table)
+      donorCount = dbClient.countRows(
+        DbTable.Donors,
+        filtersByTable.getOrElse(DbTable.Donors, Map.empty)
+      )
+      fileCount = dbClient.countRows(
+        DbTable.Files,
+        filtersByTable.getOrElse(DbTable.Files, Map.empty)
+      )
+      (donors, files) <- (donorCount, fileCount).parTupled
+    } yield {
+      CountResponse(donors, files)
     }
   }
-
-  private def count(table: DbTable, tableFilters: FieldFilter.Filters): M[Long] =
-    dbClient.filtersToSql(tableFilters).flatMap(dbClient.countRows(table, _))
 }

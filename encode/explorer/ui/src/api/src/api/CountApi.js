@@ -12,17 +12,17 @@
  */
 
 import ApiClient from "../ApiClient";
-import FacetsResponse from "../model/FacetsResponse";
+import CountResponse from "../model/CountResponse";
 
 /**
- * Facets service.
- * @module api/FacetsApi
+ * Count service.
+ * @module api/CountApi
  * @version 0.0.1
  */
-export default class FacetsApi {
+export default class CountApi {
   /**
-   * Constructs a new FacetsApi.
-   * @alias module:api/FacetsApi
+   * Constructs a new CountApi.
+   * @alias module:api/CountApi
    * @class
    * @param {module:ApiClient} [apiClient] Optional API client implementation to use,
    * default to {@link module:ApiClient#instance} if unspecified.
@@ -32,33 +32,38 @@ export default class FacetsApi {
   }
 
   /**
-   * Callback function to receive the result of the facetsGet operation.
-   * @callback module:api/FacetsApi~facetsGetCallback
+   * Callback function to receive the result of the countGet operation.
+   * @callback module:api/CountApi~countGetCallback
    * @param {String} error Error message, if any.
-   * @param {module:model/FacetsResponse} data The data returned by the service call.
+   * @param {module:model/CountResponse} data The data returned by the service call.
    * @param {String} response The complete HTTP response.
    */
 
   /**
-   * Get names and possible values for all fields exposed to search.
-   * @param {module:api/FacetsApi~facetsGetCallback} callback The callback function, accepting three arguments: error, data, response
-   * data is of type: {@link module:model/FacetsResponse}
+   * Get the number of records matching selected filters.
+   * @param {Object} opts Optional parameters
+   * @param {Array.<String>} opts.filter Encoded form of facet values selected in the UI.
+   * @param {module:api/CountApi~countGetCallback} callback The callback function, accepting three arguments: error, data, response
+   * data is of type: {@link module:model/CountResponse}
    */
-  facetsGet(callback) {
+  countGet(opts, callback) {
+    opts = opts || {};
     let postBody = null;
 
     let pathParams = {};
-    let queryParams = {};
+    let queryParams = {
+      filter: this.apiClient.buildCollectionParam(opts["filter"], "pipes")
+    };
     let headerParams = {};
     let formParams = {};
 
     let authNames = [];
     let contentTypes = [];
     let accepts = [];
-    let returnType = FacetsResponse;
+    let returnType = CountResponse;
 
     return this.apiClient.callApi(
-      "/facets",
+      "/count",
       "GET",
       pathParams,
       queryParams,

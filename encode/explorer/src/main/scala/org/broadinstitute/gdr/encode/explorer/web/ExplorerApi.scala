@@ -2,7 +2,6 @@ package org.broadinstitute.gdr.encode.explorer.web
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
-import io.circe.{Decoder, DecodingFailure}
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.explorer.ExplorerApp
 import org.broadinstitute.gdr.encode.explorer.export.ExportRequest
@@ -19,20 +18,6 @@ class ExplorerApi(app: ExplorerApp) {
       FieldFilter
         .parseFilters(queryParam.value.split('|').toList, app.fields)
         .leftMap(_.map(err => ParseFailure(err, err)))
-
-  private implicit val exportBodyDecoder: Decoder[ExportRequest] = cursor =>
-    for {
-      // FIXME: Validate this doesn't include "bad" characters.
-      // Only alphanumeric chars, underscore, and hyphen are allowed.
-      cohort <- cursor.get[Option[String]]("cohortName")
-      encodedFilters <- cursor.get[List[String]]("filter")
-      decodedFilters <- FieldFilter
-        .parseFilters(encodedFilters, app.fields)
-        .leftMap(errs => DecodingFailure(errs.head, Nil))
-        .toEither
-    } yield {
-      ExportRequest(cohort, decodedFilters)
-    }
 
   // Ugly as objects, but http4s has somehow designed their syntax
   // to make it not work as a val.
@@ -59,13 +44,6 @@ class ExplorerApi(app: ExplorerApp) {
             case Some(Valid(filters)) =>
               Ok(app.countController.count(filters).map(_.asJson))
           }
-
-        case req @ POST -> Root / "api" / "exportUrl" =>
-          for {
-            exportReq <- req.as[ExportRequest]
-            body <- app.exportController.exportUrl(exportReq)
-            response <- Ok(body.asJson)
-          } yield response
 
         case GET -> Root / "api" / "export"
               :? FilterQueryDecoder(maybeFilters)

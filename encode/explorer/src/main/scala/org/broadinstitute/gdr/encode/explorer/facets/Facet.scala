@@ -8,16 +8,16 @@ import io.circe.syntax._
 sealed trait Facet {
 
   /** Facet display name, i.e. "Gender". */
-  def name: String
+  def displayName: String
 
   /** Combined DB table/column mapping to this facet. */
   def dbName: String
 }
 
 object Facet {
-  case class KeywordFacet(name: String, dbName: String, values: List[String])
+  case class KeywordFacet(displayName: String, dbName: String, values: List[String])
       extends Facet
-  case class RangeFacet(name: String, dbName: String, min: Double, max: Double)
+  case class RangeFacet(displayName: String, dbName: String, min: Double, max: Double)
       extends Facet
 
   implicit val kwEncoder: Encoder[KeywordFacet] = deriveEncoder(renaming.snakeCase)

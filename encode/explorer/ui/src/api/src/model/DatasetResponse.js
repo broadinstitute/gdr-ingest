@@ -42,12 +42,6 @@ export default class DatasetResponse {
       if (data.hasOwnProperty("name")) {
         obj["name"] = ApiClient.convertToType(data["name"], "String");
       }
-      if (data.hasOwnProperty("search_placeholder_text")) {
-        obj["search_placeholder_text"] = ApiClient.convertToType(
-          data["search_placeholder_text"],
-          "String"
-        );
-      }
     }
     return obj;
   }
@@ -56,9 +50,4 @@ export default class DatasetResponse {
    * @member {String} name
    */
   name = undefined;
-  /**
-   * Optional. What to show in the search box by default
-   * @member {String} search_placeholder_text
-   */
-  search_placeholder_text = undefined;
 }

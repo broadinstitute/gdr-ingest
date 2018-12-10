@@ -43,6 +43,7 @@ class Search extends React.Component {
       );
     }
   };
+
   renderValue = option => {
     // renderValue is used for autocomplete. If I type "foo" into search box,
     // drop-down options whose renderValue contains "foo" will be shown in the drop-down.
@@ -60,7 +61,7 @@ class Search extends React.Component {
   chipsFromSelectedFacetValues(selectedFacetValues) {
     let chips = [];
     selectedFacetValues.forEach((values, key) => {
-      let facetName = this.props.facets.get(key).name;
+      let facetName = this.props.facets.get(key).display_name;
       if (values.length > 0) {
         for (let value of values) {
           chips.push({

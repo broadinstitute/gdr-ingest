@@ -12,15 +12,12 @@
  */
 
 import ApiClient from "./ApiClient";
+import CountResponse from "./model/CountResponse";
 import DatasetResponse from "./model/DatasetResponse";
-import ExportUrlRequest from "./model/ExportUrlRequest";
-import ExportUrlResponse from "./model/ExportUrlResponse";
 import Facet from "./model/Facet";
-import FacetValue from "./model/FacetValue";
 import FacetsResponse from "./model/FacetsResponse";
-import ListValue from "./model/ListValue";
+import CountApi from "./api/CountApi";
 import DatasetApi from "./api/DatasetApi";
-import ExportUrlApi from "./api/ExportUrlApi";
 import FacetsApi from "./api/FacetsApi";
 
 /**
@@ -61,50 +58,35 @@ export {
    */
   ApiClient,
   /**
+   * The CountResponse model constructor.
+   * @property {module:model/CountResponse}
+   */
+  CountResponse,
+  /**
    * The DatasetResponse model constructor.
    * @property {module:model/DatasetResponse}
    */
   DatasetResponse,
-  /**
-   * The ExportUrlRequest model constructor.
-   * @property {module:model/ExportUrlRequest}
-   */
-  ExportUrlRequest,
-  /**
-   * The ExportUrlResponse model constructor.
-   * @property {module:model/ExportUrlResponse}
-   */
-  ExportUrlResponse,
   /**
    * The Facet model constructor.
    * @property {module:model/Facet}
    */
   Facet,
   /**
-   * The FacetValue model constructor.
-   * @property {module:model/FacetValue}
-   */
-  FacetValue,
-  /**
    * The FacetsResponse model constructor.
    * @property {module:model/FacetsResponse}
    */
   FacetsResponse,
   /**
-   * The ListValue model constructor.
-   * @property {module:model/ListValue}
+   * The CountApi service constructor.
+   * @property {module:api/CountApi}
    */
-  ListValue,
+  CountApi,
   /**
    * The DatasetApi service constructor.
    * @property {module:api/DatasetApi}
    */
   DatasetApi,
-  /**
-   * The ExportUrlApi service constructor.
-   * @property {module:api/ExportUrlApi}
-   */
-  ExportUrlApi,
   /**
    * The FacetsApi service constructor.
    * @property {module:api/FacetsApi}

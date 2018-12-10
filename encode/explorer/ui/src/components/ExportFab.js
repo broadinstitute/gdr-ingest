@@ -98,34 +98,28 @@ class ExportFab extends React.Component {
 
   handleSave() {
     this.setState(state => ({ open: false }));
-    let exportUrlCallback = function(error, data) {
-      if (error) {
-        alert(error.response.body.detail);
-      } else {
-        let importUrl =
-          "https://app.terra.bio/#import-data?format=entitiesJson";
-        if (data.authorization_domain) {
-          importUrl += "&ad=" + data.authorization_domain;
-        }
-        importUrl += "&url=" + data.url;
-        window.location.assign(importUrl);
-      }
-    }.bind(this);
+
+    let exportUrl = this.props.apiBasePath + "/export";
+    let exportParams = [];
     let cohortName = this.state.cohortName;
     let filter = this.props.filter;
-    if (filter == null) {
-      filter = [];
+
+    if (filter !== null) {
+      exportParams.push("filter=" + filter.join("|"));
     }
-    if (cohortName == null) {
-      cohortName = "";
+    if (cohortName !== null) {
+      exportParams.push("cohortName=" + cohortName);
     }
-    let params = new Object();
-    params.cohortName = cohortName;
-    params.filter = filter;
-    this.props.exportUrlApi.exportUrlPost(
-      { exportUrlRequest: params },
-      exportUrlCallback
-    );
+
+    if (exportParams.length > 0) {
+      exportUrl += "?" + exportParams.join("&");
+    }
+
+    let importUrl =
+      "https://app.terra.bio/#import-data?format=entitiesJson&url=" +
+      encodeURI(exportUrl);
+
+    window.location.assign(importUrl);
   }
 }
 

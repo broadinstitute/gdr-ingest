@@ -89,29 +89,27 @@ class FacetCard extends Component {
   render() {
     const { classes } = this.props;
 
-    const facetValues = this.props.facet.values;
+    const facet = this.props.facet;
 
-    if (facetValues.value_type === "list") {
-      const facetValueDivs = facetValues.values
-        .filter(facetValue =>
-          facetValue.name
-            .toLowerCase()
-            .includes(this.state.searchString.toLowerCase())
+    if (facet.facet_type === "list") {
+      const facetValueDivs = facet.values
+        .filter(value =>
+          value.toLowerCase().includes(this.state.searchString.toLowerCase())
         )
         .map(value => (
           <ListItem
             className={classes.facetValue}
-            key={value.name}
+            key={value}
             button
             dense
             disableRipple
-            onClick={e => this.onClick(value.name)}
+            onClick={e => this.onClick(value)}
           >
             <Checkbox
               className={classes.facetValueCheckbox}
               checked={
-                this.props.selectedValues != null &&
-                this.props.selectedValues.includes(value.name)
+                this.props.selectedValues !== undefined &&
+                this.props.selectedValues.includes(value)
               }
             />
             <ListItemText
@@ -119,14 +117,7 @@ class FacetCard extends Component {
               classes={{
                 primary: this.isDimmed(value) ? classes.grayText : null
               }}
-              primary={
-                <div
-                  style={{ display: "grid", gridTemplateColumns: "auto 50px" }}
-                >
-                  <div className={classes.facetValueName}>{value.name}</div>
-                  <div className={classes.facetValueCount}>{value.count}</div>
-                </div>
-              }
+              primary={<div className={classes.facetValueName}>{value}</div>}
             />
           </ListItem>
         ));
@@ -134,21 +125,16 @@ class FacetCard extends Component {
       return (
         <div className={classes.facetCard}>
           <div>
-            <Typography>{this.props.facet.name}</Typography>
-            <Typography className={classes.facetDescription}>
-              {this.props.facet.description}
-            </Typography>
-            <Typography>
-              <form>
-                <input
-                  className={classes.facetSearch}
-                  type="text"
-                  placeholder="Search..."
-                  ref="filterTextInput"
-                  onChange={() => this.setSearch()}
-                />
-              </form>
-            </Typography>
+            <Typography>{this.props.facet.display_name}</Typography>
+            <form>
+              <input
+                className={classes.facetSearch}
+                type="text"
+                placeholder="Search..."
+                ref="filterTextInput"
+                onChange={() => this.setSearch()}
+              />
+            </form>
           </div>
           <List dense className={classes.facetValueList}>
             {facetValueDivs}
@@ -159,10 +145,8 @@ class FacetCard extends Component {
       return (
         <div className={classes.facetCard}>
           <div>
-            <Typography>{this.props.facet.name}</Typography>
-            <Typography className={classes.facetDescription}>
-              {this.props.facet.description}
-            </Typography>
+            <Typography>{this.props.facet.display_name}</Typography>
+            {/* TODO: Slider! */}
           </div>
         </div>
       );
@@ -171,9 +155,9 @@ class FacetCard extends Component {
 
   isDimmed(facetValue) {
     return (
-      this.props.selectedValues != null &&
+      this.props.selectedValues !== undefined &&
       this.props.selectedValues.length > 0 &&
-      !this.props.selectedValues.includes(facetValue.name)
+      !this.props.selectedValues.includes(facetValue)
     );
   }
 
@@ -182,21 +166,14 @@ class FacetCard extends Component {
   }
 
   onClick(facetValue) {
-    // facetValue is a string, eg "female"
-    let isSelected;
-    if (
-      this.props.selectedValues != null &&
-      this.props.selectedValues.length > 0 &&
-      this.props.selectedValues.includes(facetValue)
-    ) {
-      // User must have unchecked the checkbox.
-      isSelected = false;
-    } else {
-      // User must have checked the checkbox.
-      isSelected = true;
-    }
-
-    this.props.updateFacets(this.props.facet.db_name, facetValue, isSelected);
+    const alreadySelected =
+      this.props.selectedValues !== undefined &&
+      this.props.selectedValues.includes(facetValue);
+    this.props.updateFacets(
+      this.props.facet.db_name,
+      facetValue,
+      !alreadySelected
+    );
   }
 }
 

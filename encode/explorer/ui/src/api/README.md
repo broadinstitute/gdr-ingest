@@ -72,7 +72,11 @@ Please follow the [installation](#installation) instruction and execute the foll
 ```javascript
 var DataExplorerService = require("data_explorer_service");
 
-var api = new DataExplorerService.DatasetApi();
+var api = new DataExplorerService.CountApi();
+
+var opts = {
+  filter: ["filter_example"] // {[String]} Encoded form of facet values selected in the UI.
+};
 
 var callback = function(error, data, response) {
   if (error) {
@@ -81,28 +85,25 @@ var callback = function(error, data, response) {
     console.log("API called successfully. Returned data: " + data);
   }
 };
-api.datasetGet(callback);
+api.countGet(opts, callback);
 ```
 
 ## Documentation for API Endpoints
 
 All URIs are relative to _https://localhost_
 
-| Class                              | Method                                                  | HTTP request        | Description |
-| ---------------------------------- | ------------------------------------------------------- | ------------------- | ----------- |
-| _DataExplorerService.DatasetApi_   | [**datasetGet**](docs/DatasetApi.md#datasetGet)         | **GET** /dataset    |
-| _DataExplorerService.ExportUrlApi_ | [**exportUrlPost**](docs/ExportUrlApi.md#exportUrlPost) | **POST** /exportUrl |
-| _DataExplorerService.FacetsApi_    | [**facetsGet**](docs/FacetsApi.md#facetsGet)            | **GET** /facets     |
+| Class                            | Method                                          | HTTP request     | Description |
+| -------------------------------- | ----------------------------------------------- | ---------------- | ----------- |
+| _DataExplorerService.CountApi_   | [**countGet**](docs/CountApi.md#countGet)       | **GET** /count   |
+| _DataExplorerService.DatasetApi_ | [**datasetGet**](docs/DatasetApi.md#datasetGet) | **GET** /dataset |
+| _DataExplorerService.FacetsApi_  | [**facetsGet**](docs/FacetsApi.md#facetsGet)    | **GET** /facets  |
 
 ## Documentation for Models
 
+- [DataExplorerService.CountResponse](docs/CountResponse.md)
 - [DataExplorerService.DatasetResponse](docs/DatasetResponse.md)
-- [DataExplorerService.ExportUrlRequest](docs/ExportUrlRequest.md)
-- [DataExplorerService.ExportUrlResponse](docs/ExportUrlResponse.md)
 - [DataExplorerService.Facet](docs/Facet.md)
-- [DataExplorerService.FacetValue](docs/FacetValue.md)
 - [DataExplorerService.FacetsResponse](docs/FacetsResponse.md)
-- [DataExplorerService.ListValue](docs/ListValue.md)
 
 ## Documentation for Authorization
 

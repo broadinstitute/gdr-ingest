@@ -1,12 +1,10 @@
-import React, { Component } from "react";
+import React from "react";
 import { MuiThemeProvider, createMuiTheme } from "@material-ui/core/styles";
 
 import "App.css";
-import { ApiClient, DatasetApi, FacetsApi } from "data_explorer_service";
+import { ApiClient, CountApi } from "data_explorer_service";
 import ExportFab from "components/ExportFab";
-import ExportUrlApi from "api/src/api/ExportUrlApi";
 import FacetsGrid from "components/facets/FacetsGrid";
-import Search from "components/Search";
 import Header from "components/Header";
 
 const theme = createMuiTheme({
@@ -15,42 +13,33 @@ const theme = createMuiTheme({
   }
 });
 
-class App extends Component {
+class App extends React.Component {
   constructor(props) {
     super(props);
+
     this.state = {
-      datasetName: "",
-      // What to show in search box by default. If this is the empty string, the
-      // react-select default of "Select..." is shown.
-      searchPlaceholderText: "",
-      // Map from db_name to facet data returned from API server /facets call.
       facets: new Map(),
-      totalCount: null,
-      // Map from db_name to a list of selected facet values.
-      selectedFacetValues: new Map()
+      selectedFacetValues: new Map(),
+      counts: null
     };
 
     this.apiClient = new ApiClient();
     // FIXME: DON'T CHECK THIS IN
     this.apiClient.basePath = "http://localhost:8080/api";
     //this.apiClient.basePath = "/api";
-    this.facetsApi = new FacetsApi(this.apiClient);
-    this.facetsCallback = function(error, data) {
+
+    this.countApi = new CountApi(this.apiClient);
+    this.countCallback = function(error, data) {
       if (error) {
         console.error(error);
-        // TODO(alanhwang): Redirect to an error page
       } else {
-        this.setState({
-          facets: this.getFacetMap(data.facets),
-          totalCount: data.count
-        });
+        this.setState({ counts: data });
       }
     }.bind(this);
 
-    // Map from facet name to a list of facet values.
-    this.filterMap = new Map();
+    this.setFacets = this.setFacets.bind(this);
+    this.clearFacets = this.clearFacets.bind(this);
     this.updateFacets = this.updateFacets.bind(this);
-    this.handleSearchBoxChange = this.handleSearchBoxChange.bind(this);
   }
 
   render() {
@@ -58,138 +47,77 @@ class App extends Component {
       <MuiThemeProvider theme={theme}>
         <div className="app">
           <FacetsGrid
+            apiClient={this.apiClient}
+            facets={Array.from(this.state.facets.values())}
+            setFacets={this.setFacets}
             updateFacets={this.updateFacets}
             selectedFacetValues={this.state.selectedFacetValues}
-            facets={Array.from(this.state.facets.values())}
-          />
-          <ExportFab
-            exportUrlApi={new ExportUrlApi(this.apiClient)}
-            filter={this.filterMapToArray(this.state.selectedFacetValues)}
           />
         </div>
         <div className="headerSearchContainer">
           <Header
-            datasetName={this.state.datasetName}
-            totalCount={this.state.totalCount}
-          />
-          <Search
-            searchPlaceholderText=""
-            searchResults={this.state.searchResults}
-            handleSearchBoxChange={this.handleSearchBoxChange}
-            selectedFacetValues={this.state.selectedFacetValues}
+            apiClient={this.apiClient}
+            counts={this.state.counts}
             facets={this.state.facets}
+            selectedFacetValues={this.state.selectedFacetValues}
+            clearFacets={this.clearFacets}
+            updateFacets={this.updateFacets}
           />
         </div>
+        <ExportFab
+          filter={this.filterMapToArray(this.state.selectedFacetValues)}
+          apiBasePath={this.apiClient.basePath}
+        />
       </MuiThemeProvider>
     );
   }
 
   componentDidMount() {
-    this.facetsApi.facetsGet({}, this.facetsCallback);
-
-    // Call /api/dataset
-    let datasetApi = new DatasetApi(this.apiClient);
-    let datasetCallback = function(error, data) {
-      if (error) {
-        // TODO: Show error in snackbar.
-        console.error(error);
-      } else {
-        this.setState({
-          datasetName: data.name,
-          searchPlaceholderText: data.search_placeholder_text
-        });
-      }
-    }.bind(this);
-    datasetApi.datasetGet(datasetCallback);
+    this.countApi.countGet({}, this.countCallback);
   }
 
-  getFacetMap(facets) {
-    var facetMap = new Map();
-    facets.forEach(function(facet) {
-      facetMap.set(facet.db_name, facet);
-    });
-    return facetMap;
+  setFacets(facets) {
+    this.setState({ facets: new Map(facets.map(f => [f.db_name, f])) });
   }
 
-  handleSearchBoxChange(selectedOptions, action) {
-    if (action.action == "clear") {
-      // x on right of search box was clicked.
-      this.setState({ selectedFacetValues: new Map() });
-      this.facetsApi.facetsGet(
-        {
-          filter: this.filterMapToArray(new Map()),
-          extraFacets: this.state.extraFacetEsFieldNames
-        },
-        this.facetsCallback
-      );
-    } else if (action.action == "remove-value") {
-      // chip x was clicked.
-      let parts = action.removedValue.value.split("=");
-      this.updateFacets(parts[0], parts[1], false);
-    } else if (action.action == "select-option") {
-      // Drop-down row was clicked.
-      let newExtraFacetEsFieldNames = this.state.extraFacetEsFieldNames;
-      newExtraFacetEsFieldNames.push(action.option.esFieldName);
-      this.setState({ extraFacetEsFieldNames: newExtraFacetEsFieldNames });
-      this.facetsApi.facetsGet(
-        {
-          filter: this.filterMapToArray(this.state.selectedFacetValues),
-          extraFacets: newExtraFacetEsFieldNames
-        },
-        this.facetsCallback
-      );
-    }
+  clearFacets() {
+    this.setState({ selectedFacetValues: new Map() });
   }
 
   /**
    * Updates the selection for a single facet value and refreshes the facets data from the server.
    * */
-  updateFacets(esFieldName, facetValue, isSelected) {
-    let currentFilterMap = this.state.selectedFacetValues;
-    let currentFacetValues = currentFilterMap.get(esFieldName);
+  updateFacets(fieldName, facetValue, isSelected) {
+    let currentFilterMap = new Map(this.selectedFacetValues);
+    let currentFacetValues = currentFilterMap.get(fieldName);
     if (isSelected) {
       // Add facetValue to the list of filters for facetName
       if (currentFacetValues === undefined) {
-        currentFilterMap.set(esFieldName, [facetValue]);
+        currentFilterMap.set(fieldName, [facetValue]);
       } else {
         currentFacetValues.push(facetValue);
       }
-    } else if (currentFilterMap.get(esFieldName) !== undefined) {
+    } else if (currentFilterMap.get(fieldName) !== undefined) {
       // Remove facetValue from the list of filters for facetName
       currentFilterMap.set(
-        esFieldName,
-        this.removeFacetValue(currentFacetValues, facetValue)
+        fieldName,
+        currentFacetValues.filter(v => v !== facetValue)
       );
     }
-    // Update the state
-    this.setState({ selectedFacetValues: currentFilterMap });
 
-    // Update the facets grid.
-    this.facetsApi.facetsGet(
-      {
-        filter: this.filterMapToArray(this.state.selectedFacetValues),
-        extraFacets: this.state.extraFacetEsFieldNames
-      },
-      this.facetsCallback
+    this.countApi.countGet(
+      { filter: this.filterMapToArray(currentFilterMap) },
+      this.countCallback
     );
-  }
 
-  // Remove the given facet value from a list of facet values.
-  removeFacetValue(valueList, facetValue) {
-    let newValueList = [];
-    for (let i = 0; i < valueList.length; i++) {
-      if (valueList[i] !== facetValue) {
-        newValueList.push(valueList[i]);
-      }
-    }
-    return newValueList;
+    this.setState({ selectedFacetValues: currentFilterMap });
   }
 
   /**
    * Converts a Map of filters to an Array of filter strings interpretable by
    * the backend
    * @param filterMap Map of esFieldName:[facetValues] pairs
-   * @return [string] Array of "esFieldName=facetValue" strings
+   * @return [string] Array of "fieldName=facetValue" strings
    */
   filterMapToArray(filterMap) {
     let filterArray = [];

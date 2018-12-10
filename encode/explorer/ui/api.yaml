@@ -10,141 +10,84 @@ info:
 paths:
   /dataset:
     get:
-      description: Gets dataset information, such as name.
+      description: Get dataset information.
       responses:
         200:
           description: Success
           schema:
             $ref: '#/definitions/DatasetResponse'
       tags:
-      # Put in dataset_controller.py instead of default_controller.py.
-      - Dataset
+        - Dataset
+
   /facets:
-    # Example url /facets?project_id.dataset_id.table_name.filter=Gender=female,project_id.dataset_id.table_name.Region=northwest,project_id.dataset_id.table_name.Region=southwest
     get:
-      description: Returns facets.
-      parameters:
-      - name: filter
-        # Unfortunately OpenAPI 2.0 doesn't allow objects in GET query
-        # parameters. So hardcode something like "Gender=female".
-        # TODO(#32): Investigate switching to OpenAPI 3.0.
-        description: >
-          filter represents selected facet values. Elasticsearch query will
-          be run only over selected facet values. filter is an array of
-          strings, where each string has the format "esFieldName=facetValue".
-          Example url /facets?filter=Gender=female,Region=northwest,Region=southwest
-        in: query
-        type: array
-        # Default collectionFormat is csv. With csv, faceted search doesn't
-        # work when facet value has a comma. So switch to pipes; pipe in facet
-        # value is much more rare.
-        collectionFormat: pipes
-        items:
-          type: string
+      description: Get names and possible values for all fields exposed to search.
       responses:
         200:
           description: Success
           schema:
             $ref: '#/definitions/FacetsResponse'
       tags:
-      # Put in facets_controller.py instead of default_controller.py.
-      - Facets
-  /exportUrl:
-    # This is post because this is not idempotent; a GCS file is created.
-    post:
-      description: >
-        Creates and returns a signed URL to a GCS zip file of JSON files. The
-        JSON files represent entities to be exported to a Terra workspace.
-        https://app.terra.bio/#import-data may be called with the url parameter
-        set to this url. For each JSON file,
-        https://rawls.dsde-prod.broadinstitute.org/#!/entities/create_entity
-        may be called with the JSON as the POST body.
+        - Facets
+
+  /count:
+    get:
+      description: Get the number of records matching selected filters.
       parameters:
-      - name: "exportUrlRequest"
-        in: "body"
-        schema:
-          type: object
-          properties:
-            cohortName:
-              type: string
-            filter:
-              type: array
-              # Default collectionFormat is csv. With csv, faceted search doesn't
-              # work when facet value has a comma. So switch to pipes; pipe in facet
-              # value is much more rare.
-              collectionFormat: pipes
-              items:
-                type: string
+        - name: filter
+          description: Encoded form of facet values selected in the UI.
+          in: query
+          type: array
+          items:
+            type: string
+          # Use pipes to avoid collisions with facet values that contain commas.
+          collectionFormat: pipes
+          example: donors.sex=female|files.file_format=bam|files.file_size=10-100
       responses:
         200:
           description: Success
           schema:
-            $ref: '#/definitions/ExportUrlResponse'
+            $ref: '#/definitions/CountResponse'
       tags:
-      # Put in export_url_controller.py instead of default_controller.py.
-      - ExportUrl
+        - Count
+
 definitions:
   DatasetResponse:
-    description: "Dataset information."
+    description: Dataset information.
     properties:
       name:
         type: string
-      search_placeholder_text:
-        type: string
-        description: Optional. What to show in the search box by default
+
   FacetsResponse:
-    description: "Results from a faceted search."
+    description: Names and possible values for all fields exposed to search.
     properties:
       facets:
         type: array
         items:
           $ref: '#/definitions/Facet'
-      count:
-        type: integer
-        description: >
-          Number of entities represented by current facet selection. For
-          example, this could be 40, representing 40 people.
+
   Facet:
-    description: >
-      A facet. For example, the Gender facet would include the facet name
-      "Gender", as well as counts for all possible values.
+    description: Information about a field exposed to search.
     properties:
-      name:
+      facet_type:
         type: string
-        description: Facet name, for example, "Gender".
+      display_name:
+        type: string
       db_name:
-        type: string
-      values:
-        $ref: '#/definitions/FacetValue'
-  FacetValue:
-    properties:
-      value_type:
         type: string
       values:
         type: array
         items:
-          $ref: '#/definitions/ListValue'
-      low:
+          type: string
+      min:
         type: number
-      high:
+      max:
         type: number
-      count:
-        type: integer
-  ListValue:
-    description: A facet value, for example, "Male"/34.
+
+  CountResponse:
+    description: Counts of entities matching a faceted search.
     properties:
-      name:
-        type: string
-        description: Facet value name, for example, "Male".
-      count:
+      donor_count:
         type: integer
-        description: Facet value count.
-  ExportUrlResponse:
-    description: "Information for sending data to Terra"
-    properties:
-      url:
-        type: string
-        description: "URL-encoded signed URL of GCS file containing entities to export."
-      authorization_domain:
-        type: string
-        description: "Optional FireCloud authorization domain"
+      file_count:
+        type: integer

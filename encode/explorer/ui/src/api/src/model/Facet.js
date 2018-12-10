@@ -12,7 +12,6 @@
  */
 
 import ApiClient from "../ApiClient";
-import FacetValue from "./FacetValue";
 
 /**
  * The Facet model module.
@@ -22,7 +21,7 @@ import FacetValue from "./FacetValue";
 export default class Facet {
   /**
    * Constructs a new <code>Facet</code>.
-   * A facet. For example, the Gender facet would include the facet name \&quot;Gender\&quot;, as well as counts for all possible values.
+   * Information about a field exposed to search.
    * @alias module:model/Facet
    * @class
    */
@@ -40,30 +39,56 @@ export default class Facet {
     if (data) {
       obj = obj || new Facet();
 
-      if (data.hasOwnProperty("name")) {
-        obj["name"] = ApiClient.convertToType(data["name"], "String");
+      if (data.hasOwnProperty("facet_type")) {
+        obj["facet_type"] = ApiClient.convertToType(
+          data["facet_type"],
+          "String"
+        );
+      }
+      if (data.hasOwnProperty("display_name")) {
+        obj["display_name"] = ApiClient.convertToType(
+          data["display_name"],
+          "String"
+        );
       }
       if (data.hasOwnProperty("db_name")) {
         obj["db_name"] = ApiClient.convertToType(data["db_name"], "String");
       }
       if (data.hasOwnProperty("values")) {
-        obj["values"] = FacetValue.constructFromObject(data["values"]);
+        obj["values"] = ApiClient.convertToType(data["values"], ["String"]);
+      }
+      if (data.hasOwnProperty("min")) {
+        obj["min"] = ApiClient.convertToType(data["min"], "Number");
+      }
+      if (data.hasOwnProperty("max")) {
+        obj["max"] = ApiClient.convertToType(data["max"], "Number");
       }
     }
     return obj;
   }
 
   /**
-   * Facet name, for example, \"Gender\".
-   * @member {String} name
+   * @member {String} facet_type
    */
-  name = undefined;
+  facet_type = undefined;
+  /**
+   * @member {String} display_name
+   */
+  display_name = undefined;
   /**
    * @member {String} db_name
    */
   db_name = undefined;
   /**
-   * @member {module:model/FacetValue} values
+   * @member {Array.<String>} values
    */
   values = undefined;
+  /**
+   * @member {Number} min
+   */
+  min = undefined;
+  /**
+   * @member {Number} max
+   */
+  max = undefined;
 }

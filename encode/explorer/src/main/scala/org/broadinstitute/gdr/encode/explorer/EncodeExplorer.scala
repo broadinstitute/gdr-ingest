@@ -48,7 +48,7 @@ object EncodeExplorer extends IOApp {
             datasetController = DatasetController.default,
             facetsController = new FacetsController(config.fields, db),
             countController = new CountController(db),
-            exportController = new ExportController(config.export, db)
+            exportController = new ExportController(db)
           )
 
           // Add logging, CORS, and (when deployed) GZip "middleware".
