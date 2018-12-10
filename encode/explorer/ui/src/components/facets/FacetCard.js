@@ -1,7 +1,12 @@
 import React, { Component } from "react";
 import { withStyles } from "@material-ui/core/styles";
 import Checkbox from "@material-ui/core/Checkbox";
-import List from "@material-ui/core/List";
+import {
+  AutoSizer,
+  CellMeasurer,
+  CellMeasurerCache,
+  List
+} from "react-virtualized";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
 import Typography from "@material-ui/core/Typography";
@@ -14,7 +19,6 @@ const styles = {
     margin: "2%",
     paddingBottom: "8px",
     display: "grid",
-    gridTemplateColumns: "auto 50px",
     // If there is a long word (eg facet name or facet value), break in the
     // middle of the word. Without this, the word stays on one line and its CSS
     // grid is wider than the facet card.
@@ -30,10 +34,10 @@ const styles = {
     width: "110%"
   },
   facetSearch: {
-    margin: "5px 0px 0px 0px",
+    margin: "5px 0px 5px 0px",
     border: "0",
     fontSize: "12px",
-    width: "110%",
+    width: "100%",
     borderBottom: "2px solid silver",
     outlineWidth: "0"
   },
@@ -78,32 +82,89 @@ class FacetCard extends Component {
     super(props);
 
     this.state = {
-      searchString: ""
+      searchString: "",
+      matchingFacets: props.facet.values
     };
+
+    this.cache = new CellMeasurerCache({
+      fixedWidth: true,
+      defaultHeight: 25
+    });
 
     this.onClick = this.onClick.bind(this);
     this.isDimmed = this.isDimmed.bind(this);
     this.setSearch = this.setSearch.bind(this);
+
+    this.renderRow = this.renderRow.bind(this);
   }
 
   render() {
-    const { classes } = this.props;
-
-    const facet = this.props.facet;
+    const { classes, facet } = this.props;
 
     if (facet.facet_type === "list") {
-      const facetValueDivs = facet.values
-        .filter(value =>
-          value.toLowerCase().includes(this.state.searchString.toLowerCase())
-        )
-        .map(value => (
+      return (
+        <div className={classes.facetCard}>
+          <div>
+            <Typography>{this.props.facet.display_name}</Typography>
+            <form>
+              <input
+                className={classes.facetSearch}
+                type="text"
+                placeholder="Search..."
+                ref="filterTextInput"
+                onChange={() => this.setSearch()}
+              />
+            </form>
+          </div>
+          <AutoSizer>
+            {({ width, height }) => {
+              return (
+                <List
+                  className={classes.facetValueList}
+                  width={width}
+                  height={height - 50}
+                  rowHeight={this.cache.rowHeight}
+                  rowRenderer={this.renderRow}
+                  rowCount={this.state.matchingFacets.length}
+                  overscanRowCount={3}
+                />
+              );
+            }}
+          </AutoSizer>
+        </div>
+      );
+    } else {
+      return (
+        <div className={classes.facetCard}>
+          <div>
+            <Typography>{this.props.facet.display_name}</Typography>
+            {/* TODO: Slider! */}
+          </div>
+        </div>
+      );
+    }
+  }
+
+  renderRow({ index, key, style, parent }) {
+    const classes = this.props.classes;
+    const value = this.state.matchingFacets[index];
+    const cache = this.cache;
+    if (value.toLowerCase().includes(this.state.searchString.toLowerCase())) {
+      return (
+        <CellMeasurer
+          key={key}
+          cache={cache}
+          parent={parent}
+          columnIndex={0}
+          rowIndex={index}
+        >
           <ListItem
             className={classes.facetValue}
-            key={value}
             button
             dense
             disableRipple
-            onClick={e => this.onClick(value)}
+            onClick={() => this.onClick(value)}
+            style={style}
           >
             <Checkbox
               className={classes.facetValueCheckbox}
@@ -120,36 +181,10 @@ class FacetCard extends Component {
               primary={<div className={classes.facetValueName}>{value}</div>}
             />
           </ListItem>
-        ));
-
-      return (
-        <div className={classes.facetCard}>
-          <div>
-            <Typography>{this.props.facet.display_name}</Typography>
-            <form>
-              <input
-                className={classes.facetSearch}
-                type="text"
-                placeholder="Search..."
-                ref="filterTextInput"
-                onChange={() => this.setSearch()}
-              />
-            </form>
-          </div>
-          <List dense className={classes.facetValueList}>
-            {facetValueDivs}
-          </List>
-        </div>
+        </CellMeasurer>
       );
     } else {
-      return (
-        <div className={classes.facetCard}>
-          <div>
-            <Typography>{this.props.facet.display_name}</Typography>
-            {/* TODO: Slider! */}
-          </div>
-        </div>
-      );
+      return null;
     }
   }
 
@@ -162,13 +197,21 @@ class FacetCard extends Component {
   }
 
   setSearch() {
-    this.setState({ searchString: this.refs.filterTextInput.value });
+    const searchString = this.refs.filterTextInput.value;
+    const matchingFacets = this.props.facet.values.filter(v =>
+      v.toLowerCase().includes(searchString.toLowerCase())
+    );
+    this.setState({
+      searchString: searchString,
+      matchingFacets: matchingFacets
+    });
   }
 
   onClick(facetValue) {
     const alreadySelected =
       this.props.selectedValues !== undefined &&
       this.props.selectedValues.includes(facetValue);
+
     this.props.updateFacets(
       this.props.facet.db_name,
       facetValue,
