@@ -87,8 +87,8 @@ class App extends React.Component {
   /**
    * Updates the selection for a single facet value and refreshes the facets data from the server.
    * */
-  updateFacets(fieldName, facetValue, isSelected) {
-    let currentFilterMap = new Map(this.selectedFacetValues);
+  updateFacets(fieldName, facetValue, isSelected, callback) {
+    let currentFilterMap = new Map(this.state.selectedFacetValues);
     let currentFacetValues = currentFilterMap.get(fieldName);
     if (isSelected) {
       // Add facetValue to the list of filters for facetName
@@ -97,7 +97,7 @@ class App extends React.Component {
       } else {
         currentFacetValues.push(facetValue);
       }
-    } else if (currentFilterMap.get(fieldName) !== undefined) {
+    } else {
       // Remove facetValue from the list of filters for facetName
       currentFilterMap.set(
         fieldName,
@@ -110,7 +110,7 @@ class App extends React.Component {
       this.countCallback
     );
 
-    this.setState({ selectedFacetValues: currentFilterMap });
+    this.setState({ selectedFacetValues: currentFilterMap }, callback);
   }
 
   /**

@@ -31,7 +31,7 @@ class Header extends React.Component {
     const countText =
       counts === null
         ? ""
-        : counts.donor_count + " Donors, " + counts.file_count + " Files";
+        : counts.donor_count + " Donors | " + counts.file_count + " Files";
 
     return (
       <AppBar position="static" style={{ backgroundColor: "#5aa6da" }}>
