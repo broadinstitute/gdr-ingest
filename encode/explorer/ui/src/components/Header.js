@@ -68,8 +68,12 @@ class Header extends React.Component {
       this.props.clearFacets();
     } else if (action.action == "remove-value") {
       // chip x was clicked.
-      let parts = action.removedValue.value.split("=");
-      this.props.updateFacets(parts[0], parts[1], false);
+      const [fieldName, fieldValue] = action.removedValue.value.split("=");
+      const selected = Array.from(
+        this.props.selectedFacetValues.get(fieldName)
+      );
+      selected.splice(selected.indexOf(fieldValue), 1);
+      this.props.updateFacets(fieldName, selected);
     }
   }
 }

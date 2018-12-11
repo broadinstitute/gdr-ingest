@@ -27,7 +27,7 @@ class FacetsGrid extends React.Component {
           facet={facet}
           selectedValues={this.props.selectedFacetValues.get(facet.db_name)}
           updateFacets={this.props.updateFacets}
-          listKey={this.props.facetListKeys.get(facet.db_name)}
+          innerKey={this.props.facetListKeys.get(facet.db_name)}
         />
       </GridListTile>
     ));

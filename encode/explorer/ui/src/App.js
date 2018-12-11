@@ -6,6 +6,7 @@ import { ApiClient, CountApi } from "data_explorer_service";
 import ExportFab from "components/ExportFab";
 import FacetsGrid from "components/facets/FacetsGrid";
 import Header from "components/Header";
+import Slider, { Range } from "rc-slider";
 
 const theme = createMuiTheme({
   typography: {
@@ -106,23 +107,12 @@ class App extends React.Component {
   /**
    * Updates the selection for a single facet value and refreshes the facets data from the server.
    * */
-  updateFacets(fieldName, facetValue, isSelected) {
-    let currentFilterMap = new Map(this.state.selectedFacetValues);
-    let currentFacetValues = currentFilterMap.get(fieldName);
-
-    if (isSelected) {
-      // Add facetValue to the list of filters for facetName
-      if (currentFacetValues === undefined) {
-        currentFilterMap.set(fieldName, [facetValue]);
-      } else {
-        currentFacetValues.push(facetValue);
-      }
+  updateFacets(fieldName, facetValue) {
+    const currentFilterMap = new Map(this.state.selectedFacetValues);
+    if (facetValue) {
+      currentFilterMap.set(fieldName, facetValue);
     } else {
-      // Remove facetValue from the list of filters for facetName
-      currentFilterMap.set(
-        fieldName,
-        currentFacetValues.filter(v => v !== facetValue)
-      );
+      currentFilterMap.delete(fieldName);
     }
 
     let currentListKeys = new Map(this.state.facetListKeys);
@@ -148,13 +138,14 @@ class App extends React.Component {
   filterMapToArray(filterMap) {
     let filterArray = [];
     filterMap.forEach((values, key) => {
-      // Scenario where there are no values for a key: A single value is
-      // checked for a facet. The value is unchecked. The facet name will
-      // still be a key in filterMap, but there will be no values.
-      if (values.length > 0) {
-        for (let value of values) {
-          filterArray.push(key + "=" + value);
+      if (Array.isArray(values)) {
+        if (values.length > 0) {
+          for (let value of values) {
+            filterArray.push(key + "=" + value);
+          }
         }
+      } else {
+        filterArray.push(key + "=" + values.low + "-" + values.high);
       }
     });
     return filterArray;
