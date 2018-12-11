@@ -1,3 +1,4 @@
+org.broadinstitute.gdr.encode.explorer.local-env: false
 org.broadinstitute.gdr.encode.explorer.port: 8080
 org.broadinstitute.gdr.encode.explorer.export.base-uri: "https://{{env "DEPLOY_PROJECT"}}.appspot.com"
 {{with $db := env "DB_NAME"}}{{with $dbLogin := vault (printf "secret/dsde/gdr/encode/cloudsql/logins/%s" $db)}}

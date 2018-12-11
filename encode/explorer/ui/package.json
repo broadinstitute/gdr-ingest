@@ -6,10 +6,12 @@
     "@material-ui/core": "^1.5.1",
     "@material-ui/icons": "^2.0.3",
     "data_explorer_service": "file:src/api",
+    "rc-slider": "^8.6.4",
     "react": "^16.3.0",
     "react-dom": "^16.3.0",
     "react-scripts": "^1.1.4",
-    "react-select": "^2.0.0"
+    "react-select": "^2.0.0",
+    "react-virtualized": "^9.21.0"
   },
   "scripts": {
     "lint": "prettier --list-different **/*.js **/*.css",

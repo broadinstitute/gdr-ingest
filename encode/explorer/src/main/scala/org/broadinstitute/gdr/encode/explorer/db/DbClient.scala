@@ -2,6 +2,7 @@ package org.broadinstitute.gdr.encode.explorer.db
 
 import cats.data.NonEmptyList
 import cats.effect._
+import cats.free.Free
 import cats.implicits._
 import doobie._
 import doobie.implicits._
@@ -12,6 +13,8 @@ import doobie.util.ExecutionContexts
 import doobie.util.log.{ExecFailure, ProcessingFailure, Success}
 import io.circe.Json
 import org.broadinstitute.gdr.encode.explorer.export.ExportJson
+import org.broadinstitute.gdr.encode.explorer.facets.Facet
+import org.broadinstitute.gdr.encode.explorer.facets.Facet.{KeywordFacet, RangeFacet}
 import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldFilter, FieldType}
 
 import scala.language.higherKinds
@@ -117,184 +120,115 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   }
 
   /** Get the counts of each facet value for a field in a table under a set of filters. */
-  def countValues(
-    field: FieldConfig,
-    allFilters: Map[FieldConfig, Fragment]
-  ): F[List[(String, Long)]] = {
-    val filters = allFilters.filter {
-      case (f, _) => f.table == field.table && f != field
-    }.values
-
-    field.fieldType match {
-      case FieldType.Keyword => countsByValue(field.table, field.column, filters)
-      case FieldType.Boolean => countsByBoolValue(field.table, field.column, filters)
-      case FieldType.Array   => countsByNestedValue(field.table, field.column, filters)
-      case FieldType.Number  => countsByRange(field.table, field.column, filters)
+  def buildFacet(field: FieldConfig): F[Facet] = {
+    val query = field.fieldType match {
+      case FieldType.Keyword => listFacet(field)
+      case FieldType.Boolean => boolFacet(field)
+      case FieldType.Array   => nestedFacet(field)
+      case FieldType.Number  => rangeFacet(field)
     }
+
+    query.transact(transactor)
   }
 
-  /** Get the counts of each unique value in a column. */
-  private def countsByValue(
-    table: DbTable,
-    column: String,
-    filters: Iterable[Fragment]
-  ): F[List[(String, Long)]] = {
-    val col = Fragment.const(column)
+  /** Get the unique values in a column. */
+  private def listFacet(field: FieldConfig): ConnectionIO[Facet] = {
+    val col = Fragment.const(field.column)
+    val table = Fragment.const(field.table.entryName)
 
-    val selectFrom = Fragment.const(s"select $column, count(*) from ${table.entryName}")
-    val whereFilters =
-      Fragments.whereAnd(col ++ fr"is not null" :: filters.toList: _*)
-
-    (selectFrom ++ whereFilters ++ fr"group by " ++ col ++ fr"order by " ++ col)
-      .query[(String, Long)]
+    (fr"select distinct " ++ col ++ fr"from " ++ table ++ fr"where " ++ col ++ fr"is not null order by " ++ col)
+      .query[String]
       .to[List]
-      .transact(transactor)
+      .map(KeywordFacet(field.displayName, field.encoded, _))
   }
 
   /** Get the counts of each boolean value in a column. */
-  private def countsByBoolValue(
-    table: DbTable,
-    column: String,
-    filters: Iterable[Fragment]
-  ): F[List[(String, Long)]] = {
-    val col = Fragment.const(column)
-
-    val source = Fragment.const(s"select $column from ${table.entryName}") ++
-      Fragments.whereAnd(col ++ fr"is not null" :: filters.toList: _*)
-    val selectTrue = Fragment.const(
-      s"select '${DbClient.TrueRepr}', count(*) from source where $column"
+  private def boolFacet(field: FieldConfig): ConnectionIO[Facet] = Free.pure(
+    KeywordFacet(
+      field.displayName,
+      field.encoded,
+      List(DbClient.TrueRepr, DbClient.FalseRepr)
     )
-    val selectFalse = Fragment.const(
-      s"select '${DbClient.FalseRepr}', count(*) from source where not $column"
-    )
-
-    (fr"with source as (" ++ source ++ fr") " ++ selectTrue ++ fr" UNION ALL " ++ selectFalse)
-      .query[(String, Long)]
-      .to[List]
-      .transact(transactor)
-  }
+  )
 
   /** Get the counts of each unique nested value in an array column. */
-  private def countsByNestedValue(
-    table: DbTable,
-    column: String,
-    filters: Iterable[Fragment]
-  ): F[List[(String, Long)]] = {
+  private def nestedFacet(field: FieldConfig): ConnectionIO[Facet] = {
+    val col = Fragment.const(field.column)
+    val table = Fragment.const(field.table.entryName)
+
     val selectUnnestFrom =
-      Fragment.const(s"select unnest($column) as v from ${table.entryName}")
-    val whereFilters =
-      Fragments.whereAnd(Fragment.const(column) ++ fr"is not null" :: filters.toList: _*)
+      fr"select unnest(" ++ col ++ fr") as v from " ++ table ++ fr"where " ++ col ++ fr"is not null"
 
-    (fr"select v, count(*) from (" ++ selectUnnestFrom ++ whereFilters ++ fr") as v group by v order by v")
-      .query[(String, Long)]
+    (fr"select distinct v from (" ++ selectUnnestFrom ++ fr") as v order by v")
+      .query[String]
       .to[List]
-      .transact(transactor)
+      .map(KeywordFacet(field.displayName, field.encoded, _))
   }
 
-  /**
-    * Get the counts of elements assigned to each bin of a 10-bin histogram in a numeric column.
-    *
-    * FIXME: This builds a reasonably-complex query, and chopping it up into `val`s makes it hard
-    * to follow what's happening. Move into a SQL function?
-    */
-  private def countsByRange(
-    table: DbTable,
-    column: String,
-    filters: Iterable[Fragment]
-  ): F[List[(String, Long)]] = {
-    val source = Fragment.const0(
-      s"source as (select * from ${table.entryName} where $column is not null)"
-    )
-    val stats = Fragment.const0(
-      s"stats as (select min($column) as min, max($column) as max from source)"
-    )
-    val histogram = {
-      val sourceBucket = Fragment.const0(
-        s"""case
-           |  when stats.min = stats.max then 1
-           |  else width_bucket($column, stats.min, stats.max, 10)
-           |end as bucket
-         """.stripMargin
-      )
-      val bucketMin = Fragment.const0(s"min($column) as low")
-      val bucketMax = Fragment.const0(s"max($column) as high")
-      val bucketSize = Fragment.const0(s"count($column) as freq")
+  /** Get the min, max, and count of elements in a numeric column. */
+  private def rangeFacet(field: FieldConfig): ConnectionIO[Facet] = {
+    val col = Fragment.const(field.column)
+    val table = Fragment.const(field.table.entryName)
 
-      val select = List(fr"select " ++ sourceBucket, bucketMin, bucketMax, bucketSize)
-        .reduceLeft(_ ++ fr", " ++ _)
-      val whereFilters = Fragments.whereAnd(filters.toSeq: _*)
-
-      fr"histogram as (" ++
-        select ++
-        fr" from source, stats" ++
-        whereFilters ++
-        fr" group by bucket order by bucket)"
-    }
-
-    val withTables =
-      List(fr"with " ++ source, stats, histogram).reduceLeft(_ ++ fr", " ++ _)
-
-    (withTables ++ fr" select low, high, freq::bigint from histogram")
-      .query[(Double, Double, Long)]
-      .map {
-        // FIXME: See how hard / ugly it is to run this logic in the DB.
-        case (low, high, count) =>
-          val diff = high - low
-          val range = if (diff == 0) {
-            formatRangeEnd(low)
-          } else {
-            s"${formatRangeEnd(low)}-${formatRangeEnd(high)}"
-          }
-          range -> count
-      }
-      .to[List]
-      .transact(transactor)
+    (fr"select min(" ++ col ++ fr"), max(" ++ col ++ fr") from" ++ table ++ fr"where" ++ col ++ fr"is not null")
+      .query[(Double, Double)]
+      .unique
+      .map { case (min, max) => RangeFacet(field.displayName, field.encoded, min, max) }
   }
-
-  private def formatRangeEnd(n: Double): String =
-    if (n == 0) {
-      "0"
-    } else if (n < 1) {
-      n.formatted("%.5f")
-    } else {
-      n.round.toString
-    }
 
   /** Convert the `FieldFilter`s in a filter map into corresponding SQL constraints. */
-  def filtersToSql(allFilters: FieldFilter.Filters): Map[FieldConfig, Fragment] = {
-    val baseFilters = allFilters.map {
-      case (field, values) => field -> filterToSql(field, values)
-    }
-    val donorFilters = baseFilters.filter(_._1.table == DbTable.Donors)
-    val fileFilters = baseFilters.filter(_._1.table == DbTable.Files)
+  def filtersToSql(allFilters: FieldFilter.Filters): F[Map[FieldConfig, Fragment]] = {
+    allFilters.toList.traverse {
+      case (field, values) => filterToSql(field, values).map(field -> _)
+    }.map { baseFilters =>
+      val donorFilters = baseFilters.filter(_._1.table == DbTable.Donors).toMap
+      val fileFilters = baseFilters.filter(_._1.table == DbTable.Files).toMap
 
-    // If we've filtered out all files for a donor, filter out the donor too.
-    val allDonorFilters = if (fileFilters.isEmpty) {
-      donorFilters
-    } else {
-      donorFilters + (DbClient.DonorIdField -> donorFromIncludedFile(fileFilters.values))
-    }
+      // If we've filtered out all files for a donor, filter out the donor too.
+      // NOTE: We could do this all time time, but the extra filter on IDs takes nontrivial time,
+      // so we don't bother if we know that every ID will pass.
+      val allDonorFilters = if (fileFilters.isEmpty) {
+        donorFilters
+      } else {
+        donorFilters + (DbClient.DonorIdField -> donorFromIncludedFile(
+          fileFilters.values
+        ))
+      }
 
-    // If we've filtered out all source donors for a file, filter out the file too.
-    val allFileFilters = if (donorFilters.isEmpty) {
-      fileFilters
-    } else {
-      fileFilters + (DbClient.DonorsIdField -> fileFromIncludedDonor(donorFilters.values))
-    }
+      // If we've filtered out all source donors for a file, filter out the file too.
+      // NOTE: We could do this all time time, but the extra filter on IDs takes nontrivial time,
+      // so we don't bother if we know that every ID will pass.
+      val allFileFilters = if (donorFilters.isEmpty) {
+        fileFilters
+      } else {
+        fileFilters + (DbClient.DonorsIdField -> fileFromIncludedDonor(
+          donorFilters.values
+        ))
+      }
 
-    allDonorFilters ++ allFileFilters
+      allDonorFilters ++ allFileFilters
+    }
   }
 
   /** Build a SQL constraint which checks that a field matches one of a set of filters. */
-  private def filterToSql(field: FieldConfig, filters: FieldFilter): Fragment = {
-    val constraint = field.fieldType match {
-      case FieldType.Keyword => whereKeywordOneOf(field.column, filters.values)
-      case FieldType.Boolean => whereBoolOneOf(field.column, filters.values)
-      case FieldType.Array   => whereArrayIntersects(field.column, filters.values)
-      case FieldType.Number  => whereNumberInRanges(field.column, filters.values)
+  private def filterToSql(field: FieldConfig, filter: FieldFilter): F[Fragment] = {
+    import FieldFilter.{KeywordFilter, RangeFilter}
+
+    val constraint = (field.fieldType, filter) match {
+      case (FieldType.Keyword, KeywordFilter(values)) =>
+        whereKeywordOneOf(field.column, values).pure[F]
+      case (FieldType.Boolean, KeywordFilter(values)) =>
+        whereBoolOneOf(field.column, values).pure[F]
+      case (FieldType.Array, KeywordFilter(values)) =>
+        whereArrayIntersects(field.column, values).pure[F]
+      case (FieldType.Number, RangeFilter(low, high)) =>
+        whereNumberInRange(field.column, low, high).pure[F]
+      case _ =>
+        new IllegalArgumentException(s"Invalid filter given for field ${field.column}")
+          .raiseError[F, Fragment]
     }
 
-    fr"(" ++ constraint ++ fr")"
+    constraint.map(fr"(" ++ _ ++ fr")")
   }
 
   /**
@@ -340,24 +274,14 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   ): Fragment =
     Fragment.const(s"$column &&") ++ fr"${values.toList}"
 
-  /** Build a SQL constraint checking that a numeric column falls within any of a set of ranges. */
-  private def whereNumberInRanges(
+  /** Build a SQL constraint checking that a numeric column falls within a range. */
+  private def whereNumberInRange(
     column: String,
-    ranges: NonEmptyList[String]
+    low: Double,
+    high: Double
   ): Fragment = {
-    val rangeChecks = ranges.map { rangeString =>
-      val splitIdx = rangeString.indexOf('-')
-      val (low, high) = if (splitIdx > 0) {
-        (rangeString.take(splitIdx).toDouble, rangeString.drop(splitIdx + 1).toDouble)
-      } else {
-        val exact = rangeString.toDouble
-        (exact - 0.00001, exact + 0.00001)
-      }
-
-      Fragment.const(s"($column") ++ fr">= $low AND" ++ Fragment.const(column) ++ fr"<= $high)"
-    }
-
-    Fragments.or(rangeChecks.toList: _*)
+    val col = Fragment.const(column)
+    col ++ fr">= $low AND " ++ col ++ fr"<= $high"
   }
 
   /** Collect JSON for all donors matching the given filters, for export to Terra. */

@@ -1,0 +1,93 @@
+# Originally copied from https://github.com/DataBiosphere/data-explorer/blob/ed10991342960c8c6ef213cbea1dc9dc6cc9292e/api/api.yaml
+swagger: '2.0'
+info:
+  title: Data Explorer Service
+  description: API Service that reads from Elasticsearch.
+  license:
+    name: BSD
+    url: 'http://opensource.org/licenses/BSD-3-Clause'
+  version: '0.0.1'
+paths:
+  /dataset:
+    get:
+      description: Get dataset information.
+      responses:
+        200:
+          description: Success
+          schema:
+            $ref: '#/definitions/DatasetResponse'
+      tags:
+        - Dataset
+
+  /facets:
+    get:
+      description: Get names and possible values for all fields exposed to search.
+      responses:
+        200:
+          description: Success
+          schema:
+            $ref: '#/definitions/FacetsResponse'
+      tags:
+        - Facets
+
+  /count:
+    get:
+      description: Get the number of records matching selected filters.
+      parameters:
+        - name: filter
+          description: Encoded form of facet values selected in the UI.
+          in: query
+          type: array
+          items:
+            type: string
+          # Use pipes to avoid collisions with facet values that contain commas.
+          collectionFormat: pipes
+          example: donors.sex=female|files.file_format=bam|files.file_size=10-100
+      responses:
+        200:
+          description: Success
+          schema:
+            $ref: '#/definitions/CountResponse'
+      tags:
+        - Count
+
+definitions:
+  DatasetResponse:
+    description: Dataset information.
+    properties:
+      name:
+        type: string
+
+  FacetsResponse:
+    description: Names and possible values for all fields exposed to search.
+    properties:
+      facets:
+        type: array
+        items:
+          $ref: '#/definitions/Facet'
+
+  Facet:
+    description: Information about a field exposed to search.
+    properties:
+      facet_type:
+        type: string
+      display_name:
+        type: string
+      db_name:
+        type: string
+      values:
+        type: array
+        items:
+          type: string
+      min:
+        type: number
+      max:
+        type: number
+
+  CountResponse:
+    description: Counts of entities matching a faceted search.
+    properties:
+      donor_count:
+        type: integer
+      file_count:
+        type: integer

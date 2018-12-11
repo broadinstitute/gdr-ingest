@@ -10,6 +10,7 @@ sealed trait FieldType extends EnumEntry {
 }
 
 object FieldType extends Enum[FieldType] {
+
   override val values = findValues
 
   /** Category for fields which should have unique values counted. */

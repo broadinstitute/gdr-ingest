@@ -1,28 +1,46 @@
-import React, { Component } from "react";
+import React from "react";
 import GridList from "@material-ui/core/GridList";
 import GridListTile from "@material-ui/core/GridListTile";
 
 import "components/facets/FacetsGrid.css";
 import FacetCard from "components/facets/FacetCard";
+import { FacetsApi } from "data_explorer_service";
 
-function FacetsGrid(props) {
-  // An array of es field names
-  const facets = props.facets;
-  const updateFacets = props.updateFacets;
-  const facetsList = facets.map(facet => (
-    <GridListTile key={facet.name}>
-      <FacetCard
-        facet={facet}
-        selectedValues={props.selectedFacetValues.get(facet.es_field_name)}
-        updateFacets={updateFacets}
-      />
-    </GridListTile>
-  ));
-  return (
-    <GridList className="gridList" cols={3} cellHeight="auto" padding={1}>
-      {facetsList}
-    </GridList>
-  );
+class FacetsGrid extends React.Component {
+  constructor(props) {
+    super(props);
+
+    this.facetsApi = new FacetsApi(props.apiClient);
+    this.facetsCallback = function(error, data) {
+      if (error) {
+        console.error(error);
+      } else {
+        this.props.setFacets(data.facets);
+      }
+    }.bind(this);
+  }
+
+  render() {
+    const cards = this.props.facets.map(facet => (
+      <GridListTile key={facet.db_name}>
+        <FacetCard
+          facet={facet}
+          selectedValues={this.props.selectedFacetValues.get(facet.db_name)}
+          updateFacets={this.props.updateFacets}
+          innerKey={this.props.facetListKeys.get(facet.db_name)}
+        />
+      </GridListTile>
+    ));
+    return (
+      <GridList className="gridList" cols={3} cellHeight="auto" padding={1}>
+        {cards}
+      </GridList>
+    );
+  }
+
+  componentDidMount() {
+    this.facetsApi.facetsGet(this.facetsCallback);
+  }
 }
 
 export default FacetsGrid;

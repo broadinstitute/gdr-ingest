@@ -1,13 +1,16 @@
 package org.broadinstitute.gdr.encode.explorer.fields
 
-import cats.data.{NonEmptyList, ValidatedNel}
+import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.implicits._
 import cats.kernel.Monoid
 
 /** Collection of constraints to apply to a field in search / export. */
-case class FieldFilter(values: NonEmptyList[String])
+sealed trait FieldFilter
 
 object FieldFilter {
+
+  case class KeywordFilter(values: NonEmptyList[String]) extends FieldFilter
+  case class RangeFilter(low: Double, high: Double) extends FieldFilter
 
   /** Convenience alias for mapping from field -> filters to apply to that field. */
   type Filters = Map[FieldConfig, FieldFilter]
@@ -64,8 +67,31 @@ object FieldFilter {
       case (field, filters) =>
         fields
           .find(_.encoded == field)
-          .fold(s"Invalid field: $field".invalidNel[Filters])(
-            cfg => Map(cfg -> FieldFilter(filters.map(_._2))).validNel
-          )
+          .fold(s"Invalid field: $field".invalidNel[Filters]) { cfg =>
+            cfg.fieldType match {
+              case FieldType.Number =>
+                if (filters.length > 1) {
+                  s"Too many filters given for field $field: Got ${filters.length}, expected 0 or 1".invalidNel
+                } else {
+                  parseRange(filters.head._2).map(r => Map(cfg -> r))
+                }
+              case _ => Map(cfg -> KeywordFilter(filters.map(_._2))).validNel
+            }
+          }
     }
+
+  private def parseRange(range: String): ValidatedNel[String, RangeFilter] = {
+    val i = range.indexOf('-')
+    if (i < 0) {
+      s"Malformatted range: $range".invalidNel[RangeFilter]
+    } else {
+      val (lowStr, highStr) = (range.take(i), range.drop(i + 1))
+      val parseLow =
+        Validated.catchNonFatal(lowStr.toDouble).leftMap(_.getMessage).toValidatedNel
+      val parseHigh =
+        Validated.catchNonFatal(highStr.toDouble).leftMap(_.getMessage).toValidatedNel
+
+      (parseLow, parseHigh).mapN { case (low, high) => RangeFilter(low, high) }
+    }
+  }
 }

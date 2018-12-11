@@ -1,12 +1,11 @@
-import React, { Component } from "react";
+import React from "react";
 import { withStyles } from "@material-ui/core/styles";
-import Checkbox from "@material-ui/core/Checkbox";
-import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
 import Typography from "@material-ui/core/Typography";
+import "rc-slider/assets/index.css";
 
 import * as Style from "libs/style";
+import FacetList from "./FacetList";
+import FacetSlider from "./FacetSlider";
 
 const styles = {
   facetCard: {
@@ -14,7 +13,6 @@ const styles = {
     margin: "2%",
     paddingBottom: "8px",
     display: "grid",
-    gridTemplateColumns: "auto 50px",
     // If there is a long word (eg facet name or facet value), break in the
     // middle of the word. Without this, the word stays on one line and its CSS
     // grid is wider than the facet card.
@@ -23,205 +21,59 @@ const styles = {
     overflow: "hidden",
     alignContent: "flex-start"
   },
-  // By default, each div takes up one grid cell.
-  // Don't specify gridColumn, just use default of one cell.
-  facetDescription: {
-    color: "gray",
-    width: "110%"
-  },
-  facetSearch: {
-    margin: "5px 0px 0px 0px",
-    border: "0",
-    fontSize: "12px",
-    width: "110%",
-    borderBottom: "2px solid silver",
-    outlineWidth: "0"
-  },
-  facetValueList: {
-    gridColumn: "1 / 3",
-    margin: "2px 0 0 0",
-    maxHeight: "400px",
-    overflow: "auto",
-    paddingRight: "14px"
-  },
-  facetValue: {
-    // This is a nested div, so need to specify a new grid.
-    display: "grid",
-    gridTemplateColumns: "24px auto",
-    justifyContent: "stretch",
-    padding: "0",
-    // Disable gray background on ListItem hover.
-    "&:hover": {
-      backgroundColor: "unset"
-    }
-  },
-  facetValueCheckbox: {
-    height: "24px",
-    width: "24px"
-  },
-  facetValueNameAndCount: {
-    paddingRight: 0
-  },
-  facetValueName: {
-    // Used by end-to-end tests
-  },
-  facetValueCount: {
-    textAlign: "right"
-  },
   grayText: {
     color: "silver"
+  },
+  facetSlider: {
+    width: 400,
+    margin: 50
   }
 };
 
-class FacetCard extends Component {
+class FacetCard extends React.Component {
   constructor(props) {
     super(props);
-
-    this.facetValues = this.props.facet.values;
-
-    this.state = {
-      searchString: ""
-    };
-
-    this.totalFacetValueCount = this.sumFacetValueCounts(
-      this.props.facet.values,
-      []
-    );
-
-    this.onClick = this.onClick.bind(this);
-    this.isDimmed = this.isDimmed.bind(this);
-    this.setSearch = this.setSearch.bind(this);
-  }
-
-  componentWillReceiveProps(nextProps) {
-    this.totalFacetValueCount = this.sumFacetValueCounts(
-      nextProps.facet.values,
-      this.props.selectedValues
-    );
   }
 
   render() {
-    const { classes } = this.props;
+    const { classes, facet } = this.props;
 
-    const facetValueDivs = this.props.facet.values
-      .filter(
-        facetValue =>
-          facetValue.name
-            .toLowerCase()
-            .indexOf(this.state.searchString.toLowerCase()) > -1
-      )
-      .map(value => (
-        <ListItem
-          className={classes.facetValue}
-          key={value.name}
-          button
-          dense
-          disableRipple
-          onClick={e => this.onClick(value.name)}
-        >
-          <Checkbox
-            className={classes.facetValueCheckbox}
-            checked={
-              this.props.selectedValues != null &&
-              this.props.selectedValues.includes(value.name)
-            }
-          />
-          <ListItemText
-            className={classes.facetValueNameAndCount}
-            classes={{
-              primary: this.isDimmed(value) ? classes.grayText : null
-            }}
-            primary={
-              <div
-                style={{ display: "grid", gridTemplateColumns: "auto 50px" }}
-              >
-                <div className={classes.facetValueName}>{value.name}</div>
-                <div className={classes.facetValueCount}>{value.count}</div>
-              </div>
-            }
-          />
-        </ListItem>
-      ));
+    let component;
+    if (facet.facet_type === "list") {
+      component = (
+        <FacetList
+          name={facet.db_name}
+          values={facet.values}
+          selectedValues={this.props.selectedValues}
+          listKey={this.props.innerKey}
+          updateFacets={this.props.updateFacets}
+        />
+      );
+    } else {
+      const { low, high } =
+        this.props.selectedValues === undefined
+          ? {}
+          : this.props.selectedValues;
+      component = (
+        <FacetSlider
+          name={facet.db_name}
+          min={facet.min}
+          max={facet.max}
+          low={low}
+          high={high}
+          selectedValues={this.props.selectedValues}
+          updateFacets={this.props.updateFacets}
+        />
+      );
+    }
 
     return (
       <div className={classes.facetCard}>
         <div>
-          <Typography>{this.props.facet.name}</Typography>
-          <Typography className={classes.facetDescription}>
-            {this.props.facet.description}
-          </Typography>
-          <Typography>
-            <form>
-              <input
-                className={classes.facetSearch}
-                type="text"
-                placeholder="Search..."
-                ref="filterTextInput"
-                onChange={() => this.setSearch()}
-              />
-            </form>
-          </Typography>
+          <Typography>{this.props.facet.display_name}</Typography>
         </div>
-        <List dense className={classes.facetValueList}>
-          {facetValueDivs}
-        </List>
+        {component}
       </div>
-    );
-  }
-
-  isDimmed(facetValue) {
-    return (
-      this.props.selectedValues != null &&
-      this.props.selectedValues.length > 0 &&
-      !this.props.selectedValues.includes(facetValue.name)
-    );
-  }
-
-  setSearch() {
-    this.setState({ searchString: this.refs.filterTextInput.value });
-  }
-
-  /**
-   * @param facetValues FacetValue[] to sum counts over
-   * @param selectedValueNames Optional string[] to select a subset of facetValues to sum counts for
-   * @return number count the total sum of all facetValue counts, optionally filtered by selectedValueNames
-   * */
-  sumFacetValueCounts(facetValues, selectedValueNames) {
-    let count = 0;
-    if (selectedValueNames == null || selectedValueNames.length === 0) {
-      facetValues.forEach(value => {
-        count += value.count;
-      });
-    } else {
-      facetValues.forEach(value => {
-        if (selectedValueNames.indexOf(value.name) > -1) {
-          count += value.count;
-        }
-      });
-    }
-
-    return count;
-  }
-
-  onClick(facetValue) {
-    // facetValue is a string, eg "female"
-    let isSelected;
-    if (
-      this.props.selectedValues != null &&
-      this.props.selectedValues.length > 0 &&
-      this.props.selectedValues.includes(facetValue)
-    ) {
-      // User must have unchecked the checkbox.
-      isSelected = false;
-    } else {
-      // User must have checked the checkbox.
-      isSelected = true;
-    }
-
-    this.props.updateFacets(
-      this.props.facet.es_field_name,
-      facetValue,
-      isSelected
     );
   }
 }

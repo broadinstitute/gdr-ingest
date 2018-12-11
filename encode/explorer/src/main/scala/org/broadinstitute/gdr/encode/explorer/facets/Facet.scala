@@ -2,23 +2,29 @@ package org.broadinstitute.gdr.encode.explorer.facets
 
 import io.circe.Encoder
 import io.circe.derivation.{deriveEncoder, renaming}
+import io.circe.syntax._
 
-/**
-  * A facet.
-  *
-  * @param name facet display name, i.e. "Gender"
-  * @param description optional facet description
-  * @param esFieldName the name of the DB column mapping to this facet.
-  *                    The "es" prefix is there to mirror what the Data
-  *                    Explorer UI expects
-  */
-case class Facet(
-  name: String,
-  description: Option[String],
-  esFieldName: String,
-  values: List[FacetValue]
-)
+/** A facet to expose in search. */
+sealed trait Facet {
+
+  /** Facet display name, i.e. "Gender". */
+  def displayName: String
+
+  /** Combined DB table/column mapping to this facet. */
+  def dbName: String
+}
 
 object Facet {
-  implicit val encoder: Encoder[Facet] = deriveEncoder(renaming.snakeCase)
+  case class KeywordFacet(displayName: String, dbName: String, values: List[String])
+      extends Facet
+  case class RangeFacet(displayName: String, dbName: String, min: Double, max: Double)
+      extends Facet
+
+  implicit val keywordEncoder: Encoder[KeywordFacet] = deriveEncoder(renaming.snakeCase)
+  implicit val rangeEncoder: Encoder[RangeFacet] = deriveEncoder(renaming.snakeCase)
+
+  implicit val encoder: Encoder[Facet] = {
+    case kw: KeywordFacet => kw.asJson.mapObject(_.add("facet_type", "list".asJson))
+    case r: RangeFacet    => r.asJson.mapObject(_.add("facet_type", "range".asJson))
+  }
 }

@@ -7,8 +7,6 @@ import TextField from "@material-ui/core/TextField";
 import Dialog from "@material-ui/core/Dialog";
 import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
-import DialogContentText from "@material-ui/core/DialogContentText";
-import DialogTitle from "@material-ui/core/DialogTitle";
 import React from "react";
 
 import "components/ExportFab.css";
@@ -98,34 +96,30 @@ class ExportFab extends React.Component {
 
   handleSave() {
     this.setState(state => ({ open: false }));
-    let exportUrlCallback = function(error, data) {
-      if (error) {
-        alert(error.response.body.detail);
-      } else {
-        let importUrl =
-          "https://app.terra.bio/#import-data?format=entitiesJson";
-        if (data.authorization_domain) {
-          importUrl += "&ad=" + data.authorization_domain;
-        }
-        importUrl += "&url=" + data.url;
-        window.location.assign(importUrl);
-      }
-    }.bind(this);
-    let cohortName = this.state.cohortName;
-    let filter = this.props.filter;
-    if (filter == null) {
-      filter = [];
+
+    const cohortName = this.state.cohortName;
+    const filter = this.props.filter;
+
+    let exportUrl = this.props.apiBasePath + "/export";
+    const exportParams = [];
+
+    if (filter.length > 0) {
+      exportParams.push("filter=" + filter.join("|"));
     }
-    if (cohortName == null) {
-      cohortName = "";
+    if (cohortName) {
+      exportParams.push("cohortName=" + cohortName);
     }
-    let params = new Object();
-    params.cohortName = cohortName;
-    params.filter = filter;
-    this.props.exportUrlApi.exportUrlPost(
-      { exportUrlRequest: params },
-      exportUrlCallback
-    );
+
+    if (exportParams.length > 0) {
+      exportUrl += "?" + exportParams.join("&");
+    }
+
+    // We have to encode the URI twice(!!!) because Terra's import page will
+    // decode once before fetching, and we need any invalid characters to stay encoded.
+    const importBase =
+      "https://app.terra.bio/#import-data?format=entitiesJson&url=";
+    const encodedExport = encodeURI(exportUrl);
+    window.location.assign(importBase + encodeURIComponent(encodedExport));
   }
 }
 
