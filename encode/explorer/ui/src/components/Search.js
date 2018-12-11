@@ -1,5 +1,5 @@
 import React from "react";
-import Select, { components } from "react-select";
+import Select from "react-select";
 
 const customStyles = {
   container: (provided, state) => ({
@@ -62,16 +62,20 @@ class Search extends React.Component {
     let chips = [];
     selectedFacetValues.forEach((values, key) => {
       let facetName = this.props.facets.get(key).display_name;
-      if (values.length > 0) {
-        for (let value of values) {
-          chips.push({
-            label: facetName + "=" + value,
-            value: key + "=" + value,
-            esFieldName: key,
-            facetName: facetName,
-            facetValue: value
-          });
+      if (Array.isArray(values)) {
+        if (values.length > 0) {
+          for (let value of values) {
+            chips.push({
+              label: facetName + "=" + value,
+              value: key + "=" + value
+            });
+          }
         }
+      } else {
+        chips.push({
+          label: facetName + "=[" + values.low + "," + values.high + "]",
+          value: key + "=[" + values.low + "," + values.high + "]"
+        });
       }
     });
     return chips;

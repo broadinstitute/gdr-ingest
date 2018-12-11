@@ -7,8 +7,6 @@ import TextField from "@material-ui/core/TextField";
 import Dialog from "@material-ui/core/Dialog";
 import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
-import DialogContentText from "@material-ui/core/DialogContentText";
-import DialogTitle from "@material-ui/core/DialogTitle";
 import React from "react";
 
 import "components/ExportFab.css";
@@ -99,10 +97,11 @@ class ExportFab extends React.Component {
   handleSave() {
     this.setState(state => ({ open: false }));
 
+    const cohortName = this.state.cohortName;
+    const filter = this.props.filter;
+
     let exportUrl = this.props.apiBasePath + "/export";
-    let exportParams = [];
-    let cohortName = this.state.cohortName;
-    let filter = this.props.filter;
+    const exportParams = [];
 
     if (filter.length > 0) {
       exportParams.push("filter=" + filter.join("|"));
@@ -115,11 +114,12 @@ class ExportFab extends React.Component {
       exportUrl += "?" + exportParams.join("&");
     }
 
-    let importUrl =
-      "https://app.terra.bio/#import-data?format=entitiesJson&url=" +
-      encodeURIComponent(exportUrl);
-
-    window.location.assign(importUrl);
+    // We have to encode the URI twice(!!!) because Terra's import page will
+    // decode once before fetching, and we need any invalid characters to stay encoded.
+    const importBase =
+      "https://app.terra.bio/#import-data?format=entitiesJson&url=";
+    const encodedExport = encodeURI(exportUrl);
+    window.location.assign(importBase + encodeURIComponent(encodedExport));
   }
 }
 

@@ -6,7 +6,6 @@ import { ApiClient, CountApi } from "data_explorer_service";
 import ExportFab from "components/ExportFab";
 import FacetsGrid from "components/facets/FacetsGrid";
 import Header from "components/Header";
-import Slider, { Range } from "rc-slider";
 
 const theme = createMuiTheme({
   typography: {
@@ -26,9 +25,7 @@ class App extends React.Component {
     };
 
     this.apiClient = new ApiClient();
-    // FIXME: DON'T CHECK THIS IN
-    this.apiClient.basePath = "http://localhost:8080/api";
-    //this.apiClient.basePath = "/api";
+    this.apiClient.basePath = window.location.href.replace(/\/?$/, "") + "/api";
 
     this.countApi = new CountApi(this.apiClient);
     this.countCallback = function(error, data) {

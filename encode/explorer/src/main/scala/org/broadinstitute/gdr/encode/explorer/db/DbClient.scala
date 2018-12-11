@@ -185,6 +185,8 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       val fileFilters = baseFilters.filter(_._1.table == DbTable.Files).toMap
 
       // If we've filtered out all files for a donor, filter out the donor too.
+      // NOTE: We could do this all time time, but the extra filter on IDs takes nontrivial time,
+      // so we don't bother if we know that every ID will pass.
       val allDonorFilters = if (fileFilters.isEmpty) {
         donorFilters
       } else {
@@ -194,6 +196,8 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
       }
 
       // If we've filtered out all source donors for a file, filter out the file too.
+      // NOTE: We could do this all time time, but the extra filter on IDs takes nontrivial time,
+      // so we don't bother if we know that every ID will pass.
       val allFileFilters = if (donorFilters.isEmpty) {
         fileFilters
       } else {

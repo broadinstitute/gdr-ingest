@@ -1,7 +1,6 @@
 import React from "react";
 import { withStyles } from "@material-ui/core/styles";
 import Typography from "@material-ui/core/Typography";
-import { Range } from "rc-slider";
 import "rc-slider/assets/index.css";
 
 import * as Style from "libs/style";
