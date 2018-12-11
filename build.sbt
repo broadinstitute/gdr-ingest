@@ -36,6 +36,8 @@ inThisBuild(
 val betterFilesVersion = "3.7.0"
 val betterMonadicForVersion = "0.2.4"
 val caseAppVersion = "2.0.0-M5"
+val catsVersion = "1.5.0"
+val catsEffectVersion = "1.1.0"
 val circeVersion = "0.10.1"
 val circeDerivationVersion = "0.10.0-M1"
 val circeFs2Version = "0.10.0"
@@ -82,7 +84,9 @@ lazy val `encode-ingest` = project
     dependencyOverrides ++= Seq(
       "co.fs2" %% "fs2-core" % fs2Version,
       "io.circe" %% "circe-core" % circeVersion,
-      "io.circe" %% "circe-parser" % circeVersion
+      "io.circe" %% "circe-parser" % circeVersion,
+      "org.typelevel" %% "cats-core" % catsVersion,
+      "org.typelevel" %% "cats-effect" % catsEffectVersion
     )
   )
 
@@ -110,7 +114,11 @@ lazy val `encode-explorer` = project
       "org.tpolecat" %% "doobie-postgres-circe" % doobieVersion
     ),
     dependencyOverrides ++= Seq(
-      "co.fs2" %% "fs2-core" % fs2Version
+      "co.fs2" %% "fs2-core" % fs2Version,
+      "io.circe" %% "circe-core" % circeVersion,
+      "io.circe" %% "circe-parser" % circeVersion,
+      "org.typelevel" %% "cats-core" % catsVersion,
+      "org.typelevel" %% "cats-effect" % catsEffectVersion
     ),
     dockerBaseImage := "gcr.io/google_appengine/openjdk8"
   )
