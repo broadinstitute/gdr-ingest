@@ -1,9 +1,22 @@
 import React from "react";
+import { withStyles } from "@material-ui/core/styles";
 import AppBar from "@material-ui/core/AppBar";
 import Toolbar from "@material-ui/core/Toolbar";
 import Typography from "@material-ui/core/Typography";
 import { DatasetApi } from "data_explorer_service";
 import Search from "components/Search";
+
+const styles = {
+  appBar: {
+    backgroundColor: "#5aa6da"
+  },
+  datasetName: {
+    flexGrow: 1
+  },
+  totalCountText: {
+    marginRight: "60px"
+  }
+};
 
 class Header extends React.Component {
   constructor(props) {
@@ -26,25 +39,29 @@ class Header extends React.Component {
   }
 
   render() {
+    const { classes, counts } = this.props;
     const datasetName = this.state.datasetName;
-    const counts = this.props.counts;
     const countText =
       counts === null
         ? ""
         : counts.donor_count + " Donors | " + counts.file_count + " Files";
 
     return (
-      <AppBar position="static" style={{ backgroundColor: "#5aa6da" }}>
+      <AppBar position="static" className={classes.appBar}>
         <Toolbar>
           <Typography
-            className="datasetName"
+            className={classes.datasetName}
             variant="headline"
             color="inherit"
             style={{ flexGrow: 1 }}
           >
             {datasetName}
           </Typography>
-          <Typography className="totalCountText" color="inherit">
+          <Typography
+            className={classes.totalCountText}
+            variant="subheading"
+            color="inherit"
+          >
             {countText}
           </Typography>
         </Toolbar>
@@ -78,4 +95,4 @@ class Header extends React.Component {
   }
 }
 
-export default Header;
+export default withStyles(styles)(Header);

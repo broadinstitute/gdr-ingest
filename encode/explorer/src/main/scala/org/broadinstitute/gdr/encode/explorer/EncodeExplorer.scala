@@ -31,7 +31,7 @@ object EncodeExplorer extends IOApp {
     * Only returns when an error occurs prior to binding the HTTP handler.
     */
   private def run(config: ExplorerConfig): IO[ExitCode] =
-    DbClient.resource[IO](config.db).use {
+    DbClient.resource[IO, IO.Par](config.db).use {
       /*
        * NOTE: 'db' gets shut down after all the code in this block completes,
        * so all business logic requiring DB acccess has to run in this scope.

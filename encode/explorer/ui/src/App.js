@@ -21,7 +21,7 @@ class App extends React.Component {
       facets: new Map(),
       facetListKeys: new Map(),
       selectedFacetValues: new Map(),
-      counts: null
+      counts: {}
     };
 
     this.apiClient = new ApiClient();
@@ -67,6 +67,8 @@ class App extends React.Component {
         <ExportFab
           filter={this.filterMapToArray(this.state.selectedFacetValues)}
           apiBasePath={this.apiClient.basePath}
+          donorCount={this.state.counts.donor_count}
+          fileCount={this.state.counts.file_count}
         />
       </MuiThemeProvider>
     );

@@ -1,5 +1,7 @@
 /** Export to Terra FAB */
 
+import React from "react";
+import { withStyles } from "@material-ui/core/styles";
 import CloudUpload from "@material-ui/icons/CloudUpload";
 import Button from "@material-ui/core/Button";
 import Tooltip from "@material-ui/core/Tooltip";
@@ -7,9 +9,14 @@ import TextField from "@material-ui/core/TextField";
 import Dialog from "@material-ui/core/Dialog";
 import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
-import React from "react";
 
-import "components/ExportFab.css";
+const styles = {
+  exportFab: {
+    right: "10px",
+    top: "3px",
+    position: "fixed"
+  }
+};
 
 class ExportFab extends React.Component {
   constructor(props) {
@@ -22,6 +29,34 @@ class ExportFab extends React.Component {
   }
 
   render() {
+    const { classes, donorCount, fileCount } = this.props;
+    const totalCount = donorCount + fileCount;
+    const allowExport =
+      !isNaN(totalCount) && totalCount > 0 && totalCount < 10000;
+    let tooltipText;
+    if (allowExport) {
+      tooltipText = "Send to Terra";
+    } else if (totalCount === 0) {
+      tooltipText = "Nothing to export! Please remove filters";
+    } else {
+      tooltipText = "Too many records to export! Please apply more filters";
+    }
+
+    let button;
+    if (allowExport) {
+      button = (
+        <Button variant="fab" color="secondary" onClick={this.handleClick}>
+          <CloudUpload />
+        </Button>
+      );
+    } else {
+      button = (
+        <Button variant="fab" color="secondary" disabled>
+          <CloudUpload />
+        </Button>
+      );
+    }
+
     return (
       <div>
         {/*
@@ -29,15 +64,9 @@ class ExportFab extends React.Component {
           when cohort dialog is shown. See
           https://github.com/mui-org/material-ui/issues/9275#issuecomment-350479467
         */}
-        <div className="mui-fixed exportFab">
-          <Tooltip title="Send to Terra">
-            <Button
-              variant="fab"
-              color="secondary"
-              onClick={() => this.handleClick()}
-            >
-              <CloudUpload />
-            </Button>
+        <div className="mui-fixed" className={classes.exportFab}>
+          <Tooltip title={tooltipText}>
+            <div>{button}</div>
           </Tooltip>
         </div>
         <div>
@@ -123,4 +152,4 @@ class ExportFab extends React.Component {
   }
 }
 
-export default ExportFab;
+export default withStyles(styles)(ExportFab);

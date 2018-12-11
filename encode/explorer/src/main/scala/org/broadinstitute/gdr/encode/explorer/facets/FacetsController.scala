@@ -20,7 +20,7 @@ import scala.language.higherKinds
   */
 class FacetsController[M[_]: Sync, F[_]](
   fields: List[FieldConfig],
-  dbClient: DbClient[M]
+  dbClient: DbClient[M, F]
 )(implicit par: Parallel[M, F]) {
 
   /**
