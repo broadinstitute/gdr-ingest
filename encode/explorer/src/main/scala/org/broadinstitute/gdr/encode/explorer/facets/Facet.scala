@@ -20,7 +20,7 @@ object Facet {
   case class RangeFacet(displayName: String, dbName: String, min: Double, max: Double)
       extends Facet
 
-  implicit val kwEncoder: Encoder[KeywordFacet] = deriveEncoder(renaming.snakeCase)
+  implicit val keywordEncoder: Encoder[KeywordFacet] = deriveEncoder(renaming.snakeCase)
   implicit val rangeEncoder: Encoder[RangeFacet] = deriveEncoder(renaming.snakeCase)
 
   implicit val encoder: Encoder[Facet] = {

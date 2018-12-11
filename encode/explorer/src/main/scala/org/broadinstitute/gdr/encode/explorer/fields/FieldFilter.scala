@@ -71,7 +71,7 @@ object FieldFilter {
             cfg.fieldType match {
               case FieldType.Number =>
                 if (filters.length > 1) {
-                  s"Too many filters given for field $field".invalidNel
+                  s"Too many filters given for field $field: Got ${filters.length}, expected 0 or 1".invalidNel
                 } else {
                   parseRange(filters.head._2).map(r => Map(cfg -> r))
                 }

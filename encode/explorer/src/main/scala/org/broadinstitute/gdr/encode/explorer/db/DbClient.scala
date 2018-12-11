@@ -134,9 +134,9 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   /** Get the unique values in a column. */
   private def listFacet(field: FieldConfig): ConnectionIO[Facet] = {
     val col = Fragment.const(field.column)
-    val tbl = Fragment.const(field.table.entryName)
+    val table = Fragment.const(field.table.entryName)
 
-    (fr"select distinct " ++ col ++ fr"from " ++ tbl ++ fr"where " ++ col ++ fr"is not null order by " ++ col)
+    (fr"select distinct " ++ col ++ fr"from " ++ table ++ fr"where " ++ col ++ fr"is not null order by " ++ col)
       .query[String]
       .to[List]
       .map(KeywordFacet(field.displayName, field.encoded, _))
@@ -154,10 +154,10 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   /** Get the counts of each unique nested value in an array column. */
   private def nestedFacet(field: FieldConfig): ConnectionIO[Facet] = {
     val col = Fragment.const(field.column)
-    val tbl = Fragment.const(field.table.entryName)
+    val table = Fragment.const(field.table.entryName)
 
     val selectUnnestFrom =
-      fr"select unnest(" ++ col ++ fr") as v from " ++ tbl ++ fr"where " ++ col ++ fr"is not null"
+      fr"select unnest(" ++ col ++ fr") as v from " ++ table ++ fr"where " ++ col ++ fr"is not null"
 
     (fr"select distinct v from (" ++ selectUnnestFrom ++ fr") as v order by v")
       .query[String]
@@ -168,9 +168,9 @@ class DbClient[F[_]: Sync] private[db] (transactor: Transactor[F]) {
   /** Get the min, max, and count of elements in a numeric column. */
   private def rangeFacet(field: FieldConfig): ConnectionIO[Facet] = {
     val col = Fragment.const(field.column)
-    val tbl = Fragment.const(field.table.entryName)
+    val table = Fragment.const(field.table.entryName)
 
-    (fr"select min(" ++ col ++ fr"), max(" ++ col ++ fr") from" ++ tbl ++ fr"where" ++ col ++ fr"is not null")
+    (fr"select min(" ++ col ++ fr"), max(" ++ col ++ fr") from" ++ table ++ fr"where" ++ col ++ fr"is not null")
       .query[(Double, Double)]
       .unique
       .map { case (min, max) => RangeFacet(field.displayName, field.encoded, min, max) }
