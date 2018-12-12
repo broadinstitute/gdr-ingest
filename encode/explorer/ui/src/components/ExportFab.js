@@ -11,10 +11,13 @@ import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
 
 const styles = {
-  exportFab: {
+  /*exportFab: {
     right: "10px",
-    top: "3px",
+    top: "13px",
     position: "fixed"
+  },*/
+  uploadIcon: {
+    marginLeft: "5px"
   }
 };
 
@@ -29,10 +32,12 @@ class ExportFab extends React.Component {
   }
 
   render() {
-    const { classes, donorCount, fileCount } = this.props;
-    const totalCount = donorCount + fileCount;
+    const { classes, counts } = this.props;
+    const totalCount =
+      counts === null ? NaN : counts.donor_count + counts.file_count;
     const allowExport =
       !isNaN(totalCount) && totalCount > 0 && totalCount < 10000;
+
     let tooltipText;
     if (allowExport) {
       tooltipText = "Send to Terra";
@@ -45,26 +50,25 @@ class ExportFab extends React.Component {
     let button;
     if (allowExport) {
       button = (
-        <Button variant="fab" color="secondary" onClick={this.handleClick}>
-          <CloudUpload />
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={this.handleClick}
+        >
+          Export <CloudUpload className={classes.uploadIcon} />
         </Button>
       );
     } else {
       button = (
-        <Button variant="fab" color="secondary" disabled>
-          <CloudUpload />
+        <Button variant="contained" color="secondary" disabled>
+          Export <CloudUpload className={classes.uploadIcon} />
         </Button>
       );
     }
 
     return (
       <div>
-        {/*
-          Style div instead of button itself, to prevent button from moving
-          when cohort dialog is shown. See
-          https://github.com/mui-org/material-ui/issues/9275#issuecomment-350479467
-        */}
-        <div className="mui-fixed" className={classes.exportFab}>
+        <div className={classes.exportFab}>
           <Tooltip title={tooltipText}>
             <div>{button}</div>
           </Tooltip>
