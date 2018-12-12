@@ -43,6 +43,9 @@ const styles = {
   },
   facetValueNameAndCount: {
     paddingRight: 0
+  },
+  grayText: {
+    color: "silver"
   }
 };
 
