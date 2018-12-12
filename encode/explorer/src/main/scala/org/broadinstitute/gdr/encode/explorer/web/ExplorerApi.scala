@@ -11,6 +11,7 @@ import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.io._
 import org.http4s.implicits._
 
+/** Web API for the Explorer application. */
 class ExplorerApi(app: ExplorerApp) {
 
   private implicit val filterQueryDecoder: QueryParamDecoder[FieldFilter.Filters] =

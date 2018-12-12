@@ -1,6 +1,5 @@
 package org.broadinstitute.gdr.encode.explorer.db
 
-import cats.Parallel
 import cats.data.NonEmptyList
 import cats.effect._
 import cats.free.Free
@@ -19,21 +18,16 @@ import org.broadinstitute.gdr.encode.explorer.facets.Facet
 import org.broadinstitute.gdr.encode.explorer.facets.Facet.{KeywordFacet, RangeFacet}
 import org.broadinstitute.gdr.encode.explorer.fields.{FieldConfig, FieldFilter, FieldType}
 
-import scala.language.higherKinds
-
 /**
   * Component responsible for building / executing DB queries.
   *
-  * @tparam F wrapper type capable of suspending synchronous effects
   * @param transactor wrapper around a source of DB connections which
   *                   can actually run SQL
   *
   * @see https://tpolecat.github.io/doobie/docs/01-Introduction.html for
   *      documentation on `doobie`, the library used for DB access
   */
-class DbClient[M[_]: Sync, F[_]] private[db] (transactor: Transactor[M])(
-  implicit par: Parallel[M, F]
-) {
+class DbClient private[db] (transactor: Transactor[IO])(implicit cs: ContextShift[IO]) {
 
   private val logger = org.log4s.getLogger
 
@@ -74,7 +68,7 @@ class DbClient[M[_]: Sync, F[_]] private[db] (transactor: Transactor[M])(
   }
 
   /** Check that configuration for fields reflect actual columns in a DB table. */
-  def validateFields(allFields: List[FieldConfig]): M[Unit] =
+  def validateFields(allFields: List[FieldConfig]): IO[Unit] =
     allFields.groupBy(_.table).toList.traverse_ {
       case (table, fields) =>
         fieldTypes(table).flatMap { dbFields =>
@@ -88,30 +82,32 @@ class DbClient[M[_]: Sync, F[_]] private[db] (transactor: Transactor[M])(
     }
 
   /** Check that configuration for a single field reflects an actual DB column. */
-  private def validateField(dbTypes: Map[String, String])(field: FieldConfig): M[Unit] = {
+  private def validateField(
+    dbTypes: Map[String, String]
+  )(field: FieldConfig): IO[Unit] = {
     val col = field.column
     (dbTypes.get(col), field.fieldType) match {
       case (None, _) =>
         val err: Throwable = new IllegalStateException(s"No such field: $col")
-        err.raiseError[M, Unit]
-      case (Some(tpe), fTpe) if fTpe.matches(tpe) => ().pure[M]
+        err.raiseError[IO, Unit]
+      case (Some(tpe), fTpe) if fTpe.matches(tpe) => ().pure[IO]
       case (Some(tpe), fTpe) =>
         val err: Throwable = new IllegalStateException(
           s"Field '$col' has DB type '$tpe', but is configured as type '${fTpe.entryName}'"
         )
-        err.raiseError[M, Unit]
+        err.raiseError[IO, Unit]
     }
   }
 
   /** Get the DB types of all columns in a table. */
-  private def fieldTypes(table: DbTable): M[Map[String, String]] =
+  private def fieldTypes(table: DbTable): IO[Map[String, String]] =
     sql"select column_name, data_type from information_schema.columns where table_name = ${table.entryName}"
       .query[(String, String)]
       .to[Set]
       .map(_.toMap)
       .transact(transactor)
 
-  def countRows(filters: Map[FieldConfig, Fragment]): M[CountResponse] = {
+  def countRows(filters: Map[FieldConfig, Fragment]): IO[CountResponse] = {
     val filtersByTable = filters.groupBy(_._1.table)
     val donorCount = countRows(
       DbTable.Donors,
@@ -127,7 +123,7 @@ class DbClient[M[_]: Sync, F[_]] private[db] (transactor: Transactor[M])(
   }
 
   /** Get the count of all elements in a table. */
-  private def countRows(table: DbTable, filters: Map[FieldConfig, Fragment]): M[Long] = {
+  private def countRows(table: DbTable, filters: Map[FieldConfig, Fragment]): IO[Long] = {
     val selectFrom = Fragment.const(s"select count(*) from ${table.entryName}")
     val whereFilters =
       Fragments.whereAnd(filters.filter(_._1.table == table).values.toSeq: _*)
@@ -139,7 +135,7 @@ class DbClient[M[_]: Sync, F[_]] private[db] (transactor: Transactor[M])(
   }
 
   /** Get the counts of each facet value for a field in a table under a set of filters. */
-  def buildFacet(field: FieldConfig): M[Facet] = {
+  def buildFacet(field: FieldConfig): IO[Facet] = {
     val query = field.fieldType match {
       case FieldType.Keyword => listFacet(field)
       case FieldType.Boolean => boolFacet(field)
@@ -196,7 +192,7 @@ class DbClient[M[_]: Sync, F[_]] private[db] (transactor: Transactor[M])(
   }
 
   /** Convert the `FieldFilter`s in a filter map into corresponding SQL constraints. */
-  def filtersToSql(allFilters: FieldFilter.Filters): M[Map[FieldConfig, Fragment]] = {
+  def filtersToSql(allFilters: FieldFilter.Filters): IO[Map[FieldConfig, Fragment]] = {
     allFilters.toList.traverse {
       case (field, values) => filterToSql(field, values).map(field -> _)
     }.map { baseFilters =>
@@ -230,21 +226,21 @@ class DbClient[M[_]: Sync, F[_]] private[db] (transactor: Transactor[M])(
   }
 
   /** Build a SQL constraint which checks that a field matches one of a set of filters. */
-  private def filterToSql(field: FieldConfig, filter: FieldFilter): M[Fragment] = {
+  private def filterToSql(field: FieldConfig, filter: FieldFilter): IO[Fragment] = {
     import FieldFilter.{KeywordFilter, RangeFilter}
 
     val constraint = (field.fieldType, filter) match {
       case (FieldType.Keyword, KeywordFilter(values)) =>
-        whereKeywordOneOf(field.column, values).pure[M]
+        whereKeywordOneOf(field.column, values).pure[IO]
       case (FieldType.Boolean, KeywordFilter(values)) =>
-        whereBoolOneOf(field.column, values).pure[M]
+        whereBoolOneOf(field.column, values).pure[IO]
       case (FieldType.Array, KeywordFilter(values)) =>
-        whereArrayIntersects(field.column, values).pure[M]
+        whereArrayIntersects(field.column, values).pure[IO]
       case (FieldType.Number, RangeFilter(low, high)) =>
-        whereNumberInRange(field.column, low, high).pure[M]
+        whereNumberInRange(field.column, low, high).pure[IO]
       case _ =>
         new IllegalArgumentException(s"Invalid filter given for field ${field.column}")
-          .raiseError[M, Fragment]
+          .raiseError[IO, Fragment]
     }
 
     constraint.map(fr"(" ++ _ ++ fr")")
@@ -304,11 +300,11 @@ class DbClient[M[_]: Sync, F[_]] private[db] (transactor: Transactor[M])(
   }
 
   /** Collect JSON for all donors matching the given filters, for export to Terra. */
-  def getDonorJson(filters: Map[FieldConfig, Fragment]): M[Vector[ExportJson]] =
+  def getDonorJson(filters: Map[FieldConfig, Fragment]): IO[Vector[ExportJson]] =
     getEntityJson("donor", DbClient.DonorIdColumn, DbTable.Donors, filters)
 
   /** Collect JSON for all files matching the given filters, for export to Terra. */
-  def getFileJson(filters: Map[FieldConfig, Fragment]): M[Vector[ExportJson]] =
+  def getFileJson(filters: Map[FieldConfig, Fragment]): IO[Vector[ExportJson]] =
     getEntityJson("file", DbClient.FileIdColumn, DbTable.Files, filters)
 
   /** Collect JSON for all entities matching the given filters, for export to Terra. */
@@ -317,7 +313,7 @@ class DbClient[M[_]: Sync, F[_]] private[db] (transactor: Transactor[M])(
     nameField: String,
     table: DbTable,
     allFilters: Map[FieldConfig, Fragment]
-  ): M[Vector[ExportJson]] = {
+  ): IO[Vector[ExportJson]] = {
     val filters = allFilters.filter(_._1.table == table).values
 
     val source = Fragment.const(s"select * from ${table.entryName}") ++
@@ -335,7 +331,7 @@ class DbClient[M[_]: Sync, F[_]] private[db] (transactor: Transactor[M])(
           ExportJson(id, entityType, obj.remove(nameField))
         }
 
-        parsed.liftTo[M](new IllegalStateException(s"Failed to parse JSON: $js"))
+        parsed.liftTo[IO](new IllegalStateException(s"Failed to parse JSON: $js"))
       }
       .compile
       .toVector
@@ -389,19 +385,14 @@ object DbClient {
     *   2. Automatically clean up the connection pool on shutdown
     *
     * @param config settings pointing to the DB the client should run against
-    * @tparam F wrapper type capable of:
-    *           1. Suspending asynchronous effects, and
-    *           2. Shifting computations back and forth between thread pools
     */
-  def resource[M[_]: Async: ContextShift, F[_]](
-    config: DbConfig
-  )(implicit par: Parallel[M, F]): Resource[M, DbClient[M, F]] =
+  def resource(config: DbConfig)(implicit cs: ContextShift[IO]): Resource[IO, DbClient] =
     for {
-      connectionContext <- ExecutionContexts.fixedThreadPool[M](
+      connectionContext <- ExecutionContexts.fixedThreadPool[IO](
         org.http4s.blaze.channel.DefaultPoolSize
       )
-      transactionContext <- ExecutionContexts.cachedThreadPool[M]
-      transactor <- HikariTransactor.newHikariTransactor[M](
+      transactionContext <- ExecutionContexts.cachedThreadPool[IO]
+      transactor <- HikariTransactor.newHikariTransactor[IO](
         config.driverClassname,
         config.connectURL,
         config.username,

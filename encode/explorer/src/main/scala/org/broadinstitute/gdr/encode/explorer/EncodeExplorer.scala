@@ -13,12 +13,7 @@ import pureconfig.module.catseffect._
 
 import scala.concurrent.duration._
 
-/**
-  * Top-level entry point for the API server.
-  *
-  * Manages everything related to HTTP for now, but it might be good
-  * to split the route definitions out into a separate class.
-  */
+/** Top-level entry point for the API server. */
 object EncodeExplorer extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
@@ -31,7 +26,7 @@ object EncodeExplorer extends IOApp {
     * Only returns when an error occurs prior to binding the HTTP handler.
     */
   private def run(config: ExplorerConfig): IO[ExitCode] =
-    DbClient.resource[IO, IO.Par](config.db).use {
+    DbClient.resource(config.db).use {
       /*
        * NOTE: 'db' gets shut down after all the code in this block completes,
        * so all business logic requiring DB acccess has to run in this scope.
