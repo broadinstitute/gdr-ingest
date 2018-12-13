@@ -4,13 +4,14 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.explorer.ExplorerApp
-import org.broadinstitute.gdr.encode.explorer.export.ExportRequest
+import org.broadinstitute.gdr.encode.explorer.export.{ExportController, ExportRequest}
 import org.broadinstitute.gdr.encode.explorer.fields.FieldFilter
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.io._
 import org.http4s.implicits._
 
+/** Web API for the Explorer application. */
 class ExplorerApi(app: ExplorerApp) {
 
   private implicit val filterQueryDecoder: QueryParamDecoder[FieldFilter.Filters] =
@@ -48,7 +49,7 @@ class ExplorerApi(app: ExplorerApp) {
         case GET -> Root / "api" / "export"
               :? FilterQueryDecoder(maybeFilters)
                 +& CohortQueryDecoder(maybeCohort) =>
-          maybeFilters match {
+          val response = maybeFilters match {
             case None =>
               Ok(app.exportController.export(ExportRequest(maybeCohort, Map.empty)))
             case Some(Invalid(errs)) =>
@@ -56,6 +57,11 @@ class ExplorerApi(app: ExplorerApp) {
             case Some(Valid(filters)) =>
               Ok(app.exportController.export(ExportRequest(maybeCohort, filters)))
           }
+
+          response.handleErrorWith {
+            case e: ExportController.IllegalExportSize => BadRequest(e.getMessage)
+          }
       }
       .orNotFound
+
 }

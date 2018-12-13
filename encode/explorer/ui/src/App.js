@@ -1,11 +1,9 @@
 import React from "react";
 import { MuiThemeProvider, createMuiTheme } from "@material-ui/core/styles";
-
-import "App.css";
-import { ApiClient, CountApi } from "data_explorer_service";
-import ExportFab from "components/ExportFab";
+import { ApiClient } from "data_explorer_service";
 import FacetsGrid from "components/facets/FacetsGrid";
 import Header from "components/Header";
+import "App.css";
 
 const theme = createMuiTheme({
   typography: {
@@ -20,60 +18,50 @@ class App extends React.Component {
     this.state = {
       facets: new Map(),
       facetListKeys: new Map(),
-      selectedFacetValues: new Map(),
-      counts: null
+      selectedFacetValues: new Map()
     };
 
     this.apiClient = new ApiClient();
     this.apiClient.basePath = window.location.href.replace(/\/?$/, "") + "/api";
 
-    this.countApi = new CountApi(this.apiClient);
-    this.countCallback = function(error, data) {
-      if (error) {
-        console.error(error);
-      } else {
-        this.setState({ counts: data });
-      }
-    }.bind(this);
-
+    this.setCountCallback = this.setCountCallback.bind(this);
     this.setFacets = this.setFacets.bind(this);
     this.clearFacets = this.clearFacets.bind(this);
     this.updateFacets = this.updateFacets.bind(this);
   }
 
   render() {
+    const { counts, facets, facetListKeys, selectedFacetValues } = this.state;
+
     return (
       <MuiThemeProvider theme={theme}>
         <div className="app">
           <FacetsGrid
             apiClient={this.apiClient}
-            facets={Array.from(this.state.facets.values())}
+            facets={Array.from(facets.values())}
             setFacets={this.setFacets}
             updateFacets={this.updateFacets}
-            selectedFacetValues={this.state.selectedFacetValues}
-            facetListKeys={this.state.facetListKeys}
+            selectedFacetValues={selectedFacetValues}
+            facetListKeys={facetListKeys}
           />
         </div>
         <div className="headerSearchContainer">
           <Header
             apiClient={this.apiClient}
-            counts={this.state.counts}
-            facets={this.state.facets}
-            selectedFacetValues={this.state.selectedFacetValues}
+            counts={counts}
+            facets={facets}
+            selectedFacetValues={selectedFacetValues}
             clearFacets={this.clearFacets}
             updateFacets={this.updateFacets}
+            onMounted={this.setCountCallback}
           />
         </div>
-        <ExportFab
-          filter={this.filterMapToArray(this.state.selectedFacetValues)}
-          apiBasePath={this.apiClient.basePath}
-        />
       </MuiThemeProvider>
     );
   }
 
-  componentDidMount() {
-    this.countApi.countGet({}, this.countCallback);
+  setCountCallback(callback) {
+    this.countCallback = callback;
   }
 
   setFacets(facets) {
@@ -97,7 +85,7 @@ class App extends React.Component {
 
     this.setState(
       { selectedFacetValues: new Map(), facetListKeys: new Map(newKeys) },
-      () => this.countApi.countGet({}, this.countCallback)
+      this.countCallback
     );
   }
 
@@ -118,34 +106,8 @@ class App extends React.Component {
 
     this.setState(
       { selectedFacetValues: currentFilterMap, facetListKeys: currentListKeys },
-      () =>
-        this.countApi.countGet(
-          { filter: this.filterMapToArray(this.state.selectedFacetValues) },
-          this.countCallback
-        )
+      this.countCallback
     );
-  }
-
-  /**
-   * Converts a Map of filters to an Array of filter strings interpretable by
-   * the backend
-   * @param filterMap Map of esFieldName:[facetValues] pairs
-   * @return [string] Array of "fieldName=facetValue" strings
-   */
-  filterMapToArray(filterMap) {
-    let filterArray = [];
-    filterMap.forEach((values, key) => {
-      if (Array.isArray(values)) {
-        if (values.length > 0) {
-          for (let value of values) {
-            filterArray.push(key + "=" + value);
-          }
-        }
-      } else {
-        filterArray.push(key + "=" + values.low + "-" + values.high);
-      }
-    });
-    return filterArray;
   }
 }
 

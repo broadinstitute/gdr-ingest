@@ -1,16 +1,63 @@
 /** Export to Terra FAB */
 
-import CloudUpload from "@material-ui/icons/CloudUpload";
+import React from "react";
+import { withStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
 import Tooltip from "@material-ui/core/Tooltip";
 import TextField from "@material-ui/core/TextField";
 import Dialog from "@material-ui/core/Dialog";
 import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
-import Typography from "@material-ui/core/Typography";
-import React from "react";
 
-import "components/ExportFab.css";
+import Send from "@material-ui/icons/Send";
+import zIndex from "@material-ui/core/styles/zIndex";
+
+const styles = {
+  uploadIcon: {
+    marginLeft: "10px"
+  },
+  cohort: {
+    textAlign: "center",
+    margin: "15px"
+  },
+
+  cohortInput: {
+    width: "100%",
+    outlineWidth: "0",
+    border: "0",
+    borderBottom: "3px solid silver",
+    outline: "none",
+    fontSize: "16px",
+    margin: "0px 40px 0px 0px",
+    "&:focus": {
+      borderBottom: "3px solid blue",
+      color: "Silver",
+      "&::placeholder": {
+        color: "blue",
+        top: "-20px",
+        position: "relative"
+      }
+    },
+    "&::placeholder": {
+      fontSize: "16px"
+    }
+  },
+  cohortWarning: {
+    verticalAlign: "top",
+    fontSize: "12px",
+    color: "silver"
+  },
+  cohortButton: {
+    fontSize: "14px",
+    border: "0",
+    padding: "7px",
+    borderRadius: "4px",
+    color: "blue",
+    "&:hover": {
+      backgroundColor: "silver"
+    }
+  }
+};
 
 class ExportFab extends React.Component {
   constructor(props) {
@@ -23,22 +70,45 @@ class ExportFab extends React.Component {
   }
 
   render() {
+    const { classes, counts } = this.props;
+    const totalCount =
+      counts === null ? NaN : counts.donor_count + counts.file_count;
+    const allowExport =
+      !isNaN(totalCount) && totalCount > 0 && totalCount < 10000;
+
+    let tooltipText;
+    if (allowExport) {
+      tooltipText = "Send to Terra";
+    } else if (totalCount === 0) {
+      tooltipText = "Nothing to export! Please remove filters";
+    } else {
+      tooltipText = "Too many records to export! Please apply more filters";
+    }
+
+    let button;
+    if (allowExport) {
+      button = (
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={this.handleClick}
+        >
+          Export <Send className={classes.uploadIcon} />
+        </Button>
+      );
+    } else {
+      button = (
+        <Button variant="contained" color="secondary" disabled>
+          Export <Send className={classes.uploadIcon} />
+        </Button>
+      );
+    }
+
     return (
       <div>
-        {/*
-          Style div instead of button itself, to prevent button from moving
-          when cohort dialog is shown. See
-          https://github.com/mui-org/material-ui/issues/9275#issuecomment-350479467
-        */}
-        <div className="mui-fixed exportFab">
-          <Tooltip title="Send to Terra">
-            <Button
-              variant="fab"
-              color="secondary"
-              onClick={() => this.handleClick()}
-            >
-              <CloudUpload />
-            </Button>
+        <div className={classes.exportFab}>
+          <Tooltip title={tooltipText}>
+            <div>{button}</div>
           </Tooltip>
         </div>
         <div>
@@ -47,36 +117,37 @@ class ExportFab extends React.Component {
             onClose={this.handleClose}
             aria-labelledby="form-dialog-title"
           >
-            <div className="cohort">
-              <p className="cohortHeader">
-                A cohort with this name will be created in Terra.
-              </p>
+            <div className={classes.cohort}>
               <form onSubmit={() => this.handleSave()}>
                 <DialogContent>
                   <input
-                    className="cohortInput"
+                    className={classes.cohortInput}
                     id="name"
                     label="Cohort Name"
                     type="text"
                     pattern="[A-Za-z-_0-9]+"
                     required="required"
-                    autoFocus
                     onChange={this.setTextValue}
-                    placeholder="Enter Cohort Name..."
+                    placeholder="Cohort Name"
+                    title="alphanumeric characters, '_', and/or '-'"
                   />
-                  <p className="cohortWarning">
-                    Must be alphanumeric characters, '_' or '-'
-                  </p>
+                  <div className={classes.cohortWarning}>
+                    A cohort with this name will be created in Terra.
+                  </div>
                 </DialogContent>
                 <DialogActions>
                   <button
-                    className="cohortButton"
+                    className={classes.cohortButton}
                     type="button"
                     onClick={() => this.handleCancel()}
                   >
                     CANCEL
                   </button>
-                  <button className="cohortButton" id="save" type="submit">
+                  <button
+                    className={classes.cohortButton}
+                    id="save"
+                    type="submit"
+                  >
                     SEND
                   </button>
                 </DialogActions>
@@ -159,4 +230,4 @@ class ExportFab extends React.Component {
   }
 }
 
-export default ExportFab;
+export default withStyles(styles)(ExportFab);
