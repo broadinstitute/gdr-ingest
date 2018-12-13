@@ -7,6 +7,7 @@ import TextField from "@material-ui/core/TextField";
 import Dialog from "@material-ui/core/Dialog";
 import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
+import Typography from "@material-ui/core/Typography";
 import React from "react";
 
 import "components/ExportFab.css";
@@ -46,7 +47,44 @@ class ExportFab extends React.Component {
             onClose={this.handleClose}
             aria-labelledby="form-dialog-title"
           >
-            <DialogContent>
+            <div className="cohort">
+              <Typography>
+                <p className="cohortHeader">
+                  A cohort with this name will be created in Terra.
+                </p>
+              </Typography>
+              <Typography>
+                Must be alphanumeric characters, '_' or '-'
+              </Typography>
+              <form onSubmit={() => this.handleSave()}>
+                <DialogContent>
+                  <input
+                    className="cohortInput"
+                    id="name"
+                    label="Cohort Name"
+                    type="text"
+                    pattern="[A-Za-z-_0-9]+"
+                    required="required"
+                    autoFocus
+                    onChange={this.setTextValue}
+                    placeholder="Enter Cohort Name..."
+                  />
+                </DialogContent>
+                <DialogActions>
+                  <button
+                    className="cohortButton"
+                    type="button"
+                    onClick={() => this.handleCancel()}
+                  >
+                    CANCEL
+                  </button>
+                  <button className="cohortButton" id="save" type="submit">
+                    SEND
+                  </button>
+                </DialogActions>
+              </form>
+            </div>
+            {/*<DialogContent>
               <TextField
                 autoFocus
                 onChange={this.setTextValue}
@@ -70,7 +108,7 @@ class ExportFab extends React.Component {
               <Button id="save" onClick={this.handleSave} color="primary">
                 Send
               </Button>
-            </DialogActions>
+            </DialogActions>*/}
           </Dialog>
         </div>
       </div>

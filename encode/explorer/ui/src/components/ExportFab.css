@@ -3,3 +3,31 @@
   bottom: 20px;
   position: fixed;
 }
+.cohort {
+  text-align: center;
+  margin: 15px;
+}
+
+.cohortHeader {
+  font-size: 15px;
+}
+
+.cohortInput {
+  width: 100%;
+  outline-width: 0;
+  border: 0;
+  border-bottom: 3px solid silver;
+  outline: none;
+  font-size: 12px;
+}
+
+.cohortButton {
+  font-size: 14px;
+  border: 0;
+  padding: 7px;
+  border-radius: 4px;
+}
+
+.cohortButton:hover {
+  background-color: silver;
+}
