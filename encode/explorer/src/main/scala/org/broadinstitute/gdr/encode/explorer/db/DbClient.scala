@@ -379,8 +379,8 @@ object DbClient {
     FieldType.Array
   )
 
-  // Eyeballed to have the least contention in the DB.
-  private val MaxDbConnections = 4
+  private val MaxDbConnections =
+    org.http4s.blaze.channel.DefaultPoolSize
 
   /**
     * Construct a DB client, wrapped in logic which will:
