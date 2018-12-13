@@ -5,8 +5,7 @@ import "rc-slider/assets/index.css";
 
 const styles = {
   facetSlider: {
-    width: 400,
-    margin: 75
+    margin: "10%"
   }
 };
 
