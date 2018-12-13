@@ -2,6 +2,7 @@ import React from "react";
 import { withStyles } from "@material-ui/core/styles";
 import Slider, { Range } from "rc-slider";
 import "rc-slider/assets/index.css";
+import "components/facets/FacetsSlider.css";
 
 const styles = {
   facetSlider: {

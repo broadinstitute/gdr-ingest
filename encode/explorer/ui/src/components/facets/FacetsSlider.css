@@ -1,0 +1,13 @@
+.rc-slider .rc-slider-track {
+  background-color: rgb(90, 166, 218);
+}
+
+.rc-slider-handle {
+  border: solid 2px rgb(90, 166, 218);
+  background-color: rgb(90, 166, 218);
+}
+
+.rc-slider-handle:focus {
+  border: solid 2px rgb(90, 166, 218);
+  background-color: rgb(90, 166, 218);
+}
