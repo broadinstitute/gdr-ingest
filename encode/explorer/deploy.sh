@@ -6,7 +6,6 @@ declare -r SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 declare -r PROJECT_ROOT=$(dirname $(dirname ${SCRIPT_DIR}))
 declare -r CONFIG_DIR=${SCRIPT_DIR}/config
 declare -r STAGING_DIR=${SCRIPT_DIR}/target/docker/stage
-declare -r UI_DIR=${SCRIPT_DIR}/ui
 declare -r RENDERED_CONFIG_PATH=opt/docker/conf/explorer.conf
 
 declare -r DB_PROJECT=broad-gdr-encode-storage
@@ -57,7 +56,7 @@ function render_ctmpl () {
 
 function deploy_appengine () {
   2>&1 echo "Pushing to App Engine..."
-  gcloud --project=${DEPLOY_PROJECT} app deploy --quiet ${STAGING_DIR}/app.yaml ${UI_DIR}/app.yaml
+  gcloud --project=${DEPLOY_PROJECT} app deploy --quiet ${STAGING_DIR}/app.yaml
   2>&1 echo "Setting up routing..."
   gcloud --project=${DEPLOY_PROJECT} app deploy --quiet ${CONFIG_DIR}/dispatch.yaml
 }
