@@ -9,6 +9,7 @@
 }
 
 .cohortHeader {
+  vertical-align: top;
   font-size: 15px;
 }
 
@@ -18,6 +19,12 @@
   border: 0;
   border-bottom: 3px solid silver;
   outline: none;
+  font-size: 12px;
+  padding: 0;
+}
+
+.cohortWarning {
+  vertical-align: top;
   font-size: 12px;
 }
 

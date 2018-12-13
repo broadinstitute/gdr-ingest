@@ -48,14 +48,9 @@ class ExportFab extends React.Component {
             aria-labelledby="form-dialog-title"
           >
             <div className="cohort">
-              <Typography>
-                <p className="cohortHeader">
-                  A cohort with this name will be created in Terra.
-                </p>
-              </Typography>
-              <Typography>
-                Must be alphanumeric characters, '_' or '-'
-              </Typography>
+              <p className="cohortHeader">
+                A cohort with this name will be created in Terra.
+              </p>
               <form onSubmit={() => this.handleSave()}>
                 <DialogContent>
                   <input
@@ -69,6 +64,9 @@ class ExportFab extends React.Component {
                     onChange={this.setTextValue}
                     placeholder="Enter Cohort Name..."
                   />
+                  <p className="cohortWarning">
+                    Must be alphanumeric characters, '_' or '-'
+                  </p>
                 </DialogContent>
                 <DialogActions>
                   <button
@@ -157,7 +155,7 @@ class ExportFab extends React.Component {
     const importBase =
       "https://app.terra.bio/#import-data?format=entitiesJson&url=";
     const encodedExport = encodeURI(exportUrl);
-    window.location.assign(importBase + encodeURIComponent(encodedExport));
+    window.open(importBase + encodeURIComponent(encodedExport));
   }
 }
 
