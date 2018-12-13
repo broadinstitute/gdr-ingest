@@ -19,7 +19,17 @@ const styles = {
 class ExportFab extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { open: false };
+
+    this.cohortPattern = /^[a-zA-Z0-9\-_]*$/;
+    this.infoText = "A cohort with this name will be created in Terra";
+    this.errText = "Only letters, numbers, '_' and '-' are allowed";
+
+    this.state = {
+      open: false,
+      cohortName: "",
+      showError: false
+    };
+
     this.handleClick = this.handleClick.bind(this);
     this.handleSave = this.handleSave.bind(this);
     this.handleCancel = this.handleCancel.bind(this);
@@ -28,6 +38,8 @@ class ExportFab extends React.Component {
 
   render() {
     const { classes, counts } = this.props;
+    const { cohortName, open, showError } = this.state;
+
     const totalCount =
       counts === null ? NaN : counts.donor_count + counts.file_count;
     const allowExport =
@@ -70,18 +82,19 @@ class ExportFab extends React.Component {
         </div>
         <div>
           <Dialog
-            open={this.state.open}
+            open={open}
             onClose={this.handleClose}
             aria-labelledby="form-dialog-title"
           >
             <DialogContent>
               <TextField
                 autoFocus
+                error={showError}
                 onChange={this.setTextValue}
                 margin="dense"
                 id="name"
                 label="Cohort Name"
-                helperText="A cohort with this name will be created in Terra"
+                helperText={showError ? this.errText : this.infoText}
                 type="text"
                 fullWidth
                 onKeyPress={ev => {
@@ -95,7 +108,12 @@ class ExportFab extends React.Component {
               <Button onClick={this.handleCancel} color="primary">
                 Cancel
               </Button>
-              <Button id="save" onClick={this.handleSave} color="primary">
+              <Button
+                id="save"
+                onClick={this.handleSave}
+                color="primary"
+                disabled={showError || cohortName.length == 0}
+              >
                 Send
               </Button>
             </DialogActions>
@@ -106,31 +124,28 @@ class ExportFab extends React.Component {
   }
 
   setTextValue(event) {
-    this.setState({ cohortName: event.target.value });
+    const cohortName = event.target.value;
+    this.setState({
+      cohortName,
+      showError: !this.cohortPattern.test(cohortName)
+    });
   }
 
   handleClick() {
-    var filter = this.props.filter;
-    if (filter != null && filter.length > 0) {
-      this.setState(state => ({ open: true }));
-    } else {
-      this.handleSave();
-    }
+    this.setState({ open: true });
   }
 
   handleCancel() {
-    this.setState(state => ({ open: false }));
+    this.setState({ open: false });
   }
 
   handleSave() {
-    this.setState(state => ({ open: false }));
+    const { apiBasePath, filter } = this.props;
+    const { cohortName } = this.state;
 
-    const cohortName = this.state.cohortName;
-    const filter = this.props.filter;
+    this.setState({ open: false });
 
-    let exportUrl = this.props.apiBasePath + "/export";
     const exportParams = [];
-
     if (filter.length > 0) {
       exportParams.push("filter=" + filter.join("|"));
     }
@@ -138,6 +153,7 @@ class ExportFab extends React.Component {
       exportParams.push("cohortName=" + cohortName);
     }
 
+    let exportUrl = apiBasePath + "/export";
     if (exportParams.length > 0) {
       exportUrl += "?" + exportParams.join("&");
     }
@@ -147,7 +163,7 @@ class ExportFab extends React.Component {
     const importBase =
       "https://app.terra.bio/#import-data?format=entitiesJson&url=";
     const encodedExport = encodeURI(exportUrl);
-    window.location.assign(importBase + encodeURIComponent(encodedExport));
+    window.open(importBase + encodeURIComponent(encodedExport));
   }
 }
 
