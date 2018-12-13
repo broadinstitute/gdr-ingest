@@ -141,31 +141,29 @@ class ExportFab extends React.Component {
 
   handleSave() {
     const { apiBasePath, filter } = this.props;
-    const { cohortName, showError } = this.state;
+    const { cohortName } = this.state;
 
-    if (!showError) {
-      this.setState({ open: false, showError: false });
-      let exportUrl = apiBasePath + "/export";
-      const exportParams = [];
+    this.setState({ open: false, showError: false });
+    let exportUrl = apiBasePath + "/export";
+    const exportParams = [];
 
-      if (filter.length > 0) {
-        exportParams.push("filter=" + filter.join("|"));
-      }
-      if (cohortName) {
-        exportParams.push("cohortName=" + cohortName);
-      }
-
-      if (exportParams.length > 0) {
-        exportUrl += "?" + exportParams.join("&");
-      }
-
-      // We have to encode the URI twice(!!!) because Terra's import page will
-      // decode once before fetching, and we need any invalid characters to stay encoded.
-      const importBase =
-        "https://app.terra.bio/#import-data?format=entitiesJson&url=";
-      const encodedExport = encodeURI(exportUrl);
-      window.open(importBase + encodeURIComponent(encodedExport));
+    if (filter.length > 0) {
+      exportParams.push("filter=" + filter.join("|"));
     }
+    if (cohortName) {
+      exportParams.push("cohortName=" + cohortName);
+    }
+
+    if (exportParams.length > 0) {
+      exportUrl += "?" + exportParams.join("&");
+    }
+
+    // We have to encode the URI twice(!!!) because Terra's import page will
+    // decode once before fetching, and we need any invalid characters to stay encoded.
+    const importBase =
+      "https://app.terra.bio/#import-data?format=entitiesJson&url=";
+    const encodedExport = encodeURI(exportUrl);
+    window.open(importBase + encodeURIComponent(encodedExport));
   }
 }
 
