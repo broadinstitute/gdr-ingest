@@ -143,10 +143,9 @@ class ExportFab extends React.Component {
     const { apiBasePath, filter } = this.props;
     const { cohortName } = this.state;
 
-    this.setState({ open: false, showError: false });
-    let exportUrl = apiBasePath + "/export";
-    const exportParams = [];
+    this.setState({ open: false });
 
+    const exportParams = [];
     if (filter.length > 0) {
       exportParams.push("filter=" + filter.join("|"));
     }
@@ -154,6 +153,7 @@ class ExportFab extends React.Component {
       exportParams.push("cohortName=" + cohortName);
     }
 
+    let exportUrl = apiBasePath + "/export";
     if (exportParams.length > 0) {
       exportUrl += "?" + exportParams.join("&");
     }
