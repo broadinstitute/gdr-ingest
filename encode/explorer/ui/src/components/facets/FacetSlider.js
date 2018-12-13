@@ -2,11 +2,11 @@ import React from "react";
 import { withStyles } from "@material-ui/core/styles";
 import Slider, { Range } from "rc-slider";
 import "rc-slider/assets/index.css";
+import "components/facets/FacetsSlider.css";
 
 const styles = {
   facetSlider: {
-    width: 400,
-    margin: 75
+    margin: "10%"
   }
 };
 
@@ -23,21 +23,13 @@ class FacetSlider extends React.Component {
     this.marks[this.effectiveMin] = this.effectiveMin;
     this.marks[this.effectiveMax] = this.effectiveMax;
 
-    this.state = {
-      low: this.effectiveMin,
-      high: this.effectiveMax
-    };
-
     this.onChange = this.onChange.bind(this);
-    this.saveChange = this.saveChange.bind(this);
-
     const createSliderWithTooltip = Slider.createSliderWithTooltip;
     this.Range = createSliderWithTooltip(Range);
   }
 
   render() {
-    const { classes } = this.props;
-    const { low, high } = this.state;
+    const { classes, low, high } = this.props;
 
     return (
       <div className={classes.facetSlider}>
@@ -45,10 +37,9 @@ class FacetSlider extends React.Component {
           min={this.effectiveMin}
           max={this.effectiveMax}
           step={this.step}
-          value={[low, high]}
+          value={[low || this.effectiveMin, high || this.effectiveMax]}
           allowCross={false}
           onChange={this.onChange}
-          onAfterChange={this.saveChange}
           marks={this.marks}
         />
       </div>
@@ -56,18 +47,13 @@ class FacetSlider extends React.Component {
   }
 
   onChange([low, high]) {
-    this.setState({ low: low, high: high });
-  }
+    const { name, updateFacets } = this.props;
 
-  saveChange([low, high]) {
-    this.setState({ low: low, high: high }, () => {
-      const updated =
-        low === this.effectiveMin && high === this.effectiveMax
-          ? null
-          : { low: low, high: high };
-
-      this.props.updateFacets(this.props.name, updated);
-    });
+    if (low === this.effectiveMin && high === this.effectiveMax) {
+      updateFacets(name, null);
+    } else {
+      updateFacets(name, { low, high });
+    }
   }
 }
 
