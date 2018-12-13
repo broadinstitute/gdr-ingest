@@ -22,19 +22,13 @@ class FacetSlider extends React.Component {
     this.marks[this.effectiveMin] = this.effectiveMin;
     this.marks[this.effectiveMax] = this.effectiveMax;
 
-    this.state = {
-      low: this.effectiveMin,
-      high: this.effectiveMax
-    };
-
     this.onChange = this.onChange.bind(this);
     const createSliderWithTooltip = Slider.createSliderWithTooltip;
     this.Range = createSliderWithTooltip(Range);
   }
 
   render() {
-    const { classes } = this.props;
-    const { low, high } = this.state;
+    const { classes, low, high } = this.props;
 
     return (
       <div className={classes.facetSlider}>
@@ -42,7 +36,7 @@ class FacetSlider extends React.Component {
           min={this.effectiveMin}
           max={this.effectiveMax}
           step={this.step}
-          value={[low, high]}
+          value={[low || this.effectiveMin, high || this.effectiveMax]}
           allowCross={false}
           onChange={this.onChange}
           marks={this.marks}
@@ -52,11 +46,13 @@ class FacetSlider extends React.Component {
   }
 
   onChange([low, high]) {
-    this.setState({ low, high }, () => {
-      if (low !== this.effectiveMin || high !== this.effectiveMax) {
-        this.props.updateFacets(this.props.name, { low, high });
-      }
-    });
+    const { name, updateFacets } = this.props;
+
+    if (low === this.effectiveMin && high === this.effectiveMax) {
+      updateFacets(name, null);
+    } else {
+      updateFacets(name, { low, high });
+    }
   }
 }
 

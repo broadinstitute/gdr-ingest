@@ -56,11 +56,15 @@ class FacetCard extends React.Component {
         />
       );
     } else {
+      const { low, high } = selectedValues || {};
+
       component = (
         <FacetSlider
           name={facet.db_name}
           min={facet.min}
           max={facet.max}
+          low={low}
+          high={high}
           saveChange={this.saveChange}
           onChange={this.onChange}
           updateFacets={updateFacets}
