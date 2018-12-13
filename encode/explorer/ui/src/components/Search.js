@@ -6,7 +6,7 @@ const customStyles = {
     ...provided,
     fontFamily: ["Lato", "sans-serif"].join(","),
     fontSize: "16px",
-    color: "#007eff"
+    color: "rgb(90, 166, 218)"
   })
 };
 

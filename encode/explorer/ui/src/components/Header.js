@@ -9,7 +9,7 @@ import Search from "components/Search";
 
 const styles = {
   appBar: {
-    backgroundColor: "#5aa6da"
+    backgroundColor: "rgb(90, 166, 218)"
   },
   datasetName: {
     flexGrow: 1

@@ -8,6 +8,16 @@ import "App.css";
 const theme = createMuiTheme({
   typography: {
     fontFamily: ["Lato", "sans-serif"].join(",")
+  },
+  palette: {
+    primary: {
+      main: "rgb(90, 166, 218)",
+      contrastText: "#fff"
+    },
+    secondary: {
+      main: "rgb(90, 166, 218)",
+      contrastText: "#fff"
+    }
   }
 });
 

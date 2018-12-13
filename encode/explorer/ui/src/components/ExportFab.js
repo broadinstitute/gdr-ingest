@@ -13,8 +13,15 @@ import Send from "@material-ui/icons/Send";
 import zIndex from "@material-ui/core/styles/zIndex";
 
 const styles = {
+  exportButton: {
+    backgroundColor: "#fff"
+  },
+  exportButtonText: {
+    color: "rgb(90, 166, 218)"
+  },
   uploadIcon: {
-    marginLeft: "10px"
+    marginLeft: "10px",
+    color: "rgb(90, 166, 218)"
   },
   cohort: {
     textAlign: "center",
@@ -30,10 +37,10 @@ const styles = {
     fontSize: "16px",
     margin: "0px 40px 0px 0px",
     "&:focus": {
-      borderBottom: "3px solid blue",
-      color: "Silver",
+      borderBottom: "3px solid rgb(90, 166, 218)",
+      color: "rgb(90, 166, 218)",
       "&::placeholder": {
-        color: "blue",
+        color: "rgb(90, 166, 218)",
         top: "-20px",
         position: "relative"
       }
@@ -52,9 +59,10 @@ const styles = {
     border: "0",
     padding: "7px",
     borderRadius: "4px",
-    color: "blue",
+    color: "rgb(90, 166, 218)",
     "&:hover": {
-      backgroundColor: "silver"
+      backgroundColor: "rgb(90, 166, 218)",
+      color: "white"
     }
   }
 };
@@ -89,24 +97,26 @@ class ExportFab extends React.Component {
     if (allowExport) {
       button = (
         <Button
+          className={classes.exportButton}
           variant="contained"
-          color="secondary"
           onClick={this.handleClick}
         >
-          Export <Send className={classes.uploadIcon} />
+          <div className={classes.exportButtonText}>Export</div>
+          <Send className={classes.uploadIcon} />
         </Button>
       );
     } else {
       button = (
-        <Button variant="contained" color="secondary" disabled>
-          Export <Send className={classes.uploadIcon} />
+        <Button className={classes.exportButton} disabled variant="contained">
+          <div className={classes.exportButtonText}>Export</div>
+          <Send className={classes.uploadIcon} />
         </Button>
       );
     }
 
     return (
       <div>
-        <div className={classes.exportFab}>
+        <div>
           <Tooltip title={tooltipText}>
             <div>{button}</div>
           </Tooltip>
