@@ -21,9 +21,6 @@ const styles = {
     overflow: "hidden",
     alignContent: "flex-start"
   },
-  grayText: {
-    color: "silver"
-  },
   facetSlider: {
     width: 400,
     margin: 50

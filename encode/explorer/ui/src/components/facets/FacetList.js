@@ -43,6 +43,9 @@ const styles = {
   },
   facetValueNameAndCount: {
     paddingRight: 0
+  },
+  grayText: {
+    color: "silver"
   }
 };
 
@@ -52,7 +55,8 @@ class FacetList extends React.Component {
 
     this.state = {
       searchString: "",
-      matchingFacets: this.props.values
+      matchingFacets: this.props.values,
+      scrollTop: 0
     };
 
     this.cache = new CellMeasurerCache({
@@ -64,10 +68,12 @@ class FacetList extends React.Component {
     this.setSearch = this.setSearch.bind(this);
     this.onClick = this.onClick.bind(this);
     this.renderRow = this.renderRow.bind(this);
+    this.saveRowIndex = this.saveRowIndex.bind(this);
   }
 
   render() {
-    const { classes } = this.props;
+    const { classes, listKey } = this.props;
+    const { matchingFacets, scrollTop } = this.state;
     return (
       <div style={{ height: "145px" }}>
         <form>
@@ -83,14 +89,16 @@ class FacetList extends React.Component {
           {({ width, height }) => {
             return (
               <List
-                key={this.props.listKey}
+                key={listKey}
                 className={classes.facetValueList}
                 width={width}
                 height={height}
                 rowHeight={this.cache.rowHeight}
                 rowRenderer={this.renderRow}
-                rowCount={this.state.matchingFacets.length}
+                onScroll={this.saveRowIndex}
+                rowCount={matchingFacets.length}
                 overscanRowCount={3}
+                scrollTop={scrollTop}
               />
             );
           }}
@@ -100,7 +108,7 @@ class FacetList extends React.Component {
   }
 
   renderRow({ index, key, style, parent }) {
-    const classes = this.props.classes;
+    const { classes, selectedValues } = this.props;
     const value = this.state.matchingFacets[index];
     const cache = this.cache;
     return (
@@ -122,8 +130,7 @@ class FacetList extends React.Component {
           <Checkbox
             className={classes.facetValueCheckbox}
             checked={
-              this.props.selectedValues !== undefined &&
-              this.props.selectedValues.includes(value)
+              selectedValues !== undefined && selectedValues.includes(value)
             }
           />
           <ListItemText
@@ -136,6 +143,10 @@ class FacetList extends React.Component {
         </ListItem>
       </CellMeasurer>
     );
+  }
+
+  saveRowIndex({ scrollTop }) {
+    this.setState({ scrollTop });
   }
 
   isDimmed(facetValue) {
@@ -158,10 +169,9 @@ class FacetList extends React.Component {
   }
 
   onClick(facetValue) {
+    const { name, selectedValues, updateFacets } = this.props;
     const currentSelection =
-      this.props.selectedValues === undefined
-        ? []
-        : Array.from(this.props.selectedValues);
+      selectedValues === undefined ? [] : Array.from(selectedValues);
     const valueIndex = currentSelection.indexOf(facetValue);
 
     if (valueIndex >= 0) {
@@ -170,7 +180,7 @@ class FacetList extends React.Component {
       currentSelection.push(facetValue);
     }
 
-    this.props.updateFacets(this.props.name, currentSelection);
+    updateFacets(name, currentSelection);
   }
 }
 
