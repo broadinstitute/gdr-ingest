@@ -36,7 +36,13 @@ class FacetCard extends React.Component {
   }
 
   render() {
-    const { classes, facet } = this.props;
+    const {
+      classes,
+      facet,
+      innerKey,
+      updateFacets,
+      selectedValues
+    } = this.props;
 
     let component;
     if (facet.facet_type === "list") {
@@ -44,25 +50,20 @@ class FacetCard extends React.Component {
         <FacetList
           name={facet.db_name}
           values={facet.values}
-          selectedValues={this.props.selectedValues}
-          listKey={this.props.innerKey}
-          updateFacets={this.props.updateFacets}
+          selectedValues={selectedValues}
+          listKey={innerKey}
+          updateFacets={updateFacets}
         />
       );
     } else {
-      const { low, high } =
-        this.props.selectedValues === undefined
-          ? {}
-          : this.props.selectedValues;
       component = (
         <FacetSlider
           name={facet.db_name}
           min={facet.min}
           max={facet.max}
-          low={low}
-          high={high}
-          selectedValues={this.props.selectedValues}
-          updateFacets={this.props.updateFacets}
+          saveChange={this.saveChange}
+          onChange={this.onChange}
+          updateFacets={updateFacets}
         />
       );
     }
@@ -70,7 +71,7 @@ class FacetCard extends React.Component {
     return (
       <div className={classes.facetCard}>
         <div>
-          <Typography>{this.props.facet.display_name}</Typography>
+          <Typography>{facet.display_name}</Typography>
         </div>
         {component}
       </div>

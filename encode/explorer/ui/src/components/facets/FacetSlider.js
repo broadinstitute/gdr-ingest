@@ -29,8 +29,6 @@ class FacetSlider extends React.Component {
     };
 
     this.onChange = this.onChange.bind(this);
-    this.saveChange = this.saveChange.bind(this);
-
     const createSliderWithTooltip = Slider.createSliderWithTooltip;
     this.Range = createSliderWithTooltip(Range);
   }
@@ -48,7 +46,6 @@ class FacetSlider extends React.Component {
           value={[low, high]}
           allowCross={false}
           onChange={this.onChange}
-          onAfterChange={this.saveChange}
           marks={this.marks}
         />
       </div>
@@ -56,17 +53,10 @@ class FacetSlider extends React.Component {
   }
 
   onChange([low, high]) {
-    this.setState({ low: low, high: high });
-  }
-
-  saveChange([low, high]) {
-    this.setState({ low: low, high: high }, () => {
-      const updated =
-        low === this.effectiveMin && high === this.effectiveMax
-          ? null
-          : { low: low, high: high };
-
-      this.props.updateFacets(this.props.name, updated);
+    this.setState({ low, high }, () => {
+      if (low !== this.effectiveMin || high !== this.effectiveMax) {
+        this.props.updateFacets(this.props.name, { low, high });
+      }
     });
   }
 }
