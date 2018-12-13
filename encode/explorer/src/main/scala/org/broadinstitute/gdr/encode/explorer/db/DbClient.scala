@@ -379,6 +379,9 @@ object DbClient {
     FieldType.Array
   )
 
+  private val MaxDbConnections =
+    org.http4s.blaze.channel.DefaultPoolSize
+
   /**
     * Construct a DB client, wrapped in logic which will:
     *   1. Automatically spin up a connection pool on startup, and
@@ -388,18 +391,27 @@ object DbClient {
     */
   def resource(config: DbConfig)(implicit cs: ContextShift[IO]): Resource[IO, DbClient] =
     for {
-      connectionContext <- ExecutionContexts.fixedThreadPool[IO](
-        org.http4s.blaze.channel.DefaultPoolSize
-      )
+      connectionContext <- ExecutionContexts.fixedThreadPool[IO](MaxDbConnections)
       transactionContext <- ExecutionContexts.cachedThreadPool[IO]
-      transactor <- HikariTransactor.newHikariTransactor[IO](
-        config.driverClassname,
-        config.connectURL,
-        config.username,
-        config.password,
-        connectionContext,
-        transactionContext
-      )
+      // NOTE: Lines beneath here are from doobie's implementation of `HikariTransactor.newHikariTransactor`.
+      // Have to open up the guts to set the 'leakDetectionTimeoutThreshold'.
+      _ <- Resource.liftF(Async[IO].delay(Class.forName(config.driverClassname)))
+      transactor <- HikariTransactor.initial[IO](connectionContext, transactionContext)
+      _ <- Resource.liftF {
+        transactor.configure { dataSource =>
+          Async[IO].delay {
+            // Basic connection config:
+            dataSource.setJdbcUrl(config.connectURL)
+            dataSource.setUsername(config.username)
+            dataSource.setPassword(config.password)
+
+            // Turn knobs here:
+            dataSource.setReadOnly(true)
+            dataSource.setMaximumPoolSize(MaxDbConnections)
+            dataSource.setLeakDetectionThreshold(config.leakDetectionTimeout.toMillis)
+          }
+        }
+      }
     } yield {
       new DbClient(transactor)
     }
