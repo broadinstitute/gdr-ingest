@@ -1,7 +1,9 @@
 package org.broadinstitute.gdr.encode.explorer.web
 
 import cats.data.Validated.{Invalid, Valid}
+import cats.data.ValidatedNel
 import cats.effect.IO
+import cats.implicits._
 import io.circe.syntax._
 import org.broadinstitute.gdr.encode.explorer.ExplorerApp
 import org.broadinstitute.gdr.encode.explorer.export.{ExportController, ExportRequest}
@@ -20,14 +22,24 @@ class ExplorerApi(app: ExplorerApp) {
         .parseFilters(queryParam.value.split('|').toList, app.fields)
         .leftMap(_.map(err => ParseFailure(err, err)))
 
+  private val cohortPattern = "[a-zA-Z0-9\\-_]+".r
+
+  private implicit val cohortQueryDecoder: QueryParamDecoder[String] =
+    queryParam =>
+      if (cohortPattern.pattern.matcher(queryParam.value).matches()) {
+        queryParam.value.validNel
+      } else {
+        val err =
+          "Cohort name can only contain alphanumeric characters, underscores, and hyphens"
+        ParseFailure(err, err).invalidNel
+      }
+
   // Ugly as objects, but http4s has somehow designed their syntax
   // to make it not work as a val.
   private object FilterQueryDecoder
       extends OptionalValidatingQueryParamDecoderMatcher[FieldFilter.Filters]("filter")
-  // FIXME: Validate this doesn't include "bad" characters.
-  // Only alphanumeric chars, underscore, and hyphen are allowed.
   private object CohortQueryDecoder
-      extends OptionalQueryParamDecoderMatcher[String]("cohortName")
+      extends OptionalValidatingQueryParamDecoderMatcher[String]("cohortName")
 
   def routes: Http[IO, IO] =
     HttpRoutes
@@ -49,19 +61,26 @@ class ExplorerApi(app: ExplorerApp) {
         case GET -> Root / "api" / "export"
               :? FilterQueryDecoder(maybeFilters)
                 +& CohortQueryDecoder(maybeCohort) =>
-          val response = maybeFilters match {
-            case None =>
-              Ok(app.exportController.export(ExportRequest(maybeCohort, Map.empty)))
-            case Some(Invalid(errs)) =>
-              BadRequest(errs.map(_.sanitized).asJson)
-            case Some(Valid(filters)) =>
-              Ok(app.exportController.export(ExportRequest(maybeCohort, filters)))
-          }
-
-          response.handleErrorWith {
-            case e: ExportController.IllegalExportSize => BadRequest(e.getMessage)
-          }
+          handleExport(maybeFilters, maybeCohort)
       }
       .orNotFound
 
+  private def handleExport(
+    maybeFilters: Option[ValidatedNel[ParseFailure, FieldFilter.Filters]],
+    maybeCohort: Option[ValidatedNel[ParseFailure, String]]
+  ): IO[Response[IO]] = {
+    val validatedFilters = maybeFilters.getOrElse(Map.empty.validNel)
+    val validatedCohort =
+      maybeCohort.fold(Option.empty[String].validNel[ParseFailure])(_.map(Some(_)))
+
+    val response = (validatedFilters, validatedCohort).tupled match {
+      case Invalid(errs) => BadRequest(errs.map(_.sanitized).asJson)
+      case Valid((filters, cohort)) =>
+        Ok(app.exportController.export(ExportRequest(cohort, filters)))
+    }
+
+    response.handleErrorWith {
+      case e: ExportController.IllegalExportSize => BadRequest(e.getMessage)
+    }
+  }
 }
