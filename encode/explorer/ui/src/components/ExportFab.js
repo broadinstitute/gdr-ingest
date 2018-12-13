@@ -2,22 +2,17 @@
 
 import React from "react";
 import { withStyles } from "@material-ui/core/styles";
-import CloudUpload from "@material-ui/icons/CloudUpload";
 import Button from "@material-ui/core/Button";
 import Tooltip from "@material-ui/core/Tooltip";
 import TextField from "@material-ui/core/TextField";
 import Dialog from "@material-ui/core/Dialog";
 import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
+import Send from "@material-ui/icons/Send";
 
 const styles = {
-  /*exportFab: {
-    right: "10px",
-    top: "13px",
-    position: "fixed"
-  },*/
   uploadIcon: {
-    marginLeft: "5px"
+    marginLeft: "10px"
   }
 };
 
@@ -55,13 +50,13 @@ class ExportFab extends React.Component {
           color="secondary"
           onClick={this.handleClick}
         >
-          Export <CloudUpload className={classes.uploadIcon} />
+          Export <Send className={classes.uploadIcon} />
         </Button>
       );
     } else {
       button = (
         <Button variant="contained" color="secondary" disabled>
-          Export <CloudUpload className={classes.uploadIcon} />
+          Export <Send className={classes.uploadIcon} />
         </Button>
       );
     }
