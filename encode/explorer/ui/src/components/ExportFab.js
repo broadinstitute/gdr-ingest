@@ -26,6 +26,7 @@ class ExportFab extends React.Component {
 
     this.state = {
       open: false,
+      cohortName: "",
       showError: false
     };
 
@@ -37,7 +38,7 @@ class ExportFab extends React.Component {
 
   render() {
     const { classes, counts } = this.props;
-    const { open, showError } = this.state;
+    const { cohortName, open, showError } = this.state;
 
     const totalCount =
       counts === null ? NaN : counts.donor_count + counts.file_count;
@@ -111,7 +112,7 @@ class ExportFab extends React.Component {
                 id="save"
                 onClick={this.handleSave}
                 color="primary"
-                disabled={!showError}
+                disabled={showError || cohortName.length == 0}
               >
                 Send
               </Button>
