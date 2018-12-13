@@ -1,10 +1,17 @@
 import React from "react";
+import { withStyles } from "@material-ui/core/styles";
 import GridList from "@material-ui/core/GridList";
 import GridListTile from "@material-ui/core/GridListTile";
-
-import "components/facets/FacetsGrid.css";
 import FacetCard from "components/facets/FacetCard";
 import { FacetsApi } from "data_explorer_service";
+
+const styles = {
+  gridList: {
+    width: "100%",
+    height: "100%",
+    overflowY: "auto"
+  }
+};
 
 class FacetsGrid extends React.Component {
   constructor(props) {
@@ -32,7 +39,12 @@ class FacetsGrid extends React.Component {
       </GridListTile>
     ));
     return (
-      <GridList className="gridList" cols={3} cellHeight="auto" padding={1}>
+      <GridList
+        className={this.props.classes.gridList}
+        cols={3}
+        cellHeight="auto"
+        padding={1}
+      >
         {cards}
       </GridList>
     );
@@ -43,4 +55,4 @@ class FacetsGrid extends React.Component {
   }
 }
 
-export default FacetsGrid;
+export default withStyles(styles)(FacetsGrid);
