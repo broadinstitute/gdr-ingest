@@ -5,7 +5,7 @@ import "rc-slider/assets/index.css";
 
 import * as Style from "libs/style";
 import FacetList from "./FacetList";
-import FacetSlider from "./FacetSlider";
+import FacetSliderWrapper from "./FacetSliderWrapper";
 
 const styles = {
   facetCard: {
@@ -56,13 +56,14 @@ class FacetCard extends React.Component {
       const { low, high } = selectedValues || {};
 
       component = (
-        <FacetSlider
+        <FacetSliderWrapper
           name={facet.db_name}
           min={facet.min}
           max={facet.max}
           low={low}
           high={high}
           saveChange={this.saveChange}
+          selectedValues={selectedValues}
           onChange={this.onChange}
           updateFacets={updateFacets}
         />

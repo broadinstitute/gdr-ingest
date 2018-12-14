@@ -13,47 +13,44 @@ const styles = {
 class FacetSlider extends React.Component {
   constructor(props) {
     super(props);
-
     const diff = props.max - props.min;
-    this.step = Math.pow(10, Math.ceil(Math.log10(diff)) - 2);
-
-    this.effectiveMin = Math.floor(props.min / this.step) * this.step;
-    this.effectiveMax = Math.ceil(props.max / this.step) * this.step;
-    this.marks = {};
-    this.marks[this.effectiveMin] = this.effectiveMin;
-    this.marks[this.effectiveMax] = this.effectiveMax;
-
-    this.onChange = this.onChange.bind(this);
     const createSliderWithTooltip = Slider.createSliderWithTooltip;
     this.Range = createSliderWithTooltip(Range);
   }
 
   render() {
-    const { classes, low, high } = this.props;
+    const {
+      classes,
+      high,
+      low,
+      marks,
+      onChange,
+      selectedValues,
+      step
+    } = this.props;
+
+    let testlow = low;
+    let testhigh = high;
+
+    if (selectedValues && selectedValues.length === 0) {
+      testlow = this.props.effectiveMin;
+      testhigh = this.props.effectiveMax;
+    }
 
     return (
       <div className={classes.facetSlider}>
         <this.Range
-          min={this.effectiveMin}
-          max={this.effectiveMax}
-          step={this.step}
-          value={[low || this.effectiveMin, high || this.effectiveMax]}
+          min={this.props.effectiveMin}
+          max={this.props.effectiveMax}
+          step={step}
+          value={[testlow, testhigh]}
           allowCross={false}
-          onChange={this.onChange}
-          marks={this.marks}
+          onChange={this.props.onChange}
+          marks={marks}
+          className={classes.rcSlider}
         />
       </div>
     );
-  }
-
-  onChange([low, high]) {
-    const { name, updateFacets } = this.props;
-
-    if (low === this.effectiveMin && high === this.effectiveMax) {
-      updateFacets(name, null);
-    } else {
-      updateFacets(name, { low, high });
-    }
   }
 }
 
