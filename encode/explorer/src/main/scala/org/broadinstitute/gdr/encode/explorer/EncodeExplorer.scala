@@ -8,7 +8,7 @@ import org.broadinstitute.gdr.encode.explorer.export.ExportController
 import org.broadinstitute.gdr.encode.explorer.facets.FacetsController
 import org.broadinstitute.gdr.encode.explorer.web.ExplorerApi
 import org.http4s.server.blaze.BlazeServerBuilder
-import org.http4s.server.middleware.{CORS, CORSConfig, GZip, Logger}
+import org.http4s.server.middleware._
 import pureconfig.module.catseffect._
 
 import scala.concurrent.duration._
@@ -64,7 +64,7 @@ object EncodeExplorer extends IOApp {
             if (config.localEnv) {
               CORS(withLogging, corsConfig)
             } else {
-              CORS(GZip(withLogging), corsConfig)
+              HSTS(CORS(GZip(withLogging), corsConfig))
             }
           }
 
