@@ -19,11 +19,7 @@ const styles = {
     borderBottom: "2px solid silver",
     outlineWidth: "0",
     "&:focus": {
-      borderBottom: "3px solid rgb(90, 166, 218)",
-      color: "rgb(90, 166, 218)",
-      "&::placeholder": {
-        color: "rgb(90, 166, 218)"
-      }
+      borderBottom: "3px solid rgb(90, 166, 218)"
     }
   },
   facetValue: {
