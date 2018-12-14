@@ -204,7 +204,7 @@ class ExportFab extends React.Component {
       exportParams.push("cohortName=" + cohortName);
     }
 
-    let exportUrl = apiBasePath + "/export";
+    let exportUrl = apiBasePath.replace(/^http:/, "https:") + "/export";
     if (exportParams.length > 0) {
       exportUrl += "?" + exportParams.join("&");
     }
