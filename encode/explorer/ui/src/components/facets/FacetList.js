@@ -17,7 +17,10 @@ const styles = {
     fontSize: "12px",
     width: "100%",
     borderBottom: "2px solid silver",
-    outlineWidth: "0"
+    outlineWidth: "0",
+    "&:focus": {
+      borderBottom: "3px solid rgb(90, 166, 218)"
+    }
   },
   facetValue: {
     // This is a nested div, so need to specify a new grid.
