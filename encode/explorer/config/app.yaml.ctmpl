@@ -14,8 +14,9 @@ env_variables:
     -Dscala.concurrent.context.maxThreads=8
     -Dscala.concurrent.context.maxExtraThreads=0
     -Dconfig.file={{env "CONFIG_PATH"}}
-
+{{with $env := env "ENVIRONMENT"}}{{with $secrets := vault (printf "secret/dsde/gdr/encode/%s/explorer" $env)}}
 # Undocumented setting I picked up from some Google Group posts.
 # Needed to make the CLOUD_SQL_FORCE_UNIX_SOCKET work.
 beta_settings:
-  cloud_sql_instances: "{{env "POSTGRES_INSTANCE"}}"
+  cloud_sql_instances: "{{$secrets.Data.db_project}}:{{env "REGION"}}:{{$secrets.Data.db_instance}}"
+{{end}}{{end}}
