@@ -5,15 +5,21 @@ set -euo pipefail
 declare -r SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 declare -r PROJECT_ROOT=$(dirname $(dirname ${SCRIPT_DIR}))
 declare -r CONFIG_DIR=${SCRIPT_DIR}/config
+declare -r UI_DIR=${SCRIPT_DIR}/ui
 declare -r STAGING_DIR=${SCRIPT_DIR}/target/docker/stage
 declare -r RENDERED_CONFIG_PATH=opt/docker/conf/explorer.conf
 
-declare -r DB_PROJECT=broad-gdr-encode-storage
-declare -r DB_REGION=us-central1
-declare -r DB_INSTANCE=encode-metadata
-declare -r DB_NAME=postgres
+declare -rA VALID_ENVS=([dev]=1 [prod]=2)
 
-declare -r DEPLOY_PROJECT=broad-gdr-encode
+function check_usage () {
+  if [[ $# -ne 1 ]]; then
+    2>&1 echo Error: Incorrect number of arguments given, expected 1 '(environment)' but got $#
+    exit 1
+  elif [[ -z "${VALID_ENVS[$1]-}" ]]; then
+    2>&1 echo Error: Invalid environment "'$1'", valid values are: ${!VALID_ENVS[@]}
+    exit 1
+  fi
+}
 
 function stage_docker () {
   2>&1 echo "Staging Docker image..."
@@ -23,18 +29,18 @@ function stage_docker () {
 }
 
 function render_ctmpl () {
+  local -r env=$1
+
   2>&1 echo "Rendering configuration..."
   local -r input_path=/working/config/in
   local -r output_path=/working/config/out
 
-  local -A env_map
-  env_map[INPUT_PATH]=${input_path}
-  env_map[OUT_PATH]=${output_path}
-  env_map[ENVIRONMENT]=there-is-only-one-env-but-render-templates-requires-one
-  env_map[CONFIG_PATH]=/${RENDERED_CONFIG_PATH}
-  env_map[DB_NAME]=${DB_NAME}
-  env_map[POSTGRES_INSTANCE]=${DB_PROJECT}:${DB_REGION}:${DB_INSTANCE}
-  env_map[DEPLOY_PROJECT]=${DEPLOY_PROJECT}
+  local -rA env_map=(
+    [INPUT_PATH]=${input_path}
+    [OUT_PATH]=${output_path}
+    [ENVIRONMENT]=${env}
+    [CONFIG_PATH]=/${RENDERED_CONFIG_PATH}
+  )
 
   local -r ctmpl_env_file=${CONFIG_DIR}/env-vars.txt
   for key in ${!env_map[@]}; do
@@ -55,16 +61,27 @@ function render_ctmpl () {
 }
 
 function deploy_appengine () {
-  2>&1 echo "Pushing to App Engine..."
-  gcloud --project=${DEPLOY_PROJECT} app deploy --quiet ${STAGING_DIR}/app.yaml
-  2>&1 echo "Setting up routing..."
-  gcloud --project=${DEPLOY_PROJECT} app deploy --quiet ${CONFIG_DIR}/dispatch.yaml
+  local -r project=$(vault read -field=app_project secret/dsde/gdr/encode/${env}/explorer)
+
+  # Push the frontend first because it's the "default" service, and in a fresh project Google
+  # enforces the default get pushed before any other services.
+  2>&1 echo "Pushing frontend to App Engine in ${env}..."
+  gcloud --project=${project} app deploy --quiet ${UI_DIR}/app.yaml
+  2>&1 echo "Pushing backend to App Engine in ${env}..."
+  gcloud --project=${project} app deploy --quiet ${STAGING_DIR}/app.yaml
+  2>&1 echo "Setting up routing in ${env}..."
+  gcloud --project=${project} app deploy --quiet ${CONFIG_DIR}/dispatch.yaml
 }
 
 function main () {
+  check_usage ${@}
+
+  local -r env=$1
+  2>&1 echo Deploying to ${env}...
+
   stage_docker
-  render_ctmpl
-  deploy_appengine
+  render_ctmpl ${env}
+  deploy_appengine ${env}
 }
 
-main
+main ${@}

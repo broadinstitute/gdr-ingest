@@ -1,8 +1,8 @@
 org.broadinstitute.gdr.encode.explorer.local-env: false
 org.broadinstitute.gdr.encode.explorer.port: 8080
-org.broadinstitute.gdr.encode.explorer.export.base-uri: "https://{{env "DEPLOY_PROJECT"}}.appspot.com"
-{{with $db := env "DB_NAME"}}{{with $dbLogin := vault (printf "secret/dsde/gdr/encode/cloudsql/logins/%s" $db)}}
-org.broadinstitute.gdr.encode.explorer.db.username: {{$dbLogin.Data.username}}
-org.broadinstitute.gdr.encode.explorer.db.password: {{$dbLogin.Data.password}}
-org.broadinstitute.gdr.encode.explorer.db.connect-url: "jdbc:postgresql://google/{{$db}}?useSSL=false&cloudSqlInstance={{env "POSTGRES_INSTANCE"}}&socketFactory=com.google.cloud.sql.postgres.SocketFactory&user={{$dbLogin.Data.username}}&password={{$dbLogin.Data.password}}"
-{{end}}{{end}}
+{{with $env := env "ENVIRONMENT"}}{{with $secrets := vault (printf "secret/dsde/gdr/encode/%s/explorer" $env)}}{{with $user := $secrets.Data.db_username}}{{with $pwd := $secrets.Data.db_password}}
+org.broadinstitute.gdr.encode.explorer.export.base-uri: "https://{{$secrets.Data.app_project}}.appspot.com"
+org.broadinstitute.gdr.encode.explorer.db.username: {{$user}}
+org.broadinstitute.gdr.encode.explorer.db.password: {{$pwd}}
+org.broadinstitute.gdr.encode.explorer.db.connect-url: "jdbc:postgresql://google/{{$secrets.Data.db_name}}?useSSL=false&cloudSqlInstance={{$secrets.Data.db_instance_id}}&socketFactory=com.google.cloud.sql.postgres.SocketFactory&user={{$user}}&password={{$pwd}}"
+{{end}}{{end}}{{end}}{{end}}
