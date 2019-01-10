@@ -11,8 +11,6 @@ declare -r RENDERED_CONFIG_PATH=opt/docker/conf/explorer.conf
 
 declare -rA VALID_ENVS=([dev]=1 [prod]=2)
 
-declare -r GCP_REGION=us-central1
-
 function check_usage () {
   if [[ $# -ne 1 ]]; then
     2>&1 echo Error: Incorrect number of arguments given, expected 1 '(environment)' but got $#
@@ -41,7 +39,6 @@ function render_ctmpl () {
   env_map[INPUT_PATH]=${input_path}
   env_map[OUT_PATH]=${output_path}
   env_map[ENVIRONMENT]=${env}
-  env_map[REGION]=${GCP_REGION}
   env_map[CONFIG_PATH]=/${RENDERED_CONFIG_PATH}
 
   local -r ctmpl_env_file=${CONFIG_DIR}/env-vars.txt

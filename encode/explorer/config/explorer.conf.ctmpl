@@ -4,5 +4,5 @@ org.broadinstitute.gdr.encode.explorer.port: 8080
 org.broadinstitute.gdr.encode.explorer.export.base-uri: "https://{{$secrets.Data.app_project}}.appspot.com"
 org.broadinstitute.gdr.encode.explorer.db.username: {{$user}}
 org.broadinstitute.gdr.encode.explorer.db.password: {{$pwd}}
-org.broadinstitute.gdr.encode.explorer.db.connect-url: "jdbc:postgresql://google/{{$secrets.Data.db_name}}?useSSL=false&cloudSqlInstance={{$secrets.Data.db_project}}:{{env "REGION"}}:{{$secrets.Data.db_instance}}&socketFactory=com.google.cloud.sql.postgres.SocketFactory&user={{$user}}&password={{$pwd}}"
+org.broadinstitute.gdr.encode.explorer.db.connect-url: "jdbc:postgresql://google/{{$secrets.Data.db_name}}?useSSL=false&cloudSqlInstance={{$secrets.Data.db_instance_id}}&socketFactory=com.google.cloud.sql.postgres.SocketFactory&user={{$user}}&password={{$pwd}}"
 {{end}}{{end}}{{end}}{{end}}

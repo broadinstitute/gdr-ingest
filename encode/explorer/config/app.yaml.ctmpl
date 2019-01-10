@@ -18,5 +18,5 @@ env_variables:
 # Undocumented setting I picked up from some Google Group posts.
 # Needed to make the CLOUD_SQL_FORCE_UNIX_SOCKET work.
 beta_settings:
-  cloud_sql_instances: "{{$secrets.Data.db_project}}:{{env "REGION"}}:{{$secrets.Data.db_instance}}"
+  cloud_sql_instances: "{{$secrets.Data.db_instance_id}}"
 {{end}}{{end}}
