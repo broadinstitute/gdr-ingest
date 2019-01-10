@@ -35,11 +35,12 @@ function render_ctmpl () {
   local -r input_path=/working/config/in
   local -r output_path=/working/config/out
 
-  local -A env_map
-  env_map[INPUT_PATH]=${input_path}
-  env_map[OUT_PATH]=${output_path}
-  env_map[ENVIRONMENT]=${env}
-  env_map[CONFIG_PATH]=/${RENDERED_CONFIG_PATH}
+  local -rA env_map=(
+    [INPUT_PATH]=${input_path}
+    [OUT_PATH]=${output_path}
+    [ENVIRONMENT]=${env}
+    [CONFIG_PATH]=/${RENDERED_CONFIG_PATH}
+  )
 
   local -r ctmpl_env_file=${CONFIG_DIR}/env-vars.txt
   for key in ${!env_map[@]}; do
@@ -62,6 +63,8 @@ function render_ctmpl () {
 function deploy_appengine () {
   local -r project=$(vault read -field=app_project secret/dsde/gdr/encode/${env}/explorer)
 
+  # Push the frontend first because it's the "default" service, and in a fresh project Google
+  # enforces the default get pushed before any other services.
   2>&1 echo "Pushing frontend to App Engine in ${env}..."
   gcloud --project=${project} app deploy --quiet ${UI_DIR}/app.yaml
   2>&1 echo "Pushing backend to App Engine in ${env}..."
