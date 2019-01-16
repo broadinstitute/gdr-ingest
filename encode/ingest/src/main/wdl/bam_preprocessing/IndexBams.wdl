@@ -37,7 +37,7 @@ task IndexBam {
   >>>
 
   runtime {
-    docker: "quay.io/bcarlin/test:latest"
+    docker: "us.gcr.io/broad-gdr-encode/samtools-with-gsutil:1.0"
     disks: "local-disk "  + ceil((if disk_size < 1 then 1 else disk_size)) + " HDD"
     cpu: 1
     memory: "3.75 GB"

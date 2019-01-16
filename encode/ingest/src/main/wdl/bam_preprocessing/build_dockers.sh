@@ -13,8 +13,7 @@ function build_docker () {
   # get the relative path to the docker
   local -r dockerfile_path="docker/${image_tag}/Dockerfile"
   # get the images name
-  #local -r image_name="quay.io/broadinstitute/${image_tag}:${image_version}"
-  local -r image_name="quay.io/bcarlin/test:latest"
+  local -r image_name="us.gcr.io/broad-gdr-encode/${image_tag}:${image_version}"
   # get additional arguments with the "--build-arg" option
   local -a build_args=()
   for arg in $@; do
@@ -27,5 +26,5 @@ function build_docker () {
 }
 
 # build dockers (dir/tool name must be 1st arg & version name must be 2nd arg)
-build_docker index_bams INDEX_BAMS_VERSION=${INDEX_BAMS_VERSION} SAMTOOLS_VERSION=${SAMTOOLS_VERSION}
+build_docker samtools-with-gsutil INDEX_BAMS_VERSION=${INDEX_BAMS_VERSION} SAMTOOLS_VERSION=${SAMTOOLS_VERSION}
 
