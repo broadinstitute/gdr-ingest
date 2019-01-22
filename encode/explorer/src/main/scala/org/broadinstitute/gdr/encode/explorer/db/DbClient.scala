@@ -157,7 +157,6 @@ class DbClient private[db] (transactor: Transactor[IO])(implicit cs: ContextShif
       .map(KeywordFacet(field.displayName, field.encoded, _))
   }
 
-  /** Get the counts of each boolean value in a column. */
   private def boolFacet(field: FieldConfig): ConnectionIO[Facet] = Free.pure(
     KeywordFacet(
       field.displayName,
@@ -166,7 +165,7 @@ class DbClient private[db] (transactor: Transactor[IO])(implicit cs: ContextShif
     )
   )
 
-  /** Get the counts of each unique nested value in an array column. */
+  /** Get the unique values nested in an array column. */
   private def nestedFacet(field: FieldConfig): ConnectionIO[Facet] = {
     val col = Fragment.const(field.column)
     val table = Fragment.const(field.table.entryName)
@@ -180,15 +179,24 @@ class DbClient private[db] (transactor: Transactor[IO])(implicit cs: ContextShif
       .map(KeywordFacet(field.displayName, field.encoded, _))
   }
 
-  /** Get the min, max, and count of elements in a numeric column. */
+  /** Get the min and max of values in a numeric column. */
   private def rangeFacet(field: FieldConfig): ConnectionIO[Facet] = {
     val col = Fragment.const(field.column)
     val table = Fragment.const(field.table.entryName)
 
     (fr"select min(" ++ col ++ fr"), max(" ++ col ++ fr") from" ++ table ++ fr"where" ++ col ++ fr"is not null")
-      .query[(Double, Double)]
+      // Option wrappers for edge case where table is empty.
+      .query[(Option[Double], Option[Double])]
       .unique
-      .map { case (min, max) => RangeFacet(field.displayName, field.encoded, min, max) }
+      .map {
+        case (min, max) =>
+          RangeFacet(
+            field.displayName,
+            field.encoded,
+            min.getOrElse(Double.NaN),
+            max.getOrElse(Double.NaN)
+          )
+      }
   }
 
   /** Convert the `FieldFilter`s in a filter map into corresponding SQL constraints. */
