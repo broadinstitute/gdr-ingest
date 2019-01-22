@@ -379,8 +379,9 @@ object DbClient {
     FieldType.Array
   )
 
+  // Recommendation from Hikari docs: https://github.com/brettwooldridge/HikariCP/wiki/About-Pool-Sizing#the-formula
   private val MaxDbConnections =
-    org.http4s.blaze.channel.DefaultPoolSize
+    (2 * Runtime.getRuntime.availableProcessors) + 1
 
   /**
     * Construct a DB client, wrapped in logic which will:
