@@ -6,7 +6,6 @@ declare -r SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 declare -r PROJECT_ROOT=$(dirname $(dirname ${SCRIPT_DIR}))
 declare -r CONFIG_DIR=${SCRIPT_DIR}/config
 declare -r DB_DIR=${SCRIPT_DIR}/db
-declare -r UI_DIR=${SCRIPT_DIR}/ui
 declare -r STAGING_DIR=${SCRIPT_DIR}/target/docker/stage
 declare -r RENDERED_CONFIG_PATH=opt/docker/conf/explorer.conf
 
@@ -103,10 +102,6 @@ function deploy_appengine () {
   local -r env=$1
   local -r project=$(vault read -field=app_project secret/dsde/gdr/encode/${env}/explorer)
 
-  # Push the frontend first because it's the "default" service, and in a fresh project Google
-  # enforces the default get pushed before any other services.
-  2>&1 echo Pushing frontend to App Engine in ${env}...
-  gcloud --project=${project} app deploy --quiet ${UI_DIR}/app.yaml
   2>&1 echo Pushing backend to App Engine in ${env}...
   gcloud --project=${project} app deploy --quiet ${STAGING_DIR}/app.yaml
   2>&1 echo Setting up routing in ${env}...
