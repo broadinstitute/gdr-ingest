@@ -5,7 +5,13 @@ set -euo pipefail
 declare -r SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 declare -r UI_DIR=${SCRIPT_DIR}/ui
 
-declare -rA VALID_ENVS=([dev]=1 [prod]=2)
+# What we really want is to have a set of valid environment tokens
+# with a "contains" check.
+# As far as I can tell that isn't supported in bash.
+# Instead we use the valid env strings as map keys with non-empty values.
+# To check if a token is a valid env, we index into the map and assert
+# that the result is non-empty.
+declare -rA VALID_ENVS=([dev]=valid [prod]=valid)
 
 function check_usage () {
   if [[ $# -ne 1 ]]; then
