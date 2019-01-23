@@ -6,8 +6,7 @@ workflow IndexBams {
   scatter (bam_input_path in bam_input_paths) {
     call IndexBam {
     input:
-      bam_input_path = bam_input_path,
-      disk_size = size(bam_input_path, "GB") / 10
+      bam_input_path = bam_input_path
     }
   }
 
@@ -17,10 +16,6 @@ workflow IndexBams {
 }
 
 task IndexBam {
-
-  # adjust the runtime requirement disk size based off of bam input size (10 %)
-  Float disk_size
-
   # gsutil path and google bucket to output paths
   String bam_input_path
   String bam_index_output_path_name = bam_input_path + ".bai"
@@ -38,7 +33,7 @@ task IndexBam {
 
   runtime {
     docker: "us.gcr.io/broad-gdr-encode/samtools-with-gsutil:1.0"
-    disks: "local-disk "  + ceil((if disk_size < 1 then 1 else disk_size)) + " HDD"
+    disks: "local-disk 1 HDD"
     cpu: 1
     memory: "3.75 GB"
   }
