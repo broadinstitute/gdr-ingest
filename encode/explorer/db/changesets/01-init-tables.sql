@@ -1,3 +1,6 @@
+--liquibase formatted sql
+
+--changeset danmoran:01
 CREATE TABLE IF NOT EXISTS donors (
     donor_id varchar(250) PRIMARY KEY,
     age integer NULL,
@@ -6,7 +9,6 @@ CREATE TABLE IF NOT EXISTS donors (
     sex varchar(250) NULL,
     more_info varchar(250) NULL
 );
-
 CREATE INDEX IF NOT EXISTS donors_age ON donors (age);
 CREATE INDEX IF NOT EXISTS donors_age_units ON donors (age_units);
 CREATE INDEX IF NOT EXISTS donors_health_status ON donors (health_status);
@@ -46,7 +48,6 @@ CREATE TABLE IF NOT EXISTS files (
     percent_aligned_reads double precision NULL,
     percent_duplicated_reads double precision NULL
 );
-
 CREATE INDEX IF NOT EXISTS files_assay_type ON files (assay_type);
 CREATE INDEX IF NOT EXISTS files_reference_genome_assembly ON files (reference_genome_assembly);
 CREATE INDEX IF NOT EXISTS files_data_quality_category ON files (data_quality_category);
@@ -65,3 +66,5 @@ CREATE INDEX IF NOT EXISTS files_target_of_assay ON files (target_of_assay);
 CREATE INDEX IF NOT EXISTS files_read_length ON files (read_length);
 CREATE INDEX IF NOT EXISTS files_percent_aligned_reads ON files (percent_aligned_reads);
 CREATE INDEX IF NOT EXISTS files_percent_percent_duplicated_reads ON files (percent_duplicated_reads);
+--rollback drop table donors;
+--rollback drop table files;
