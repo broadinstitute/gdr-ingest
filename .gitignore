@@ -1,4 +1,5 @@
-.idea
+.idea/
+.metals/
 target/
 cache/
 application.conf

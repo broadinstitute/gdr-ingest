@@ -61,6 +61,7 @@ function render_ctmpl () {
 }
 
 function deploy_appengine () {
+  local -r env=$1
   local -r project=$(vault read -field=app_project secret/dsde/gdr/encode/${env}/explorer)
 
   # Push the frontend first because it's the "default" service, and in a fresh project Google
