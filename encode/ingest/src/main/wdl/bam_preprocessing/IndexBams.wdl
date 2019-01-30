@@ -1,7 +1,10 @@
+version 1.0
+
 workflow IndexBams {
 
-  # array of gsutil paths
-  Array[File] bam_input_paths
+  input {
+    Array[File] bam_input_paths
+  }
 
   scatter (bam_input_path in bam_input_paths) {
     call IndexBam {
@@ -16,19 +19,26 @@ workflow IndexBams {
 }
 
 task IndexBam {
-  # gsutil path and google bucket to output paths
-  String bam_input_path
+
+  input {
+    String bam_input_path
+  }
+
   String bam_index_output_path_name = bam_input_path + ".bai"
 
   # output name for index bams
   String bam_index_output_file_name = basename(bam_input_path) + ".bai"
 
   command <<<
-    # output bam index (stream with gsutil paths)
-    samtools index -b ${bam_input_path} ${bam_index_output_file_name}
+    set -euo pipefail
 
-    # copy to bucket
-    gsutil cp ${bam_index_output_file_name} ${bam_index_output_path_name}
+    # output bam index (stream with gsutil paths)
+    if ! gsutil -q stat ~{bam_index_output_path_name}; then
+      samtools index -b ~{bam_input_path} ~{bam_index_output_file_name}
+
+      # copy to bucket
+      gsutil cp ~{bam_index_output_file_name} ~{bam_index_output_path_name}
+    fi
   >>>
 
   runtime {
