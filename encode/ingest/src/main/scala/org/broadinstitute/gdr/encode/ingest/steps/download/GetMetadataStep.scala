@@ -23,7 +23,7 @@ abstract class GetMetadataStep(
       .stream[F]
       .flatMap(pullMetadata[F])
       .map(transformMetadata)
-      .to(IngestStep.writeJsonArray(blockingEc)(out))
+      .through(IngestStep.writeJsonArray(blockingEc)(out))
 
   /** Transform a downloaded entity before it is written to disk. */
   def transformMetadata(metadata: JsonObject): JsonObject = metadata

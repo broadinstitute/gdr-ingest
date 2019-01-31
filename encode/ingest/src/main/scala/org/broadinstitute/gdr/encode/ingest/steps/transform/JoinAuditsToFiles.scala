@@ -29,7 +29,7 @@ class JoinAuditsToFiles(
       .flatMap { infoTable =>
         IngestStep.readJsonArray(ec)(fileMetadata).map(joinAuditInfo(infoTable))
       }
-      .to(IngestStep.writeJsonArray(ec)(out))
+      .through(IngestStep.writeJsonArray(ec)(out))
 
   private def idsToAuditInfo[F[_]: Sync: ContextShift]: F[Map[String, AuditInfo]] =
     IngestStep.readLookupTable(ec)(auditMetadata).map { idsToAudits =>

@@ -6,7 +6,6 @@ import cats.syntax.all._
 import fs2.Stream
 import org.broadinstitute.gdr.encode.ingest.steps.IngestStep
 import org.broadinstitute.gdr.encode.ingest.steps.google.BuildStsManifest
-import org.broadinstitute.gdr.encode.ingest.steps.rawls.BuildRawlsJsons
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -43,7 +42,6 @@ class PrepareMetadata(override protected val out: File, ec: ExecutionContext)
       val filesWithUris = out / "files.with-uris.json"
 
       val stsManifest = out / "sts-manifest.tsv"
-      val rawlsOut = out / "rawls-inputs"
 
       // FIXME: Implicit dependencies between steps would be better made explict.
 
@@ -79,13 +77,6 @@ class PrepareMetadata(override protected val out: File, ec: ExecutionContext)
       val deriveUris = new DeriveActualUris(fullJoinedFilesMetadata, filesWithUris, ec)
 
       val buildManifest = new BuildStsManifest(filesWithUris, stsManifest, ec)
-      val buildRawlsJsons = new BuildRawlsJsons(
-        filesWithUris,
-        cleanedDonorsJson,
-        "broad-gdr-encode-storage",
-        rawlsOut,
-        ec
-      )
 
       import IngestStep.parallelize
 
@@ -98,7 +89,7 @@ class PrepareMetadata(override protected val out: File, ec: ExecutionContext)
         // Find actual URIs for raw files:
         _ <- deriveUris.build
         // Prep inputs to downstream:
-        _ <- parallelize(buildManifest, buildRawlsJsons)
+        _ <- buildManifest.build
       } yield {
         ()
       }

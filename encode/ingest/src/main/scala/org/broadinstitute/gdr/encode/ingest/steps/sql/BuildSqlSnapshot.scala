@@ -38,7 +38,7 @@ class BuildSqlSnapshot(
           ExportTransforms.swapFileFields(storageBucket)
         )
       )
-      .to(IngestStep.writeLines(ec)(out))
+      .through(IngestStep.writeLines(ec)(out))
 
   /**
     * Build a stream of SQL statements which will populate a DB table with

@@ -35,7 +35,7 @@ class ShapeFileMetadata(
     }.unNone
       .through(IngestStep.renameFields(FieldsToRename))
       .map(_.filterKeys(RetainedFields.contains))
-      .to(IngestStep.writeJsonArray(ec)(out))
+      .through(IngestStep.writeJsonArray(ec)(out))
 
   private def fileGraph[F[_]: Sync: ContextShift]: Stream[F, FileGraph] =
     IngestStep

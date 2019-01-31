@@ -41,14 +41,15 @@ val catsEffectVersion = "1.2.0"
 val circeVersion = "0.11.1"
 val circeDerivationVersion = "0.11.0-M1"
 val circeFs2Version = "0.11.0"
+val cloudStorageVersion = "1.61.0"
 val commonsCodecVersion = "1.11"
 val doobieVersion = "0.7.0-M2"
 val enumeratumVersion = "1.5.13"
-val fs2Version = "1.0.2"
+val fs2Version = "1.0.3"
 val http4sVersion = "0.20.0-M5"
 val logbackVersion = "1.2.3"
 val paradiseVersion = "2.1.1"
-val postgresSocketFactoryVersion = "1.0.11"
+val postgresSocketFactoryVersion = "1.0.12"
 val pureConfigVersion = "0.10.1"
 
 val commonSettings = Seq(
@@ -74,6 +75,7 @@ lazy val `encode-ingest` = project
       "co.fs2" %% "fs2-io" % fs2Version,
       "com.github.alexarchambault" %% "case-app" % caseAppVersion,
       "com.github.pathikrit" %% "better-files" % betterFilesVersion,
+      "com.google.cloud" % "google-cloud-storage" % cloudStorageVersion,
       "commons-codec" % "commons-codec" % commonsCodecVersion,
       "io.circe" %% "circe-derivation" % circeDerivationVersion,
       "io.circe" %% "circe-fs2" % circeFs2Version,

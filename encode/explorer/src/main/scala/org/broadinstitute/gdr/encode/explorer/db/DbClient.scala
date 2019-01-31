@@ -185,7 +185,7 @@ class DbClient private[db] (transactor: Transactor[IO])(implicit cs: ContextShif
     val table = Fragment.const(field.table.entryName)
 
     (fr"select min(" ++ col ++ fr"), max(" ++ col ++ fr") from" ++ table ++ fr"where" ++ col ++ fr"is not null")
-      // Option wrappers for edge case where table is empty.
+    // Option wrappers for edge case where table is empty.
       .query[(Option[Double], Option[Double])]
       .unique
       .map {

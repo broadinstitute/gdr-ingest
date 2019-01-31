@@ -63,7 +63,7 @@ class JoinReplicateMetadata(
       }
       .through(IngestStep.renameFields(FieldsToRename))
       .filter(_.contains(DonorIdField))
-      .to(IngestStep.writeJsonArray(ec)(out))
+      .through(IngestStep.writeJsonArray(ec)(out))
 
   /**
     * Extend JSON metadata by replacing a foreign-key field with a set of fields

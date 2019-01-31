@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 import better.files.File
 import cats.effect._
 import cats.implicits._
-import fs2.{Pipe, Pure, Sink, Stream}
+import fs2.{Pipe, Pure, Stream}
 import io.circe.syntax._
 import io.circe.JsonObject
 import org.broadinstitute.gdr.encode.ingest.EncodeFields
@@ -85,7 +85,7 @@ object IngestStep {
 
   def writeJsonArray[F[_]: Sync: ContextShift](
     blockingEc: ExecutionContext
-  )(out: File): Sink[F, JsonObject] = jsons => {
+  )(out: File): Pipe[F, JsonObject, Unit] = jsons => {
     val byteStream =
       jsons
         .map(_.asJson.noSpaces)
@@ -96,15 +96,15 @@ object IngestStep {
       .emit('['.toByte)
       .append(byteStream)
       .append(Stream.emit(']'.toByte))
-      .to(fs2.io.file.writeAll(out.path, blockingEc))
+      .through(fs2.io.file.writeAll(out.path, blockingEc))
   }
 
   def writeLines[F[_]: Sync: ContextShift](
     blockingEc: ExecutionContext
-  )(out: File): Sink[F, String] =
+  )(out: File): Pipe[F, String, Unit] =
     _.intersperse("\n")
       .flatMap(str => Stream.emits(str.getBytes))
-      .to(fs2.io.file.writeAll(out.path, blockingEc))
+      .through(fs2.io.file.writeAll(out.path, blockingEc))
 
   def renameFields(renameMap: Map[String, String]): Pipe[Pure, JsonObject, JsonObject] =
     _.map { obj =>

@@ -38,7 +38,7 @@ class BuildStsManifest(
     Stream
       .emit("TsvHttpData-1.0")
       .append(manifestRows)
-      .to(IngestStep.writeLines(ec)(out))
+      .through(IngestStep.writeLines(ec)(out))
   }
 
   private def buildFileRow[F[_]: Sync](metadata: JsonObject): F[String] = {

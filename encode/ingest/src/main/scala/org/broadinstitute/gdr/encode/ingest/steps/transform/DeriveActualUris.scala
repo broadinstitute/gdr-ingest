@@ -25,7 +25,7 @@ class DeriveActualUris(in: File, override protected val out: File, ec: Execution
           .readJsonArray(ec)(in)
           .mapAsyncUnordered(EncodeClient.Parallelism)(deriveUri(client))
       }
-      .to(IngestStep.writeJsonArray(ec)(out))
+      .through(IngestStep.writeJsonArray(ec)(out))
 
   private def deriveUri[F[_]: Effect](
     client: EncodeClient[F]

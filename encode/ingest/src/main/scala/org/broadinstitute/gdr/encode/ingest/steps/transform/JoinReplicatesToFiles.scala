@@ -45,7 +45,7 @@ class JoinReplicatesToFiles(
       .unNone
       .map(flattenSingletons)
       .unNone
-      .to(IngestStep.writeJsonArray(ec)(out))
+      .through(IngestStep.writeJsonArray(ec)(out))
 
   private def shouldTransfer(file: JsonObject): Boolean = {
     val keepFile = for {
