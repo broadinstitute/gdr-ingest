@@ -5,8 +5,6 @@ import cats.effect.{ConcurrentEffect, ContextShift, Timer}
 import cats.syntax.all._
 import fs2.Stream
 import org.broadinstitute.gdr.encode.ingest.steps.IngestStep
-import org.broadinstitute.gdr.encode.ingest.steps.google.BuildStsManifest
-import org.broadinstitute.gdr.encode.ingest.steps.rawls.BuildRawlsJsons
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -18,9 +16,7 @@ class PrepareMetadata(override protected val out: File, ec: ExecutionContext)
   ]: Stream[F, Unit] = {
     if (!out.isDirectory) {
       Stream.raiseError(
-        new IllegalArgumentException(
-          s"Download must be pointed at a directory, $out is not a directory"
-        )
+        new IllegalArgumentException(s"$out is not a directory")
       )
     } else {
       val rawAudits = out / "audits.json"
@@ -37,13 +33,10 @@ class PrepareMetadata(override protected val out: File, ec: ExecutionContext)
       val shapedFilesWithAudits = out / "files.shaped.with-audits.json"
 
       val joinedReplicates = out / "replicates.joined.json"
+
       val fullJoinedFilesMetadata = out / "files.joined.json"
-
       val cleanedDonorsJson = out / "donors.cleaned.json"
-      val filesWithUris = out / "files.with-uris.json"
-
       val stsManifest = out / "sts-manifest.tsv"
-      val rawlsOut = out / "rawls-inputs"
 
       // FIXME: Implicit dependencies between steps would be better made explict.
 
@@ -76,16 +69,7 @@ class PrepareMetadata(override protected val out: File, ec: ExecutionContext)
         ec
       )
 
-      val deriveUris = new DeriveActualUris(fullJoinedFilesMetadata, filesWithUris, ec)
-
-      val buildManifest = new BuildStsManifest(filesWithUris, stsManifest, ec)
-      val buildRawlsJsons = new BuildRawlsJsons(
-        filesWithUris,
-        cleanedDonorsJson,
-        "broad-gdr-encode-storage",
-        rawlsOut,
-        ec
-      )
+      val buildManifest = new BuildStsManifest(fullJoinedFilesMetadata, stsManifest, ec)
 
       import IngestStep.parallelize
 
@@ -95,10 +79,8 @@ class PrepareMetadata(override protected val out: File, ec: ExecutionContext)
         _ <- addFileAudits.build
         _ <- joinReplicatesToFiles.build
         _ <- cleanDonorMetadata.build
-        // Find actual URIs for raw files:
-        _ <- deriveUris.build
         // Prep inputs to downstream:
-        _ <- parallelize(buildManifest, buildRawlsJsons)
+        _ <- buildManifest.build
       } yield {
         ()
       }

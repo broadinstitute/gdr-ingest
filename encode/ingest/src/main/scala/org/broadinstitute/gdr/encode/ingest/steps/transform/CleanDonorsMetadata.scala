@@ -55,7 +55,7 @@ class CleanDonorsMetadata(
             )
           )
         )
-        .to(IngestStep.writeJsonArray(ec)(out))
+        .through(IngestStep.writeJsonArray(ec)(out))
     }
 
   /**

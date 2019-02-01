@@ -1,4 +1,4 @@
-package org.broadinstitute.gdr.encode.ingest.steps.download
+package org.broadinstitute.gdr.encode.ingest.steps.extract
 
 import better.files.File
 import cats.effect._
@@ -23,7 +23,7 @@ abstract class GetMetadataStep(
       .stream[F]
       .flatMap(pullMetadata[F])
       .map(transformMetadata)
-      .to(IngestStep.writeJsonArray(blockingEc)(out))
+      .through(IngestStep.writeJsonArray(blockingEc)(out))
 
   /** Transform a downloaded entity before it is written to disk. */
   def transformMetadata(metadata: JsonObject): JsonObject = metadata

@@ -1,10 +1,10 @@
-package org.broadinstitute.gdr.encode.ingest.steps.sql
+package org.broadinstitute.gdr.encode.ingest.steps.load
 
 import better.files.File
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import fs2.Stream
 import io.circe.{Json, JsonObject}
-import org.broadinstitute.gdr.encode.ingest.steps.{ExportTransforms, IngestStep}
+import org.broadinstitute.gdr.encode.ingest.steps.IngestStep
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -13,16 +13,14 @@ import scala.language.higherKinds
   * Ingest step which transforms cleaned / shaped metadata into SQL INSERT statements
   * that can be loaded into the Data Explorer API's backend.
   *
-  * @param filesMetadata path to files-with-uris output from the 'prepare-metadata' command
-  * @param donorsMetadata path to cleaned-donors output from the 'prepare-metadata' command
-  * @param storageBucket GCS bucket containing the raw data described by `filesMetadata`
+  * @param filesMetadata path to files JSON which should be loaded into the explorer
+  * @param donorsMetadata path to donors JSON which should be loaded into the explorer
   * @param out path to output file where generated SQL should be written
   * @param ec execution context which should run blocking I/O operations
   */
 class BuildSqlSnapshot(
   filesMetadata: File,
   donorsMetadata: File,
-  storageBucket: String,
   override protected val out: File,
   ec: ExecutionContext
 ) extends IngestStep {
@@ -34,11 +32,10 @@ class BuildSqlSnapshot(
       .append(
         insertStatements[F](
           filesMetadata,
-          "files",
-          ExportTransforms.swapFileFields(storageBucket)
+          "files"
         )
       )
-      .to(IngestStep.writeLines(ec)(out))
+      .through(IngestStep.writeLines(ec)(out))
 
   /**
     * Build a stream of SQL statements which will populate a DB table with
@@ -53,15 +50,13 @@ class BuildSqlSnapshot(
     */
   private def insertStatements[F[_]: Sync: ContextShift](
     metadataFile: File,
-    tableName: String,
-    transform: JsonObject => JsonObject = identity
+    tableName: String
   ): Stream[F, String] =
     Stream
       .emit(s"TRUNCATE TABLE $tableName;")
       .append(
         IngestStep
           .readJsonArray(ec)(metadataFile)
-          .map(transform)
           .map(insertStatement(tableName))
       )
 

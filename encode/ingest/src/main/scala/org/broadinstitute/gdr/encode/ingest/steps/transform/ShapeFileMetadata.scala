@@ -35,7 +35,7 @@ class ShapeFileMetadata(
     }.unNone
       .through(IngestStep.renameFields(FieldsToRename))
       .map(_.filterKeys(RetainedFields.contains))
-      .to(IngestStep.writeJsonArray(ec)(out))
+      .through(IngestStep.writeJsonArray(ec)(out))
 
   private def fileGraph[F[_]: Sync: ContextShift]: Stream[F, FileGraph] =
     IngestStep
@@ -187,18 +187,17 @@ class ShapeFileMetadata(
 object ShapeFileMetadata {
 
   val AssemblyField = "reference_genome_assembly"
+  val CloudMetadataField = "cloud_metadata"
   val DataSourceField = "data_source"
   val DateCreatedField = "date_file_created"
   val DerivedFromExperimentField = "derived_from_exp"
   val DerivedFromReferenceField = "derived_from_ref"
   val EncodeLinkField = "more_info"
   val FileFormatField = "file_format"
-  val FileHrefField = "href"
   val FileIdField = "file_id"
   val FileMd5Field = "md5sum"
   val FileSizeField = "file_size"
   val FileTypeField = "file_format_subtype"
-  val FileUnavailableField = "no_file_available"
   val OutputTypeField = "data_type"
   val PercentDupsField = "percent_duplicated_reads"
   val PercentAlignedField = "percent_aligned_reads"
@@ -219,17 +218,16 @@ object ShapeFileMetadata {
   )
 
   val RetainedFields = Set(
+    CloudMetadataField,
     DataSourceField,
     DerivedFromExperimentField,
     DerivedFromReferenceField,
     EncodeFields.EncodeIdField,
     EncodeLinkField,
-    FileHrefField,
     FileIdField,
     FileFormatField,
     FileSizeField,
     FileMd5Field,
-    FileUnavailableField,
     PercentAlignedField,
     PercentDupsField,
     ReadCountField,

@@ -1,5 +1,7 @@
 .idea/
 .metals/
+.bloop/
+
 target/
 cache/
 application.conf
