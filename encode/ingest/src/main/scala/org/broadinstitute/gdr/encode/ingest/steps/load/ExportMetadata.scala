@@ -12,7 +12,7 @@ import scala.language.higherKinds
 class ExportMetadata(
   storageBucket: String,
   override protected val out: File,
-  ec: ExecutionContext
+  blockingContext: ExecutionContext
 ) extends IngestStep {
   override protected def process[
     F[_]: ConcurrentEffect: Timer: ContextShift
@@ -33,14 +33,14 @@ class ExportMetadata(
         filesWithUris,
         storageBucket,
         cleanedFiles,
-        ec
+        blockingContext
       )
 
       val buildSql = new BuildSqlSnapshot(
         cleanedFiles,
         cleanedDonors,
         sqlOut,
-        ec
+        blockingContext
       )
 
       val run: F[Unit] = for {

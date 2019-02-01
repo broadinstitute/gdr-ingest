@@ -13,9 +13,8 @@ import scala.language.higherKinds
   * Ingest step which transforms cleaned / shaped metadata into SQL INSERT statements
   * that can be loaded into the Data Explorer API's backend.
   *
-  * @param filesMetadata path to files-with-uris output from the 'prepare-metadata' command
-  * @param donorsMetadata path to cleaned-donors output from the 'prepare-metadata' command
-  * @param storageBucket GCS bucket containing the raw data described by `filesMetadata`
+  * @param filesMetadata path to files JSON which should be loaded into the explorer
+  * @param donorsMetadata path to donors JSON which should be loaded into the explorer
   * @param out path to output file where generated SQL should be written
   * @param ec execution context which should run blocking I/O operations
   */

@@ -17,6 +17,15 @@ import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
+/**
+ * Ingest step which replaces input fields for the STS with corresponding
+ * post-transfer fields, in prep for loading into the Data Explorer.
+ *
+ * @param filesMetadata path to files JSON which was used to build an STS manifest
+ * @param storageBucket name of the GCS bucket containing transferred ENCODE files
+ * @param out path to output file where updated JSON should be written
+ * @param ec execution context which should run blocking I/O operations
+ */
 class SwapFileFields(
   filesMetadata: File,
   storageBucket: String,
@@ -39,6 +48,11 @@ class SwapFileFields(
       .through(IngestStep.writeJsonArray(ec)(out))
   }
 
+  /**
+   * Get all objects currently stored in the transfer bucket.
+   *
+   * Objects are returned without their leading 'gs://bucket' prefix.
+   */
   private def existingFiles[F[_]: Sync]: F[Set[String]] = {
     val S = Sync[F]
 
