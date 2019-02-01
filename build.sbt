@@ -42,7 +42,6 @@ val circeVersion = "0.11.1"
 val circeDerivationVersion = "0.11.0-M1"
 val circeFs2Version = "0.11.0"
 val cloudStorageVersion = "1.61.0"
-val commonsCodecVersion = "1.11"
 val doobieVersion = "0.7.0-M2"
 val enumeratumVersion = "1.5.13"
 val fs2Version = "1.0.3"
@@ -76,7 +75,6 @@ lazy val `encode-ingest` = project
       "com.github.alexarchambault" %% "case-app" % caseAppVersion,
       "com.github.pathikrit" %% "better-files" % betterFilesVersion,
       "com.google.cloud" % "google-cloud-storage" % cloudStorageVersion,
-      "commons-codec" % "commons-codec" % commonsCodecVersion,
       "io.circe" %% "circe-derivation" % circeDerivationVersion,
       "io.circe" %% "circe-fs2" % circeFs2Version,
       "io.circe" %% "circe-literal" % circeVersion,

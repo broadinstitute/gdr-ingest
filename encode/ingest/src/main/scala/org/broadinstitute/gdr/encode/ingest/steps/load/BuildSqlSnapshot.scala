@@ -1,10 +1,10 @@
-package org.broadinstitute.gdr.encode.ingest.steps.sql
+package org.broadinstitute.gdr.encode.ingest.steps.load
 
 import better.files.File
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import fs2.Stream
 import io.circe.{Json, JsonObject}
-import org.broadinstitute.gdr.encode.ingest.steps.{ExportTransforms, IngestStep}
+import org.broadinstitute.gdr.encode.ingest.steps.IngestStep
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
@@ -22,7 +22,6 @@ import scala.language.higherKinds
 class BuildSqlSnapshot(
   filesMetadata: File,
   donorsMetadata: File,
-  storageBucket: String,
   override protected val out: File,
   ec: ExecutionContext
 ) extends IngestStep {
@@ -34,8 +33,7 @@ class BuildSqlSnapshot(
       .append(
         insertStatements[F](
           filesMetadata,
-          "files",
-          ExportTransforms.swapFileFields(storageBucket)
+          "files"
         )
       )
       .through(IngestStep.writeLines(ec)(out))
@@ -53,15 +51,13 @@ class BuildSqlSnapshot(
     */
   private def insertStatements[F[_]: Sync: ContextShift](
     metadataFile: File,
-    tableName: String,
-    transform: JsonObject => JsonObject = identity
+    tableName: String
   ): Stream[F, String] =
     Stream
       .emit(s"TRUNCATE TABLE $tableName;")
       .append(
         IngestStep
           .readJsonArray(ec)(metadataFile)
-          .map(transform)
           .map(insertStatement(tableName))
       )
 

@@ -37,8 +37,6 @@ class JoinReplicatesToFiles(
               )
             } yield {
               joinedJson
-                .add(FileAvailableField, shouldTransfer(joinedJson).asJson)
-                .remove(ShapeFileMetadata.FileUnavailableField)
             }
           }
       }
@@ -46,18 +44,6 @@ class JoinReplicatesToFiles(
       .map(flattenSingletons)
       .unNone
       .through(IngestStep.writeJsonArray(ec)(out))
-
-  private def shouldTransfer(file: JsonObject): Boolean = {
-    val keepFile = for {
-      fileUnavailable <- file(ShapeFileMetadata.FileUnavailableField).flatMap(_.asBoolean)
-      format <- file(ShapeFileMetadata.FileFormatField).flatMap(_.asString)
-      typ <- file(ShapeFileMetadata.OutputTypeField).flatMap(_.asString)
-    } yield {
-      !fileUnavailable && FormatTypeWhitelist.contains(format -> typ)
-    }
-
-    keepFile.getOrElse(false)
-  }
 
   private def joinReplicates(
     replicateTable: Map[String, JsonObject]
@@ -112,14 +98,6 @@ class JoinReplicatesToFiles(
 
 object JoinReplicatesToFiles {
   import JoinReplicateMetadata._
-
-  val FormatTypeWhitelist = Set(
-    "bam" -> "alignments",
-    "bigBed" -> "peaks",
-    "bigWig" -> "fold change over control"
-  )
-
-  val FileAvailableField = "file_available_in_gcs"
 
   val FieldsToFlatten = Set(
     AssayField,

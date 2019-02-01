@@ -1,4 +1,4 @@
-package org.broadinstitute.gdr.encode.ingest.steps.download
+package org.broadinstitute.gdr.encode.ingest.steps.extract
 
 import better.files.File
 import cats.effect._
