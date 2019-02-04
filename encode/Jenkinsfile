@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'broadinstitute/scala:scala-2.12.8-sbt-1.2.7'
-            //args '-v $HOME/.sbt:/root/.sbt -v $HOME/.ivy2:/root/.ivy2 -v $HOME/.coursier:/root/.coursier'
+            args '--privileged -v $HOME/.sbt:/root/.sbt -v $HOME/.ivy2:/root/.ivy2 -v $HOME/.coursier:/root/.coursier'
         }
     }
     stages {
