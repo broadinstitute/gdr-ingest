@@ -1,10 +1,10 @@
 pipeline {
-    agent {
+    /*agent {
         docker {
             image 'broadinstitute/scala:scala-2.12.8-sbt-1.2.7'
-            args '--privileged -v $HOME/.sbt:/root/.sbt -v $HOME/.ivy2:/root/.ivy2 -v $HOME/.coursier:/root/.coursier'
+            args '-v $HOME/.sbt:/root/.sbt -v $HOME/.ivy2:/root/.ivy2 -v $HOME/.coursier:/root/.coursier'
         }
-    }
+    }*/
     stages {
         stage('Build') {
             steps {
