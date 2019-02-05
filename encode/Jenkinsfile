@@ -10,16 +10,12 @@ pipeline {
     stages {
         stage('Compile') {
             steps {
-                //ansiColor('xterm') {
-                    sh 'sbt compile'
-                //}
+                sh 'sbt compile'
             }
         }
         stage('Stage Docker') {
             steps {
-                //ansiColor('xterm') {
-                    sh 'sbt encode-explorer/docker:stage'
-                //}
+                sh 'sbt encode-explorer/docker:stage'
             }
         }
     }
