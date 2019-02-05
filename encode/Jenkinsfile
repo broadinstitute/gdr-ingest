@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        PATH = "${tool('sbt')}:\$PATH"
+        PATH = "${tool('sbt')}:$PATH"
     }
     stages {
         stage('Build') {
