@@ -6,7 +6,10 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                sh 'echo $PATH && sbt compile'
+                ansiColor('xterm') {
+                    sh 'sbt compile'
+                }
+
             }
         }
     }
