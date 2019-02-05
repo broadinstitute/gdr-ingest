@@ -4,18 +4,20 @@ pipeline {
         PATH = "${tool('sbt')}:$PATH"
     }
     stages {
-        ansiColor('xterm') {
-            stage('Compile') {
+        stage('Compile') {
+            ansiColor('xterm') {
                 steps {
                     sh 'sbt compile'
                 }
             }
-            stage('Stage Docker') {
+        }
+        stage('Stage Docker') {
+            ansiColor('xterm') {
                 steps {
                     sh 'sbt encode-explorer/docker:stage'
                 }
             }
         }
+        cleanWs()
     }
-    cleanWs()
 }
