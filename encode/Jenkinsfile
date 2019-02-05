@@ -5,15 +5,15 @@ pipeline {
     }
     stages {
         stage('Compile') {
-            ansiColor('xterm') {
-                steps {
+            steps {
+                ansiColor('xterm') {
                     sh 'sbt compile'
                 }
             }
         }
         stage('Stage Docker') {
-            ansiColor('xterm') {
-                steps {
+            steps {
+                ansiColor('xterm') {
                     sh 'sbt encode-explorer/docker:stage'
                 }
             }
