@@ -1,21 +1,25 @@
 pipeline {
     agent any
+    options {
+        timestamps()
+        ansiColor('xterm')
+    }
     environment {
         PATH = "${tool('sbt')}:$PATH"
     }
     stages {
         stage('Compile') {
             steps {
-                ansiColor('xterm') {
+                //ansiColor('xterm') {
                     sh 'sbt compile'
-                }
+                //}
             }
         }
         stage('Stage Docker') {
             steps {
-                ansiColor('xterm') {
+                //ansiColor('xterm') {
                     sh 'sbt encode-explorer/docker:stage'
-                }
+                //}
             }
         }
     }
