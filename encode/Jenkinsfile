@@ -1,0 +1,27 @@
+pipeline {
+    agent any
+    options {
+        timestamps()
+        ansiColor('xterm')
+    }
+    environment {
+        PATH = "${tool('sbt')}:$PATH"
+    }
+    stages {
+        stage('Compile') {
+            steps {
+                sh 'sbt compile'
+            }
+        }
+        stage('Stage Docker') {
+            steps {
+                sh 'sbt encode-explorer/docker:stage'
+            }
+        }
+    }
+    post {
+        cleanup {
+            cleanWs()
+        }
+    }
+}
