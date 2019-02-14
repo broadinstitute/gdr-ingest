@@ -25,7 +25,7 @@ function check_usage () {
 
 function deploy_appengine () {
   local -r env=$1
-  local -r project=$(vault read -field=app_project secret/dsde/gdr/encode/${env}/explorer)
+  local -r project=$(vault read -field=app_project secret/dsde/monster/${env}/encode/explorer)
 
   2>&1 echo Pushing frontend to App Engine in ${env}...
   gcloud --project=${project} app deploy --quiet ${UI_DIR}/app.yaml
