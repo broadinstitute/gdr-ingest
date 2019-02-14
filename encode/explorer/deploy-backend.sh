@@ -74,14 +74,14 @@ function start_proxy () {
   2>&1 echo Launching Cloud SQL proxy for DB in ${env}...
 
   local -r service_account_json=${tmp}/service-account.json
-  vault read -format=json secret/dsde/gdr/encode/${env}/cloudsql-proxy-key.json | jq .data > ${service_account_json}
+  vault read -format=json secret/dsde/monster/${env}/encode/cloudsql-proxy-key.json | jq .data > ${service_account_json}
 
   docker run -d --rm \
     --name=${name} \
     -v ${service_account_json}:/config \
     gcr.io/cloudsql-docker/gce-proxy:${CLOUDSQL_PROXY_VERSION} \
     /cloud_sql_proxy \
-    -instances=$(vault read -field=db_instance_id secret/dsde/gdr/encode/${env}/explorer)=tcp:0.0.0.0:5432 \
+    -instances=$(vault read -field=db_instance_id secret/dsde/monster/${env}/encode/explorer)=tcp:0.0.0.0:5432 \
     -credential_file=/config
 }
 
@@ -89,7 +89,7 @@ function run_liquibase () {
   local -r env=$1 db_container=$2
   2>&1 echo Running liquibase migrations...
 
-  local -r vault_path=secret/dsde/gdr/encode/${env}/explorer
+  local -r vault_path=secret/dsde/monster/${env}/encode/explorer
 
   docker run --rm \
     --link ${db_container} \
@@ -106,7 +106,7 @@ function run_liquibase () {
 
 function deploy_appengine () {
   local -r env=$1
-  local -r project=$(vault read -field=app_project secret/dsde/gdr/encode/${env}/explorer)
+  local -r project=$(vault read -field=app_project secret/dsde/monster/${env}/encode/explorer)
 
   2>&1 echo Pushing backend to App Engine in ${env}...
   gcloud --project=${project} app deploy --quiet ${STAGING_DIR}/app.yaml
