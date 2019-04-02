@@ -63,7 +63,7 @@ object IngestStep {
   ): Stream[F, JsonObject] =
     fs2.io.file
       .readAll(in.path, blockingEc, 8192)
-      .through(io.circe.fs2.byteArrayParser)
+      .through(io.circe.fs2.byteStreamParser)
       .map(_.as[JsonObject])
       .rethrow
 
@@ -85,19 +85,8 @@ object IngestStep {
 
   def writeJsonArray[F[_]: Sync: ContextShift](
     blockingEc: ExecutionContext
-  )(out: File): Pipe[F, JsonObject, Unit] = jsons => {
-    val byteStream =
-      jsons
-        .map(_.asJson.noSpaces)
-        .intersperse(",")
-        .flatMap(str => Stream.emits(str.getBytes))
-
-    Stream
-      .emit('['.toByte)
-      .append(byteStream)
-      .append(Stream.emit(']'.toByte))
-      .through(fs2.io.file.writeAll(out.path, blockingEc))
-  }
+  )(out: File): Pipe[F, JsonObject, Unit] =
+    _.map(_.asJson.noSpaces).through(writeLines[F](blockingEc)(out))
 
   def writeLines[F[_]: Sync: ContextShift](
     blockingEc: ExecutionContext

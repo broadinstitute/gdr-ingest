@@ -27,6 +27,14 @@ abstract class GetFromPreviousMetadataStep(in: File, out: File, ec: ExecutionCon
   final override def searchParams[
     F[_]: Sync: ContextShift
   ]: Stream[F, List[(String, String)]] =
+    for {
+      ids <- idParams[F]
+      defaults <- super.searchParams[F]
+    } yield {
+      defaults ::: ids
+    }
+
+  private def idParams[F[_]: Sync: ContextShift]: Stream[F, List[(String, String)]] =
     IngestStep
       .readJsonArray(blockingEc)(in)
       .map(_(refField))

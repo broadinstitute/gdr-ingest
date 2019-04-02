@@ -27,10 +27,8 @@ class DownloadMetadata(override protected val out: File, ec: ExecutionContext)
       val rawDonors = out / "donors.json"
       val rawExperiments = out / "experiments.json"
       val rawFiles = out / "files.json"
-      val rawLabs = out / "labs.json"
       val rawLibraries = out / "libraries.json"
       val rawReplicates = out / "replicates.json"
-      val rawTargets = out / "targets.json"
 
       // FIXME: Implicit dependencies between steps would be better made explict.
 
@@ -38,9 +36,7 @@ class DownloadMetadata(override protected val out: File, ec: ExecutionContext)
       val getReplicates = new GetReplicates(rawExperiments, rawReplicates, ec)
       val getFiles = new GetFiles(rawExperiments, rawFiles, ec)
       val getAudits = new GetAudits(rawFiles, rawAudits, ec)
-      val getTargets = new GetTargets(rawExperiments, rawTargets, ec)
       val getLibraries = new GetLibraries(rawReplicates, rawLibraries, ec)
-      val getLabs = new GetLabs(rawLibraries, rawLabs, ec)
       val getSamples = new GetBiosamples(rawLibraries, rawSamples, ec)
       val getDonors = new GetDonors(rawSamples, rawDonors, ec)
 
@@ -48,9 +44,9 @@ class DownloadMetadata(override protected val out: File, ec: ExecutionContext)
 
       val run: F[Unit] = for {
         _ <- getExperiments.build
-        _ <- parallelize(getReplicates, getFiles, getTargets)
+        _ <- parallelize(getReplicates, getFiles)
         _ <- parallelize(getAudits, getLibraries)
-        _ <- parallelize(getLabs, getSamples)
+        _ <- getSamples.build
         _ <- getDonors.build
       } yield {
         ()

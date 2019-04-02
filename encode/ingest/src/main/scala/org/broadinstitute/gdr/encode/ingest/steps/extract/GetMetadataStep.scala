@@ -22,11 +22,14 @@ abstract class GetMetadataStep(
     EncodeClient
       .stream[F]
       .flatMap(pullMetadata[F])
+      .filter(keepMetadata)
       .map(transformMetadata)
       .through(IngestStep.writeJsonArray(blockingEc)(out))
 
   /** Transform a downloaded entity before it is written to disk. */
   def transformMetadata(metadata: JsonObject): JsonObject = metadata
+
+  def keepMetadata(metadata: JsonObject): Boolean = metadata.nonEmpty
 
   /** String ID for the entity type this step will query. */
   def entityType: String
@@ -40,7 +43,8 @@ abstract class GetMetadataStep(
   def searchFrame: String = "object"
 
   /** Query parameters to pass in the call to the ENCODE search API. */
-  def searchParams[F[_]: Sync: ContextShift]: Stream[F, List[(String, String)]]
+  def searchParams[F[_]: Sync: ContextShift]: Stream[F, List[(String, String)]] =
+    Stream.emit(List("status" -> "released"))
 
   final private def pullMetadata[F[_]: Concurrent: ContextShift](
     client: EncodeClient[F]

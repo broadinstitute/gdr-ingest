@@ -11,9 +11,12 @@ class GetExperiments(out: File, ec: ExecutionContext) extends GetMetadataStep(ou
 
   override val entityType = "Experiment"
   override def searchParams[F[_]: Sync: ContextShift]: Stream[F, List[(String, String)]] =
-    Stream
-      .emits(GetExperiments.AssayTypesToPull)
-      .map(assay => List("assay_title" -> assay, "status" -> "released"))
+    for {
+      defaultParams <- super.searchParams[F]
+      assay <- Stream.emits(GetExperiments.AssayTypesToPull).covary[F]
+    } yield {
+      ("assay_title" -> assay) :: defaultParams
+    }
 }
 
 object GetExperiments {
